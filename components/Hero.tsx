@@ -1,19 +1,13 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, UtensilsCrossed } from 'lucide-react';
+import { ArrowRight, UtensilsCrossed, Sparkles } from 'lucide-react';
 
 interface HeroProps {
   onMenuClick: () => void;
+  onReservationClick: () => void;
 }
 
-const Hero: React.FC<HeroProps> = ({ onMenuClick }) => {
-  const scrollToSection = (id: string) => {
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
+const Hero: React.FC<HeroProps> = ({ onMenuClick, onReservationClick }) => {
   return (
     <section className="relative min-h-screen flex flex-col justify-center items-center text-center px-6 pt-20 pb-10">
       <motion.div
@@ -36,18 +30,18 @@ const Hero: React.FC<HeroProps> = ({ onMenuClick }) => {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-10">
-          {/* Button 1: Gold */}
+          {/* Button 1: Gold - Triggers Reservation Modal */}
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => scrollToSection('location')}
+            onClick={onReservationClick}
             className="w-full sm:w-auto px-8 py-4 bg-yellow-600 hover:bg-yellow-500 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(234,179,8,0.3)] transition-all flex items-center justify-center gap-2 group"
           >
-            Reserve a Spot
-            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            Special Reservation
+            <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
           </motion.button>
 
-          {/* Button 2: Purple - Now opens Menu */}
+          {/* Button 2: Purple - Opens Menu */}
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}

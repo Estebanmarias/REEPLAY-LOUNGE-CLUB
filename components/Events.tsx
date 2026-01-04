@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Music2, Moon, ArrowRight, Mic } from 'lucide-react';
 import { EventItem } from '../types';
+import RsvpModal from './RsvpModal';
 
 const events: EventItem[] = [
   {
@@ -26,6 +27,7 @@ const events: EventItem[] = [
 
 const Events: React.FC = () => {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
 
   const getEventStyle = (idx: number) => {
     if (idx === 0) return {
@@ -59,6 +61,12 @@ const Events: React.FC = () => {
 
   return (
     <section id="events" className="py-20 px-6 max-w-7xl mx-auto">
+      <RsvpModal 
+        isOpen={!!selectedEvent} 
+        onClose={() => setSelectedEvent(null)} 
+        eventName={selectedEvent || ''} 
+      />
+
       <div className="text-center mb-16">
         <h2 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 mb-4">
           Events & Nights
@@ -118,6 +126,7 @@ const Events: React.FC = () => {
                     initial={{ opacity: 0, x: 20 }}
                     animate={hoveredIdx === idx ? { opacity: 1, x: 0 } : { opacity: 0, x: 20 }}
                     transition={{ duration: 0.3 }}
+                    onClick={() => setSelectedEvent(event.title)}
                     className={`
                       flex items-center gap-2 px-4 py-2 rounded-full font-bold text-sm shadow-lg
                       ${style.btnColor}

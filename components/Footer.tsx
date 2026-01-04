@@ -1,8 +1,11 @@
 import React from 'react';
-import { MapPin, Instagram, Twitter, Ghost, ArrowUpRight } from 'lucide-react';
+import { MapPin, Instagram, Video, Ghost, ArrowUpRight, MessageCircle } from 'lucide-react';
 
 const Footer: React.FC = () => {
   const mapLink = "https://www.google.com/maps/search/?api=1&query=Reeplay+Lounge+Ogbomosho";
+  const whatsappLink = "https://wa.me/2349060621425";
+  const tiktokLink = "https://www.tiktok.com/@reeplaylounge"; // Placeholder link
+  const igLink = "https://instagram.com/reeplaylounge_ogbomoso";
 
   return (
     <footer id="location" className="relative bg-black pt-20 pb-10 px-6 border-t border-white/10">
@@ -10,7 +13,9 @@ const Footer: React.FC = () => {
         
         {/* Left: Brand & Address */}
         <div>
-          <h2 className="text-3xl font-black text-white mb-6">REEPLAY</h2>
+          <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 mb-6 tracking-tight">
+            LOCATE THE VIBE
+          </h2>
           <div className="space-y-4 text-gray-400">
             <div className="flex items-start gap-3">
               <MapPin className="w-6 h-6 text-purple-500 flex-shrink-0 mt-1" />
@@ -23,14 +28,18 @@ const Footer: React.FC = () => {
           </div>
 
           <div className="mt-8 flex gap-6">
-            <a href="#" className="p-3 bg-white/5 rounded-full hover:bg-purple-600 transition-colors text-white">
+            <a href={igLink} target="_blank" rel="noopener noreferrer" className="p-3 bg-white/5 rounded-full hover:bg-purple-600 transition-colors text-white" aria-label="Instagram">
               <Instagram className="w-5 h-5" />
             </a>
-            <a href="#" className="p-3 bg-white/5 rounded-full hover:bg-yellow-500 transition-colors text-white">
+            <a href="#" className="p-3 bg-white/5 rounded-full hover:bg-yellow-500 transition-colors text-white" aria-label="Snapchat">
               <Ghost className="w-5 h-5" />
             </a>
-            <a href="#" className="p-3 bg-white/5 rounded-full hover:bg-blue-500 transition-colors text-white">
-              <Twitter className="w-5 h-5" />
+            {/* Using Video icon for TikTok as Lucide generic set sometimes lacks brand icons */}
+            <a href={tiktokLink} target="_blank" rel="noopener noreferrer" className="p-3 bg-white/5 rounded-full hover:bg-pink-500 transition-colors text-white" aria-label="TikTok">
+              <Video className="w-5 h-5" />
+            </a>
+            <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="p-3 bg-white/5 rounded-full hover:bg-green-500 transition-colors text-white" aria-label="WhatsApp">
+              <MessageCircle className="w-5 h-5" />
             </a>
           </div>
         </div>

@@ -6,6 +6,10 @@ import Events from './components/Events';
 import Reviews from './components/Reviews';
 import Footer from './components/Footer';
 import Menu from './components/Menu';
+import EventsPage from './components/EventsPage';
+import GalleryPage from './components/GalleryPage';
+import Navbar from './components/Navbar';
+import ReservationModal from './components/ReservationModal';
 import { AnimatePresence, motion } from 'framer-motion';
 
 // Simple About Section Component localized here for simplicity as it's small
@@ -23,45 +27,89 @@ const AboutSection: React.FC = () => (
   </section>
 );
 
+type ViewState = 'home' | 'menu' | 'events' | 'gallery';
+
 const App: React.FC = () => {
-  const [view, setView] = useState<'home' | 'menu'>('home');
+  const [view, setView] = useState<ViewState>('home');
+  const [isReservationOpen, setIsReservationOpen] = useState(false);
+
+  const navigateTo = (newView: ViewState) => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setView(newView);
+  };
 
   return (
     <main className="relative min-h-screen text-white overflow-x-hidden selection:bg-purple-500 selection:text-white">
       {/* Fixed Background */}
       <BackgroundSlider />
 
+      {/* Navigation (Always visible toggle) */}
+      <Navbar 
+        onNavigate={navigateTo} 
+        currentView={view} 
+        onOpenReservation={() => setIsReservationOpen(true)}
+      />
+
+      {/* Special Reservation Modal */}
+      <ReservationModal 
+        isOpen={isReservationOpen} 
+        onClose={() => setIsReservationOpen(false)} 
+      />
+
       {/* Content Switcher */}
       <div className="relative z-10">
         <AnimatePresence mode="wait">
-          {view === 'home' ? (
+          {view === 'home' && (
             <motion.div
               key="home"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              <Hero onMenuClick={() => {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-                setView('menu');
-              }} />
+              <Hero 
+                onMenuClick={() => navigateTo('menu')} 
+                onReservationClick={() => setIsReservationOpen(true)}
+              />
               <AboutSection />
               <Experience />
               <Events />
               <Reviews />
               <Footer />
             </motion.div>
-          ) : (
+          )}
+
+          {view === 'menu' && (
             <motion.div
               key="menu"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              <Menu onBack={() => {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-                setView('home');
-              }} />
+              <Menu onBack={() => navigateTo('home')} />
+              <Footer />
+            </motion.div>
+          )}
+
+          {view === 'events' && (
+            <motion.div
+              key="events"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <EventsPage onBack={() => navigateTo('home')} />
+              <Footer />
+            </motion.div>
+          )}
+
+          {view === 'gallery' && (
+            <motion.div
+              key="gallery"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <GalleryPage onBack={() => navigateTo('home')} />
               <Footer />
             </motion.div>
           )}
