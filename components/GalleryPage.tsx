@@ -1,29 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, RefreshCw, ZoomIn, X, Camera, Loader2 } from 'lucide-react';
+import { client, urlFor } from '../lib/sanity';
 
 interface GalleryPageProps {
   onBack: () => void;
 }
 
-// Simulated API Service
-const fetchGalleryImages = async (): Promise<string[]> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve([
-        "https://images.unsplash.com/photo-1574391884720-385052ff6fb6?q=80&w=800&auto=format&fit=crop", // Buffet/Food
-        "https://images.unsplash.com/photo-1514362545857-3bc16549766b?q=80&w=800&auto=format&fit=crop", // Cocktail
-        "https://images.unsplash.com/photo-1570158268183-d296b2892211?q=80&w=800&auto=format&fit=crop", // Crowd
-        "https://images.unsplash.com/photo-1566737236500-c8ac43014a67?q=80&w=800&auto=format&fit=crop", // Lights
-        "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=800&auto=format&fit=crop", // DJ
-        "https://images.unsplash.com/photo-1550989460-0adf9ea622e2?q=80&w=800&auto=format&fit=crop", // Chill
-        "https://images.unsplash.com/photo-1598387993441-a364f854c3e1?q=80&w=800&auto=format&fit=crop", // Atmosphere
-        "https://images.unsplash.com/photo-1543007630-9710e4a00a20?q=80&w=800&auto=format&fit=crop", // Drinks
-        "https://images.unsplash.com/photo-1572116469696-31de0f17cc34?q=80&w=800&auto=format&fit=crop", // Bar
-      ]);
-    }, 1500); // 1.5s simulated network latency
-  });
-};
+// Fallback images in case Sanity is empty or fails
+const FALLBACK_IMAGES = [
+  "https://images.unsplash.com/photo-1574391884720-385052ff6fb6?q=80&w=800&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1514362545857-3bc16549766b?q=80&w=800&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1570158268183-d296b2892211?q=80&w=800&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1566737236500-c8ac43014a67?q=80&w=800&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=800&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1550989460-0adf9ea622e2?q=80&w=800&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1598387993441-a364f854c3e1?q=80&w=800&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1543007630-9710e4a00a20?q=80&w=800&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1572116469696-31de0f17cc34?q=80&w=800&auto=format&fit=crop",
+];
 
 const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
   const [images, setImages] = useState<string[]>([]);
@@ -34,12 +29,23 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
     const loadImages = async () => {
       setIsLoading(true);
       try {
-        const data = await fetchGalleryImages();
-        // Shuffle the fetched images initially
-        const shuffled = [...data].sort(() => Math.random() - 0.5);
-        setImages(shuffled);
+        // Fetch images from Sanity 'galleryImage' document type
+        const query = `*[_type == "galleryImage"] {
+          image
+        }`;
+        const data = await client.fetch(query);
+        
+        if (data && data.length > 0) {
+          // Transform Sanity image objects to URLs
+          const urls = data.map((item: any) => urlFor(item.image)?.width(800).url()).filter(Boolean);
+          // Shuffle initially
+          setImages(urls.sort(() => Math.random() - 0.5));
+        } else {
+          setImages(FALLBACK_IMAGES.sort(() => Math.random() - 0.5));
+        }
       } catch (error) {
-        console.error("Failed to load gallery images", error);
+        console.error("Failed to load gallery images from Sanity", error);
+        setImages(FALLBACK_IMAGES.sort(() => Math.random() - 0.5));
       } finally {
         setIsLoading(false);
       }
@@ -99,7 +105,7 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
             {images.map((img, idx) => (
               <motion.div
                 layout
-                key={img} // Using URL as key for simplicity
+                key={img + idx} // Unique key for shuffle animation
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
