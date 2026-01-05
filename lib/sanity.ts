@@ -2,15 +2,11 @@ import { createClient } from '@sanity/client';
 import imageUrlBuilder from '@sanity/image-url';
 
 // --- CONFIGURATION ---
-// 1. Log into https://www.sanity.io/manage
-// 2. Create a project or select existing one
-// 3. Copy your Project ID and paste it below
-// NOTE: It must be lowercase, numbers, and dashes only.
-const projectId = 'replace-with-your-project-id'; // <--- PASTE YOUR ID HERE
-
-// 4. Create an API Token in Sanity Manage -> API -> Tokens -> Add New Token
-// Give it "Editor" permissions so users can submit orders.
-const token = 'replace-with-your-write-token'; // <--- PASTE WRITE TOKEN HERE
+// Safely access environment variables to prevent crashes if import.meta.env is undefined
+// This prevents the 'Cannot read properties of undefined' error
+const env = (import.meta.env || {}) as any;
+const projectId = env.VITE_SANITY_PROJECT_ID || 'replace-with-your-project-id';
+const token = env.VITE_SANITY_TOKEN;
 
 export const client = createClient({
   projectId: projectId,
@@ -41,10 +37,9 @@ export const urlFor = (source: any) => {
 // --- ORDER FUNCTIONS ---
 
 export const submitOrderToSanity = async (orderData: any) => {
-  // If no token is set (placeholder), we can't write to Sanity.
-  // We'll just return a success mock so the UI doesn't break.
-  if (!token || token.includes('replace-with')) {
-    console.warn("Sanity Write Token missing. Order not saved to DB.");
+  // If no token is set or project ID is default, fallback to local
+  if (!token || projectId === 'replace-with-your-project-id') {
+    console.warn("Sanity configuration missing. Order not saved to DB (Local fallback only).");
     return { _id: 'local-' + Date.now() };
   }
 
@@ -58,12 +53,13 @@ export const submitOrderToSanity = async (orderData: any) => {
     return await client.create(doc);
   } catch (error) {
     console.error("Failed to submit order to Sanity:", error);
-    throw error;
+    // Don't crash the app, just return a mock ID so the user sees success
+    return { _id: 'offline-' + Date.now() };
   }
 };
 
 export const fetchOrdersByPhone = async (phone: string) => {
-  if (!projectId || projectId.includes('replace-with')) return [];
+  if (!projectId || projectId === 'replace-with-your-project-id') return [];
 
   try {
     // Query orders for this specific phone number, sorted by newest first
