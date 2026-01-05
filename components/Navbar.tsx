@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { Menu as MenuIcon, X, UtensilsCrossed, Calendar, Image as ImageIcon, Home, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const MotionDiv = motion.div as any;
+const MotionButton = motion.button as any;
+
 interface NavbarProps {
   onNavigate: (view: 'home' | 'menu' | 'events' | 'gallery') => void;
   currentView: 'home' | 'menu' | 'events' | 'gallery';
@@ -31,27 +34,27 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentView, onOpenReservat
   return (
     <>
       {/* Desktop/Mobile Toggle Button */}
-      <motion.button
+      <MotionButton
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         onClick={() => setIsOpen(!isOpen)}
         className="fixed top-6 right-6 z-50 p-3 bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white hover:bg-purple-600 transition-colors shadow-lg"
       >
         {isOpen ? <X className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
-      </motion.button>
+      </MotionButton>
 
       {/* Navigation Drawer */}
       <AnimatePresence>
         {isOpen && (
           <>
-            <motion.div
+            <MotionDiv
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsOpen(false)}
               className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40"
             />
-            <motion.div
+            <MotionDiv
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
@@ -60,7 +63,7 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentView, onOpenReservat
             >
               <div className="mt-16 space-y-6">
                 {navItems.map((item, idx) => (
-                  <motion.button
+                  <MotionButton
                     key={item.id}
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -73,11 +76,11 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentView, onOpenReservat
                   >
                     <item.icon className="w-8 h-8" />
                     {item.label}
-                  </motion.button>
+                  </MotionButton>
                 ))}
 
                 {/* Special Reservation Item */}
-                <motion.button
+                <MotionButton
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.5 }}
@@ -86,14 +89,14 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentView, onOpenReservat
                 >
                   <Star className="w-8 h-8" />
                   Book Table
-                </motion.button>
+                </MotionButton>
               </div>
 
               <div className="mt-auto text-gray-500 text-sm">
                 <p>Reeplay Lounge & Club</p>
                 <p>Ogbomosho, Oyo State</p>
               </div>
-            </motion.div>
+            </MotionDiv>
           </>
         )}
       </AnimatePresence>

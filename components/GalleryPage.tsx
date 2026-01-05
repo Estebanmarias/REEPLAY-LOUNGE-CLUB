@@ -3,21 +3,28 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, RefreshCw, ZoomIn, X, Camera, Loader2 } from 'lucide-react';
 import { client, urlFor } from '../lib/sanity';
 
+const MotionDiv = motion.div as any;
+const MotionImg = motion.img as any;
+
 interface GalleryPageProps {
   onBack: () => void;
 }
 
 // Fallback images in case Sanity is empty or fails
 const FALLBACK_IMAGES = [
-  "https://images.unsplash.com/photo-1574391884720-385052ff6fb6?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1514362545857-3bc16549766b?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1570158268183-d296b2892211?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1566737236500-c8ac43014a67?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1550989460-0adf9ea622e2?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1598387993441-a364f854c3e1?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1543007630-9710e4a00a20?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1572116469696-31de0f17cc34?q=80&w=800&auto=format&fit=crop",
+  "https://i.imgur.com/8Qe79wT.jpg",
+  "https://i.imgur.com/W2f9Rj1.jpg",
+  "https://i.imgur.com/Gz4z1cO.jpg",
+  "https://i.imgur.com/j8nQ1Wn.jpg",
+  "https://i.imgur.com/M6L5lQo.jpg",
+  "https://i.imgur.com/z2qg1oE.jpg",
+  "https://i.imgur.com/T0bH1gE.jpg",
+  "https://i.imgur.com/8JqL9wM.jpg",
+  "https://i.imgur.com/k2e8l2v.jpg",
+  "https://i.imgur.com/j8s9d2z.jpg",
+  "https://i.imgur.com/H1z2e9q.jpg",
+  "https://i.imgur.com/6rE8l1c.jpg",
+  "https://i.imgur.com/2sQ3s2d.jpg"
 ];
 
 const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
@@ -28,6 +35,14 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
   useEffect(() => {
     const loadImages = async () => {
       setIsLoading(true);
+      // Prevent network error if Project ID is not set
+      if (client.config().projectId === 'replace-with-your-project-id') {
+         console.log("Sanity Project ID not set, using fallback gallery images.");
+         setImages(FALLBACK_IMAGES.sort(() => Math.random() - 0.5));
+         setIsLoading(false);
+         return;
+      }
+
       try {
         // Fetch images from Sanity 'galleryImage' document type
         const query = `*[_type == "galleryImage"] {
@@ -65,7 +80,7 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
   };
 
   return (
-    <motion.div
+    <MotionDiv
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -100,10 +115,10 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
         </div>
       ) : (
         /* Masonry-ish Grid */
-        <motion.div layout className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <MotionDiv layout className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <AnimatePresence>
             {images.map((img, idx) => (
-              <motion.div
+              <MotionDiv
                 layout
                 key={img + idx} // Unique key for shuffle animation
                 initial={{ opacity: 0, scale: 0.8 }}
@@ -125,16 +140,16 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   <ZoomIn className="w-8 h-8 text-white" />
                 </div>
-              </motion.div>
+              </MotionDiv>
             ))}
           </AnimatePresence>
-        </motion.div>
+        </MotionDiv>
       )}
 
       {/* Lightbox Modal */}
       <AnimatePresence>
         {selectedImage && (
-          <motion.div
+          <MotionDiv
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -144,19 +159,19 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
             <button className="absolute top-6 right-6 p-2 bg-white/10 rounded-full text-white hover:bg-red-500 transition-colors">
               <X className="w-8 h-8" />
             </button>
-            <motion.img
+            <MotionImg
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               src={selectedImage}
               alt="Full view"
               className="max-w-full max-h-[90vh] rounded-lg shadow-2xl border border-white/10"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e: any) => e.stopPropagation()}
             />
-          </motion.div>
+          </MotionDiv>
         )}
       </AnimatePresence>
-    </motion.div>
+    </MotionDiv>
   );
 };
 

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Calendar, Clock, Users, PartyPopper, Heart, Briefcase, Star, MessageSquare, CheckCircle, ArrowRight } from 'lucide-react';
 
+const MotionDiv = motion.div as any;
+
 interface ReservationModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -48,7 +50,7 @@ const ReservationModal: React.FC<ReservationModalProps> = ({ isOpen, onClose }) 
       {isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           {/* Backdrop */}
-          <motion.div
+          <MotionDiv
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -57,7 +59,7 @@ const ReservationModal: React.FC<ReservationModalProps> = ({ isOpen, onClose }) 
           />
 
           {/* Modal Content */}
-          <motion.div
+          <MotionDiv
             initial={{ scale: 0.9, y: 50, opacity: 0 }}
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.9, y: 50, opacity: 0 }}
@@ -196,13 +198,13 @@ const ReservationModal: React.FC<ReservationModalProps> = ({ isOpen, onClose }) 
                 </form>
               ) : (
                 <div className="flex flex-col items-center justify-center py-10 text-center space-y-6">
-                  <motion.div
+                  <MotionDiv
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     className="w-24 h-24 bg-green-500/20 rounded-full flex items-center justify-center"
                   >
                     <CheckCircle className="w-12 h-12 text-green-500" />
-                  </motion.div>
+                  </MotionDiv>
                   
                   <div>
                     <h3 className="text-3xl font-bold text-white mb-2">Almost Done!</h3>
@@ -224,7 +226,7 @@ const ReservationModal: React.FC<ReservationModalProps> = ({ isOpen, onClose }) 
                 </div>
               )}
             </div>
-          </motion.div>
+          </MotionDiv>
         </div>
       )}
     </AnimatePresence>

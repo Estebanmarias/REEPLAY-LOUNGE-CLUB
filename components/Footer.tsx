@@ -2,9 +2,10 @@ import React from 'react';
 import { MapPin, Instagram, Video, Ghost, ArrowUpRight, MessageCircle } from 'lucide-react';
 
 const Footer: React.FC = () => {
-  const mapLink = "https://www.google.com/maps/search/?api=1&query=Reeplay+Lounge+Ogbomosho";
+  // Updated to 'dir' (directions) to immediately start navigation/route planning
+  const mapLink = "https://www.google.com/maps/dir/?api=1&destination=Triple+SK+World+Under+G+Ogbomoso";
   const whatsappLink = "https://wa.me/2349060621425";
-  const tiktokLink = "https://www.tiktok.com/@reeplaylounge"; // Placeholder link
+  const tiktokLink = "https://www.tiktok.com/@reeplaylounge"; 
   const igLink = "https://instagram.com/reeplaylounge_ogbomoso";
 
   return (

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const MotionImg = motion.img as any;
+
 const IMAGES = [
   "https://images.unsplash.com/photo-1566737236500-c8ac43014a67?q=80&w=1920&auto=format&fit=crop", // Club Lights
   "https://images.unsplash.com/photo-1572116469696-31de0f17cc34?q=80&w=1920&auto=format&fit=crop", // Bar/Drinks
@@ -21,7 +23,7 @@ const BackgroundSlider: React.FC = () => {
   return (
     <div className="fixed inset-0 w-full h-full z-0 overflow-hidden bg-black">
       <AnimatePresence mode="popLayout">
-        <motion.img
+        <MotionImg
           key={index}
           src={IMAGES[index]}
           alt="Lounge Ambience"

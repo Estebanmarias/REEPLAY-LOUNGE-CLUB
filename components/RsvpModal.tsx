@@ -2,6 +2,8 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, MessageCircle, Instagram, ExternalLink } from 'lucide-react';
 
+const MotionDiv = motion.div as any;
+
 interface RsvpModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -28,7 +30,7 @@ const RsvpModal: React.FC<RsvpModalProps> = ({ isOpen, onClose, eventName }) => 
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <motion.div
+          <MotionDiv
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -36,7 +38,7 @@ const RsvpModal: React.FC<RsvpModalProps> = ({ isOpen, onClose, eventName }) => 
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
           />
           
-          <motion.div
+          <MotionDiv
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
@@ -76,7 +78,7 @@ const RsvpModal: React.FC<RsvpModalProps> = ({ isOpen, onClose, eventName }) => 
             <p className="mt-6 text-xs text-gray-500">
               We respond instantly on both platforms.
             </p>
-          </motion.div>
+          </MotionDiv>
         </div>
       )}
     </AnimatePresence>

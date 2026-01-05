@@ -5,6 +5,9 @@ import { EventItem } from '../types';
 import RsvpModal from './RsvpModal';
 import { client } from '../lib/sanity';
 
+const MotionDiv = motion.div as any;
+const MotionButton = motion.button as any;
+
 // Fallback data in case Sanity is not connected or empty
 const FALLBACK_EVENTS: EventItem[] = [
   {
@@ -35,6 +38,14 @@ const Events: React.FC = () => {
 
   useEffect(() => {
     const fetchEvents = async () => {
+      // Prevent network error if Project ID is not set
+      if (client.config().projectId === 'replace-with-your-project-id') {
+        console.log("Sanity Project ID not set, using fallback events.");
+        setEvents(FALLBACK_EVENTS);
+        setLoading(false);
+        return;
+      }
+
       try {
         // Query for 'weeklyEvent' document type
         const query = `*[_type == "weeklyEvent"] | order(order asc) {
@@ -122,7 +133,7 @@ const Events: React.FC = () => {
             const Icon = style.Icon;
 
             return (
-              <motion.div
+              <MotionDiv
                 key={idx}
                 initial={{ opacity: 0, x: idx % 2 === 0 ? -50 : 50 }}
                 whileInView={{ opacity: 1, x: 0 }}
@@ -162,7 +173,7 @@ const Events: React.FC = () => {
                     </div>
 
                     {/* Animated RSVP Button */}
-                    <motion.button
+                    <MotionButton
                       initial={{ opacity: 0, x: 20 }}
                       animate={hoveredIdx === idx ? { opacity: 1, x: 0 } : { opacity: 0, x: 20 }}
                       transition={{ duration: 0.3 }}
@@ -173,7 +184,7 @@ const Events: React.FC = () => {
                       `}
                     >
                       RSVP <ArrowRight className="w-4 h-4" />
-                    </motion.button>
+                    </MotionButton>
                   </div>
                 </div>
                 
@@ -181,7 +192,7 @@ const Events: React.FC = () => {
                 <div className={`absolute -bottom-20 -right-20 w-48 h-48 rounded-full blur-3xl opacity-20 transition-opacity duration-500 group-hover:opacity-50
                   ${style.glowColor}
                 `} />
-              </motion.div>
+              </MotionDiv>
             );
           })}
         </div>

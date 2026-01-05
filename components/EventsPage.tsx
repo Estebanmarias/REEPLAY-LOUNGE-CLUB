@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { ArrowLeft, Calendar, Clock, MapPin, Music, Ticket, Share2, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import { ArrowLeft, Calendar, Clock, MapPin, Music, Ticket, Share2, Loader2, Check } from 'lucide-react';
 import RsvpModal from './RsvpModal';
 import { client, urlFor } from '../lib/sanity';
+
+const MotionDiv = motion.div as any;
+const MotionImg = motion.img as any;
 
 interface EventsPageProps {
   onBack: () => void;
@@ -43,6 +46,129 @@ const FALLBACK_EVENTS: SanityEvent[] = [
   }
 ];
 
+// --- Helper Functions ---
+const getImageUrl = (imageSource: any) => {
+  if (!imageSource) return "https://images.unsplash.com/photo-1545128485-c400e7702796?q=80&w=800&auto=format&fit=crop";
+  return urlFor(imageSource)?.width(800).url();
+};
+
+// --- Sub-Component: Event Card (Handles Parallax & Share) ---
+const EventCard: React.FC<{ 
+  event: SanityEvent; 
+  onReserve: (title: string) => void;
+  index: number;
+}> = ({ event, onReserve, index }) => {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [isShared, setIsShared] = useState(false);
+
+  // Parallax: Track scroll progress of this specific card
+  const { scrollYProgress } = useScroll({
+    target: cardRef,
+    offset: ["start end", "end start"]
+  });
+
+  // Transform Y position of image based on scroll (Parallax Effect)
+  // Moving from -15% to 15% creates a "slower" movement feel relative to the container
+  const y = useTransform(scrollYProgress, [0, 1], ["-15%", "15%"]);
+
+  const handleShare = async () => {
+    const shareData = {
+      title: `Reeplay Lounge: ${event.title}`,
+      text: `${event.title} happening on ${event.date} at Reeplay Lounge! ${event.description}`,
+      url: window.location.href,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        // User cancelled share
+      }
+    } else {
+      // Fallback for desktop/unsupported browsers
+      const text = `${shareData.title}\n${shareData.text}\n${shareData.url}`;
+      navigator.clipboard.writeText(text);
+      setIsShared(true);
+      setTimeout(() => setIsShared(false), 2000);
+    }
+  };
+
+  return (
+    <MotionDiv
+      ref={cardRef}
+      initial={{ opacity: 0, scale: 0.95 }}
+      whileInView={{ opacity: 1, scale: 1 }}
+      viewport={{ once: true, margin: "-50px" }}
+      transition={{ duration: 0.5, delay: index * 0.1 }}
+      className="group relative bg-[#111] border border-white/10 rounded-3xl overflow-hidden hover:border-purple-500/50 transition-colors flex flex-col h-full"
+    >
+      {/* Image Section with Parallax */}
+      <div className="h-64 overflow-hidden relative">
+        <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-transparent to-transparent z-10" />
+        
+        {/* Parallax Image */}
+        <MotionImg 
+          style={{ y, scale: 1.15 }} // Scale > 1 ensures no gaps appear during parallax movement
+          src={getImageUrl(event.image)} 
+          alt={event.title}
+          className="w-full h-full object-cover"
+        />
+        
+        <div className="absolute top-4 right-4 z-20 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border border-white/10">
+          {event.category}
+        </div>
+      </div>
+
+      {/* Content Section */}
+      <div className="p-6 md:p-8 relative z-20 -mt-10 bg-[#111] rounded-t-3xl border-t border-white/5 flex-1 flex flex-col">
+        <div className="flex justify-between items-start mb-4">
+          <h2 className="text-3xl font-bold text-white leading-tight group-hover:text-purple-400 transition-colors">
+            {event.title}
+          </h2>
+          <button 
+            onClick={handleShare}
+            className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors flex-shrink-0"
+            title="Share Event"
+          >
+            {isShared ? <Check className="w-5 h-5 text-green-500" /> : <Share2 className="w-5 h-5 text-gray-400" />}
+          </button>
+        </div>
+
+        <div className="space-y-3 mb-6">
+          <div className="flex items-center text-gray-300">
+            <Calendar className="w-5 h-5 mr-3 text-purple-500" />
+            <span className="font-medium">{event.date}</span>
+          </div>
+          <div className="flex items-center text-gray-300">
+            <Clock className="w-5 h-5 mr-3 text-yellow-500" />
+            <span>{event.time}</span>
+          </div>
+          <div className="flex items-center text-gray-300">
+            <MapPin className="w-5 h-5 mr-3 text-red-500" />
+            <span>Reeplay Lounge, Ogbomosho</span>
+          </div>
+           <div className="flex items-center text-gray-300">
+            <Ticket className="w-5 h-5 mr-3 text-green-500" />
+            <span className="uppercase text-sm font-bold tracking-wider">{event.price}</span>
+          </div>
+        </div>
+
+        <p className="text-gray-400 text-sm leading-relaxed mb-6 flex-grow">
+          {event.description}
+        </p>
+
+        <button 
+          onClick={() => onReserve(event.title)}
+          className="w-full py-4 bg-white/5 hover:bg-purple-600 text-white font-bold rounded-xl border border-white/10 hover:border-purple-500 transition-all flex items-center justify-center gap-2 group-hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] mt-auto"
+        >
+          Reserve for this Event <Music className="w-4 h-4" />
+        </button>
+      </div>
+    </MotionDiv>
+  );
+};
+
+// --- Main Page Component ---
 const EventsPage: React.FC<EventsPageProps> = ({ onBack }) => {
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
   const [events, setEvents] = useState<SanityEvent[]>([]);
@@ -52,6 +178,14 @@ const EventsPage: React.FC<EventsPageProps> = ({ onBack }) => {
   // Fetch from Sanity
   useEffect(() => {
     const fetchEvents = async () => {
+      // Prevent network error if Project ID is not set
+      if (client.config().projectId === 'replace-with-your-project-id') {
+         console.log("Sanity Project ID not set, using fallback upcoming events.");
+         setEvents(FALLBACK_EVENTS);
+         setLoading(false);
+         return;
+      }
+
       try {
         const query = `*[_type == "upcomingEvent"] | order(eventDate asc) {
           _id,
@@ -98,13 +232,8 @@ const EventsPage: React.FC<EventsPageProps> = ({ onBack }) => {
     return () => clearInterval(timer);
   }, []);
 
-  const getImageUrl = (imageSource: any) => {
-    if (!imageSource) return "https://images.unsplash.com/photo-1545128485-c400e7702796?q=80&w=800&auto=format&fit=crop";
-    return urlFor(imageSource)?.width(800).url();
-  };
-
   return (
-    <motion.div
+    <MotionDiv
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 50 }}
@@ -141,72 +270,16 @@ const EventsPage: React.FC<EventsPageProps> = ({ onBack }) => {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {events.map((event, idx) => (
-            <motion.div
-              key={event._id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: idx * 0.1 }}
-              className="group relative bg-[#111] border border-white/10 rounded-3xl overflow-hidden hover:border-purple-500/50 transition-colors"
-            >
-              {/* Image Section */}
-              <div className="h-64 overflow-hidden relative">
-                <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-transparent to-transparent z-10" />
-                <img 
-                  src={getImageUrl(event.image)} 
-                  alt={event.title}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                />
-                <div className="absolute top-4 right-4 z-20 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border border-white/10">
-                  {event.category}
-                </div>
-              </div>
-
-              {/* Content Section */}
-              <div className="p-6 md:p-8 relative z-20 -mt-10">
-                <div className="flex justify-between items-start mb-4">
-                  <h2 className="text-3xl font-bold text-white leading-tight group-hover:text-purple-400 transition-colors">
-                    {event.title}
-                  </h2>
-                  <button className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors">
-                    <Share2 className="w-5 h-5 text-gray-400" />
-                  </button>
-                </div>
-
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-center text-gray-300">
-                    <Calendar className="w-5 h-5 mr-3 text-purple-500" />
-                    <span className="font-medium">{event.date}</span>
-                  </div>
-                  <div className="flex items-center text-gray-300">
-                    <Clock className="w-5 h-5 mr-3 text-yellow-500" />
-                    <span>{event.time}</span>
-                  </div>
-                  <div className="flex items-center text-gray-300">
-                    <MapPin className="w-5 h-5 mr-3 text-red-500" />
-                    <span>Reeplay Lounge, Ogbomosho</span>
-                  </div>
-                   <div className="flex items-center text-gray-300">
-                    <Ticket className="w-5 h-5 mr-3 text-green-500" />
-                    <span className="uppercase text-sm font-bold tracking-wider">{event.price}</span>
-                  </div>
-                </div>
-
-                <p className="text-gray-400 text-sm leading-relaxed mb-6">
-                  {event.description}
-                </p>
-
-                <button 
-                  onClick={() => setSelectedEvent(event.title)}
-                  className="w-full py-4 bg-white/5 hover:bg-purple-600 text-white font-bold rounded-xl border border-white/10 hover:border-purple-500 transition-all flex items-center justify-center gap-2 group-hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]"
-                >
-                  Reserve for this Event <Music className="w-4 h-4" />
-                </button>
-              </div>
-            </motion.div>
+            <EventCard 
+              key={event._id || idx} 
+              event={event} 
+              index={idx}
+              onReserve={(title) => setSelectedEvent(title)} 
+            />
           ))}
         </div>
       )}
-    </motion.div>
+    </MotionDiv>
   );
 };
 

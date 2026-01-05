@@ -10,7 +10,10 @@ import EventsPage from './components/EventsPage';
 import GalleryPage from './components/GalleryPage';
 import Navbar from './components/Navbar';
 import ReservationModal from './components/ReservationModal';
+import ContactUs from './components/ContactUs';
 import { AnimatePresence, motion } from 'framer-motion';
+
+const MotionDiv = motion.div as any;
 
 // Simple About Section Component localized here for simplicity as it's small
 const AboutSection: React.FC = () => (
@@ -60,7 +63,7 @@ const App: React.FC = () => {
       <div className="relative z-10">
         <AnimatePresence mode="wait">
           {view === 'home' && (
-            <motion.div
+            <MotionDiv
               key="home"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -74,12 +77,13 @@ const App: React.FC = () => {
               <Experience />
               <Events />
               <Reviews />
+              <ContactUs />
               <Footer />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {view === 'menu' && (
-            <motion.div
+            <MotionDiv
               key="menu"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -87,11 +91,11 @@ const App: React.FC = () => {
             >
               <Menu onBack={() => navigateTo('home')} />
               <Footer />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {view === 'events' && (
-            <motion.div
+            <MotionDiv
               key="events"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -99,11 +103,11 @@ const App: React.FC = () => {
             >
               <EventsPage onBack={() => navigateTo('home')} />
               <Footer />
-            </motion.div>
+            </MotionDiv>
           )}
 
           {view === 'gallery' && (
-            <motion.div
+            <MotionDiv
               key="gallery"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -111,7 +115,7 @@ const App: React.FC = () => {
             >
               <GalleryPage onBack={() => navigateTo('home')} />
               <Footer />
-            </motion.div>
+            </MotionDiv>
           )}
         </AnimatePresence>
       </div>

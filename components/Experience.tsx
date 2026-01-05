@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { Clock, Crown, Wind, Zap, Speaker } from 'lucide-react';
 import { FeatureItem } from '../types';
 
+const MotionDiv = motion.div as any;
+
 const features: FeatureItem[] = [
   {
     title: "Open 24 Hours",
@@ -41,7 +43,7 @@ const Experience: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {features.map((feature, idx) => (
-          <motion.div
+          <MotionDiv
             key={idx}
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -62,7 +64,7 @@ const Experience: React.FC = () => {
             <p className="text-gray-300 leading-relaxed text-sm md:text-base">
               {feature.description}
             </p>
-          </motion.div>
+          </MotionDiv>
         ))}
       </div>
     </section>
