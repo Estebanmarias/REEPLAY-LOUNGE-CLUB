@@ -10,27 +10,55 @@ interface GalleryPageProps {
   onBack: () => void;
 }
 
-// Fallback images in case Sanity is empty or fails
+interface GalleryItem {
+  id: string;
+  url: string;
+  rotation: number;
+  spanClass: string;
+}
+
+// High-quality nightlife/club images from Unsplash
 const FALLBACK_IMAGES = [
-  "https://i.imgur.com/8Qe79wT.jpg",
-  "https://i.imgur.com/W2f9Rj1.jpg",
-  "https://i.imgur.com/Gz4z1cO.jpg",
-  "https://i.imgur.com/j8nQ1Wn.jpg",
-  "https://i.imgur.com/M6L5lQo.jpg",
-  "https://i.imgur.com/z2qg1oE.jpg",
-  "https://i.imgur.com/T0bH1gE.jpg",
-  "https://i.imgur.com/8JqL9wM.jpg",
-  "https://i.imgur.com/k2e8l2v.jpg",
-  "https://i.imgur.com/j8s9d2z.jpg",
-  "https://i.imgur.com/H1z2e9q.jpg",
-  "https://i.imgur.com/6rE8l1c.jpg",
-  "https://i.imgur.com/2sQ3s2d.jpg"
+  "https://images.unsplash.com/photo-1566737236500-c8ac43014a67?q=80&w=800&auto=format&fit=crop", // Blue lights crowd
+  "https://images.unsplash.com/photo-1571266028243-3716f02d2d2e?q=80&w=800&auto=format&fit=crop", // DJ
+  "https://images.unsplash.com/photo-1514362545857-3bc16549766b?q=80&w=800&auto=format&fit=crop", // Cocktail
+  "https://images.unsplash.com/photo-1545128485-c400e7702796?q=80&w=800&auto=format&fit=crop", // Disco ball/Lasers
+  "https://images.unsplash.com/photo-1598387993441-a364f854c3e1?q=80&w=800&auto=format&fit=crop", // Crowd hands up
+  "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=800&auto=format&fit=crop", // Dark club vibe
+  "https://images.unsplash.com/photo-1572116469696-31de0f17cc34?q=80&w=800&auto=format&fit=crop", // Bar setting
+  "https://images.unsplash.com/photo-1534237710431-e2fc698436d5?q=80&w=800&auto=format&fit=crop", // Smoky lights
+  "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=800&auto=format&fit=crop", // Event crowd
+  "https://images.unsplash.com/photo-1525268323886-28818290ce0e?q=80&w=800&auto=format&fit=crop", // Hookah smoke vibe
+  "https://images.unsplash.com/photo-1574100004472-e536d3b6b48c?q=80&w=800&auto=format&fit=crop", // Neon
+  "https://images.unsplash.com/photo-1621903649635-4672e817a586?q=80&w=800&auto=format&fit=crop"  // Bottle service
 ];
 
 const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
-  const [images, setImages] = useState<string[]>([]);
+  const [items, setItems] = useState<GalleryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  // Helper to process raw URLs into GalleryItems with random props
+  const processImages = (urls: string[]) => {
+    return urls.map((url, i) => {
+      // Random rotation between -3deg and 3deg for a subtle messy look
+      const rotation = Math.random() * 6 - 3;
+      
+      // Random grid spanning for masonry effect
+      // 20% chance to be big, 80% small
+      const isBig = Math.random() > 0.8;
+      const spanClass = isBig 
+        ? 'col-span-2 row-span-2' 
+        : 'col-span-1 row-span-1';
+
+      return {
+        id: `${url}-${i}-${Date.now()}`,
+        url,
+        rotation,
+        spanClass
+      };
+    });
+  };
 
   useEffect(() => {
     const loadImages = async () => {
@@ -38,7 +66,7 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
       // Prevent network error if Project ID is not set
       if (client.config().projectId === 'replace-with-your-project-id') {
          console.log("Sanity Project ID not set, using fallback gallery images.");
-         setImages(FALLBACK_IMAGES.sort(() => Math.random() - 0.5));
+         setItems(processImages(FALLBACK_IMAGES));
          setIsLoading(false);
          return;
       }
@@ -53,14 +81,13 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
         if (data && data.length > 0) {
           // Transform Sanity image objects to URLs
           const urls = data.map((item: any) => urlFor(item.image)?.width(800).url()).filter(Boolean);
-          // Shuffle initially
-          setImages(urls.sort(() => Math.random() - 0.5));
+          setItems(processImages(urls.length > 0 ? urls : FALLBACK_IMAGES));
         } else {
-          setImages(FALLBACK_IMAGES.sort(() => Math.random() - 0.5));
+          setItems(processImages(FALLBACK_IMAGES));
         }
       } catch (error) {
         console.error("Failed to load gallery images from Sanity", error);
-        setImages(FALLBACK_IMAGES.sort(() => Math.random() - 0.5));
+        setItems(processImages(FALLBACK_IMAGES));
       } finally {
         setIsLoading(false);
       }
@@ -69,13 +96,20 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
   }, []);
 
   const shuffleImages = () => {
-    setImages(prev => {
+    setItems(prev => {
+      // Create a shallow copy
       const shuffled = [...prev];
+      // Fisher-Yates shuffle
       for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
       }
-      return shuffled;
+      // Re-assign random rotations/spans on shuffle for dynamic effect
+      return shuffled.map(item => ({
+        ...item,
+        rotation: Math.random() * 8 - 4, // Slightly more rotation on shuffle
+        spanClass: Math.random() > 0.8 ? 'col-span-2 row-span-2' : 'col-span-1 row-span-1'
+      }));
     });
   };
 
@@ -86,8 +120,8 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
       exit={{ opacity: 0 }}
       className="min-h-screen pt-24 pb-12 px-4 md:px-8 max-w-7xl mx-auto relative z-20"
     >
-      <div className="flex justify-between items-center mb-8">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+        <div className="flex items-center gap-4 self-start md:self-auto">
           <button 
             onClick={onBack}
             className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
@@ -102,9 +136,9 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
         <button 
           onClick={shuffleImages}
           disabled={isLoading}
-          className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-purple-600 rounded-full text-sm font-bold transition-all border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-purple-600 rounded-full text-sm font-bold transition-all border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} /> Shuffle
+          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} /> Shuffle Photos
         </button>
       </div>
 
@@ -115,30 +149,36 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
         </div>
       ) : (
         /* Masonry-ish Grid */
-        <MotionDiv layout className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <MotionDiv layout className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 auto-rows-[200px]">
           <AnimatePresence>
-            {images.map((img, idx) => (
+            {items.map((item, idx) => (
               <MotionDiv
                 layout
-                key={img + idx} // Unique key for shuffle animation
+                key={item.id}
                 initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
+                animate={{ 
+                  opacity: 1, 
+                  scale: 1,
+                  rotate: item.rotation 
+                }}
                 exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ duration: 0.4 }}
+                transition={{ duration: 0.5, type: 'spring', stiffness: 100 }}
+                style={{ rotate: item.rotation }} // Apply random rotation
                 className={`
-                  relative group rounded-xl overflow-hidden cursor-pointer border border-white/10
-                  ${idx % 3 === 0 ? 'col-span-2 row-span-2' : 'col-span-1 row-span-1'}
-                  ${idx % 5 === 0 ? 'md:col-span-2' : ''}
+                  relative group rounded-xl overflow-hidden cursor-pointer border-4 border-white/5 bg-[#111] shadow-2xl
+                  ${item.spanClass}
+                  hover:z-10 hover:scale-[1.05] hover:border-purple-500/50 hover:rotate-0 transition-all duration-300
                 `}
-                onClick={() => setSelectedImage(img)}
+                onClick={() => setSelectedImage(item.url)}
               >
                 <img 
-                  src={img} 
+                  src={item.url} 
                   alt="Gallery Item" 
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                  className="w-full h-full object-cover"
+                  loading="lazy"
                 />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <ZoomIn className="w-8 h-8 text-white" />
+                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                  <ZoomIn className="w-8 h-8 text-white drop-shadow-lg" />
                 </div>
               </MotionDiv>
             ))}
@@ -156,7 +196,7 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
             onClick={() => setSelectedImage(null)}
             className="fixed inset-0 bg-black/95 z-[60] flex items-center justify-center p-4 backdrop-blur-md"
           >
-            <button className="absolute top-6 right-6 p-2 bg-white/10 rounded-full text-white hover:bg-red-500 transition-colors">
+            <button className="absolute top-6 right-6 p-2 bg-white/10 rounded-full text-white hover:bg-red-500 transition-colors z-50">
               <X className="w-8 h-8" />
             </button>
             <MotionImg
@@ -165,7 +205,7 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
               exit={{ scale: 0.9, opacity: 0 }}
               src={selectedImage}
               alt="Full view"
-              className="max-w-full max-h-[90vh] rounded-lg shadow-2xl border border-white/10"
+              className="max-w-full max-h-[85vh] rounded-lg shadow-2xl border border-white/10"
               onClick={(e: any) => e.stopPropagation()}
             />
           </MotionDiv>
