@@ -63,17 +63,17 @@ const EventCard: React.FC<{
       whileInView={{ opacity: 1, scale: 1 }}
       viewport={{ once: true, margin: "-50px" }}
       transition={{ duration: 0.6, delay: index * 0.1, ease: "easeOut" }}
-      className="group relative bg-[#111] border border-white/10 rounded-3xl overflow-hidden hover:border-purple-500/50 transition-colors flex flex-col h-full shadow-2xl"
+      className="group relative bg-black/40 backdrop-blur-md border border-white/10 rounded-3xl overflow-hidden shadow-[0_0_15px_rgba(0,0,0,0.3)] hover:border-purple-500/50 transition-colors flex flex-col h-full"
     >
       <div className="h-72 overflow-hidden relative">
-        <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-transparent to-transparent z-10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent z-10" />
         <MotionImg 
           style={{ y, scale: 1.15 }}
           src={event.image} 
           alt={event.title}
           className="w-full h-full object-cover"
         />
-        <div className="absolute top-4 right-4 z-20 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border border-white/10">
+        <div className="absolute top-4 right-4 z-20 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border border-white/10 shadow-lg">
           {event.category}
         </div>
       </div>
@@ -173,7 +173,7 @@ const EventsPage: React.FC<EventsPageProps> = ({ onBack }) => {
         </div>
       </div>
 
-      <div className="mb-12 p-6 rounded-2xl bg-gradient-to-r from-purple-900/50 to-blue-900/50 border border-white/10 flex flex-col md:flex-row items-center justify-between gap-6 backdrop-blur-md">
+      <div className="mb-12 p-6 rounded-2xl bg-gradient-to-r from-purple-900/50 to-blue-900/50 border border-white/10 flex flex-col md:flex-row items-center justify-between gap-6 backdrop-blur-md shadow-2xl">
         <div>
           <h3 className="text-xl font-bold text-white mb-1">Next Event Countdown</h3>
           <p className="text-purple-300">Don't miss the vibe check.</p>

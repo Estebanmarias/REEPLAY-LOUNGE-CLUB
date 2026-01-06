@@ -45,12 +45,12 @@ const ContactUs: React.FC = () => {
             initial={{ opacity: 0, x: -20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            className="bg-white/5 border border-white/10 p-8 rounded-3xl backdrop-blur-sm"
+            className="bg-black/40 border border-white/10 p-8 rounded-3xl backdrop-blur-md shadow-lg"
           >
             <h3 className="text-2xl font-bold text-white mb-6">Contact Info</h3>
             <div className="space-y-6">
               <div className="flex items-start gap-4">
-                <div className="p-3 bg-purple-500/20 rounded-full text-purple-400">
+                <div className="p-3 bg-purple-500/20 border border-purple-500/30 rounded-full text-purple-400">
                   <MapPin className="w-6 h-6" />
                 </div>
                 <div>
@@ -60,7 +60,7 @@ const ContactUs: React.FC = () => {
               </div>
               
               <div className="flex items-start gap-4">
-                <div className="p-3 bg-yellow-500/20 rounded-full text-yellow-400">
+                <div className="p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-full text-yellow-400">
                   <Phone className="w-6 h-6" />
                 </div>
                 <div>
@@ -70,7 +70,7 @@ const ContactUs: React.FC = () => {
               </div>
 
               <div className="flex items-start gap-4">
-                <div className="p-3 bg-pink-500/20 rounded-full text-pink-400">
+                <div className="p-3 bg-pink-500/20 border border-pink-500/30 rounded-full text-pink-400">
                   <Mail className="w-6 h-6" />
                 </div>
                 <div>
@@ -87,14 +87,14 @@ const ContactUs: React.FC = () => {
            initial={{ opacity: 0, x: 20 }}
            whileInView={{ opacity: 1, x: 0 }}
            viewport={{ once: true }}
-           className="bg-[#111] border border-white/10 p-8 rounded-3xl shadow-2xl"
+           className="bg-black/40 border border-white/10 p-8 rounded-3xl backdrop-blur-md shadow-2xl"
         >
           {status === 'success' ? (
             <div className="h-full flex flex-col items-center justify-center text-center py-10">
               <MotionDiv 
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mb-6 text-green-500"
+                className="w-20 h-20 bg-green-500/20 border border-green-500/30 rounded-full flex items-center justify-center mb-6 text-green-500"
               >
                 <CheckCircle className="w-10 h-10" />
               </MotionDiv>
@@ -112,7 +112,7 @@ const ContactUs: React.FC = () => {
                     required
                     value={formState.name}
                     onChange={handleChange}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white focus:border-purple-500 outline-none transition-colors"
+                    className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white focus:border-purple-500 outline-none transition-colors placeholder:text-gray-600"
                     placeholder="Your Name"
                   />
                 </div>
@@ -124,7 +124,7 @@ const ContactUs: React.FC = () => {
                     required
                     value={formState.email}
                     onChange={handleChange}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white focus:border-purple-500 outline-none transition-colors"
+                    className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white focus:border-purple-500 outline-none transition-colors placeholder:text-gray-600"
                     placeholder="you@example.com"
                   />
                 </div>
@@ -138,7 +138,7 @@ const ContactUs: React.FC = () => {
                   required
                   value={formState.subject}
                   onChange={handleChange}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white focus:border-purple-500 outline-none transition-colors"
+                  className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white focus:border-purple-500 outline-none transition-colors placeholder:text-gray-600"
                   placeholder="How can we help?"
                 />
               </div>
@@ -151,7 +151,7 @@ const ContactUs: React.FC = () => {
                   rows={4}
                   value={formState.message}
                   onChange={handleChange}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white focus:border-purple-500 outline-none transition-colors resize-none"
+                  className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white focus:border-purple-500 outline-none transition-colors resize-none placeholder:text-gray-600"
                   placeholder="Write your message here..."
                 />
               </div>
@@ -159,7 +159,7 @@ const ContactUs: React.FC = () => {
               <button
                 type="submit"
                 disabled={status === 'submitting'}
-                className="w-full py-4 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+                className="w-full py-4 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-all flex items-center justify-center gap-2 disabled:opacity-70 shadow-[0_0_20px_rgba(255,255,255,0.2)]"
               >
                 {status === 'submitting' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                 {status === 'submitting' ? 'Sending...' : 'Send Message'}

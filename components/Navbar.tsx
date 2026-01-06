@@ -33,17 +33,33 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentView, onOpenReservat
 
   return (
     <>
-      {/* Desktop/Mobile Toggle Button */}
+      {/* Desktop Toggle Button (Hidden on Mobile) */}
       <MotionButton
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed top-6 right-6 z-50 p-3 bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white hover:bg-purple-600 transition-colors shadow-lg"
+        className="hidden md:block fixed top-6 right-6 z-50 p-3 bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white hover:bg-purple-600 transition-colors shadow-lg"
       >
         {isOpen ? <X className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
       </MotionButton>
 
-      {/* Navigation Drawer */}
+      {/* Mobile Bottom Navigation */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-[60] bg-black/90 backdrop-blur-xl border-t border-white/10 pb-safe">
+         <div className="flex justify-around items-center h-16 px-2">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => onNavigate(item.id)}
+                className={`flex flex-col items-center justify-center gap-1 w-full h-full transition-colors ${currentView === item.id ? 'text-purple-500' : 'text-gray-400'}`}
+              >
+                <item.icon className={`w-5 h-5 ${currentView === item.id ? 'fill-purple-500/20' : ''}`} />
+                <span className="text-[10px] font-bold uppercase tracking-wide">{item.label}</span>
+              </button>
+            ))}
+         </div>
+      </div>
+
+      {/* Navigation Drawer (Desktop) */}
       <AnimatePresence>
         {isOpen && (
           <>
@@ -52,14 +68,14 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentView, onOpenReservat
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40"
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 hidden md:block"
             />
             <MotionDiv
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed top-0 right-0 h-full w-full max-w-sm bg-black border-l border-white/10 z-50 flex flex-col p-8"
+              className="fixed top-0 right-0 h-full w-full max-w-sm bg-black border-l border-white/10 z-50 flex flex-col p-8 hidden md:flex"
             >
               <div className="mt-16 space-y-6">
                 {navItems.map((item, idx) => (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star } from 'lucide-react';
+import { Star, Quote } from 'lucide-react';
 import { ReviewItem } from '../types';
 
 const reviews: ReviewItem[] = [
@@ -11,24 +11,25 @@ const reviews: ReviewItem[] = [
 
 const Reviews: React.FC = () => {
   return (
-    <section className="py-20 px-6 bg-black/30 backdrop-blur-sm">
-      <div className="max-w-5xl mx-auto">
+    <section className="py-20 px-6 bg-black/30 backdrop-blur-sm border-y border-white/5">
+      <div className="max-w-6xl mx-auto">
         <div className="flex flex-col items-center justify-center mb-12 text-center">
           <div className="flex gap-1 mb-2">
             {[1, 2, 3, 4, 5].map((s) => (
-              <Star key={s} className="w-6 h-6 text-yellow-400 fill-yellow-400" />
+              <Star key={s} className="w-6 h-6 text-yellow-400 fill-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]" />
             ))}
           </div>
           <h2 className="text-2xl font-bold text-white">Rated 5.0 Stars</h2>
-          <span className="text-gray-400 text-sm">(4 Reviews)</span>
+          <span className="text-gray-400 text-sm">(Verified Google Reviews)</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {reviews.map((review) => (
-            <div key={review.id} className="bg-white/5 border border-white/5 p-6 rounded-xl backdrop-blur-sm">
-              <p className="text-gray-200 italic mb-4">"{review.text}"</p>
-              <div className="flex items-center justify-between mt-auto">
-                <span className="font-bold text-purple-400 text-sm">- {review.user}</span>
+            <div key={review.id} className="bg-black/40 border border-white/10 p-6 rounded-2xl backdrop-blur-md shadow-lg flex flex-col relative group hover:border-purple-500/30 transition-colors">
+              <Quote className="absolute top-4 right-4 w-8 h-8 text-white/5 group-hover:text-purple-500/20 transition-colors" />
+              <p className="text-gray-200 italic mb-6 relative z-10 leading-relaxed">"{review.text}"</p>
+              <div className="mt-auto pt-4 border-t border-white/10">
+                <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400 text-sm">{review.user}</span>
               </div>
             </div>
           ))}

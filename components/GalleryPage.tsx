@@ -66,7 +66,7 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
           </h1>
         </div>
         
-        <button onClick={shuffleImages} className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-purple-600 rounded-full text-sm font-bold transition-all border border-white/10">
+        <button onClick={shuffleImages} className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-purple-600 rounded-full text-sm font-bold transition-all border border-white/10 shadow-lg">
           <RefreshCw className="w-4 h-4" /> Shuffle Vibes
         </button>
       </div>
@@ -81,7 +81,7 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
               animate={{ opacity: 1, scale: 1, rotate: item.rotation }}
               exit={{ opacity: 0, scale: 0.8 }}
               style={{ rotate: item.rotation }}
-              className={`relative group rounded-xl overflow-hidden cursor-pointer border-4 border-white/5 bg-[#111] shadow-2xl ${item.spanClass} hover:z-10 hover:scale-[1.05] hover:border-purple-500/50 hover:rotate-0 transition-all duration-300`}
+              className={`relative group rounded-xl overflow-hidden cursor-pointer bg-[#111] shadow-[0_0_15px_rgba(0,0,0,0.5)] border border-white/10 ${item.spanClass} hover:z-10 hover:scale-[1.05] hover:border-purple-500/50 hover:rotate-0 transition-all duration-300`}
               onClick={() => setSelectedImage(item.url)}
             >
               <img src={item.url} alt="Gallery" className="w-full h-full object-cover" loading="lazy" />

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import BackgroundSlider from './components/BackgroundSlider';
 import Hero from './components/Hero';
 import Experience from './components/Experience';
@@ -36,9 +36,27 @@ const App: React.FC = () => {
   const [view, setView] = useState<ViewState>('home');
   const [isReservationOpen, setIsReservationOpen] = useState(false);
 
+  // Handle Hash Changes
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (['home', 'menu', 'events', 'gallery'].includes(hash)) {
+        setView(hash as ViewState);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else if (!hash) {
+        setView('home');
+      }
+    };
+
+    // Set initial view based on hash
+    handleHashChange();
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   const navigateTo = (newView: ViewState) => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    setView(newView);
+    window.location.hash = newView;
   };
 
   return (

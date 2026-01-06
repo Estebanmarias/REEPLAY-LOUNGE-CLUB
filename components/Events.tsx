@@ -14,7 +14,8 @@ const Events: React.FC = () => {
   const getEventStyle = (idx: number) => {
     const styleIdx = idx % 3;
     if (styleIdx === 0) return {
-      borderColor: 'border-pink-500',
+      borderColor: 'border-pink-500/30',
+      hoverBorder: 'group-hover:border-pink-500',
       tagColor: 'text-pink-400',
       tagBg: 'bg-pink-500/10',
       iconColor: 'text-pink-500',
@@ -23,7 +24,8 @@ const Events: React.FC = () => {
       Icon: Music2
     };
     if (styleIdx === 1) return {
-      borderColor: 'border-yellow-500',
+      borderColor: 'border-yellow-500/30',
+      hoverBorder: 'group-hover:border-yellow-500',
       tagColor: 'text-yellow-400',
       tagBg: 'bg-yellow-500/10',
       iconColor: 'text-yellow-500',
@@ -32,7 +34,8 @@ const Events: React.FC = () => {
       Icon: Moon
     };
     return {
-      borderColor: 'border-purple-500',
+      borderColor: 'border-purple-500/30',
+      hoverBorder: 'group-hover:border-purple-500',
       tagColor: 'text-purple-400',
       tagBg: 'bg-purple-500/10',
       iconColor: 'text-purple-500',
@@ -75,10 +78,14 @@ const Events: React.FC = () => {
               whileHover={{ y: -8 }}
               onHoverStart={() => setHoveredIdx(idx)}
               onHoverEnd={() => setHoveredIdx(null)}
-              transition={{ duration: 0.5 }}
-              className="group relative overflow-hidden rounded-3xl cursor-pointer bg-white/5"
+              transition={{ duration: 0.4 }}
+              className={`
+                group relative overflow-hidden rounded-3xl cursor-pointer
+                bg-black/40 backdrop-blur-md border border-white/10 shadow-[0_0_20px_rgba(0,0,0,0.3)]
+                transition-all duration-300
+                ${style.hoverBorder}
+              `}
             >
-              <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-xl border border-white/10 transition-all duration-300 group-hover:bg-gray-800/80 group-hover:border-purple-500/30" />
               
               <div className="relative p-8 md:p-10 flex flex-col h-full z-10">
                 <div className="flex justify-between items-start mb-6">
@@ -88,7 +95,9 @@ const Events: React.FC = () => {
                   `}>
                     {event.day}
                   </span>
-                  <Icon className={`${style.iconColor} w-6 h-6`} />
+                  <div className={`p-2 rounded-full bg-white/5 border border-white/5 ${style.borderColor}`}>
+                    <Icon className={`${style.iconColor} w-6 h-6`} />
+                  </div>
                 </div>
 
                 <h3 className="text-3xl font-bold text-white mb-4 group-hover:text-purple-300 transition-colors">
@@ -119,7 +128,9 @@ const Events: React.FC = () => {
                   </MotionButton>
                 </div>
               </div>
-              <div className={`absolute -bottom-20 -right-20 w-48 h-48 rounded-full blur-3xl opacity-20 transition-opacity duration-500 group-hover:opacity-50 ${style.glowColor}`} />
+              
+              {/* Dynamic Glow Effect */}
+              <div className={`absolute -bottom-24 -right-24 w-64 h-64 rounded-full blur-[80px] opacity-20 transition-opacity duration-500 group-hover:opacity-40 ${style.glowColor}`} />
             </MotionDiv>
           );
         })}

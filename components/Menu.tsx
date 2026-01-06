@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, ArrowRight, ChevronDown, Beaker, Wand2, Instagram, MessageCircle, Copy, Info } from 'lucide-react';
+import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, ArrowRight, ChevronDown, Wand2, Instagram, MessageCircle, Info, Sparkles } from 'lucide-react';
 import { orderService, PastOrder } from '../lib/orderService';
 import MenuBackground from './MenuBackground';
 
@@ -39,7 +39,6 @@ interface ConfirmAction {
 
 // --- Constants & Data ---
 const IG_DM_LINK = "https://ig.me/m/reeplaylounge_ogbomoso"; 
-// Changed to direct number link to ensure text pre-fill works correctly
 const WHATSAPP_LINK = "https://wa.me/2349060621425";
 const VAT_RATE = 0.075; 
 const PAPER_BAG_PRICE = 1000;
@@ -102,7 +101,7 @@ const CATEGORIES = [
   { id: 'rice', label: 'Rice Specialties', icon: Utensils },
   { id: 'pasta', label: 'Pasta & Noodles', icon: Utensils },
   { id: 'sides', label: 'Sides & Bites', icon: Flame },
-  { id: 'builder', label: 'Drink Lab', icon: Beaker }, // New Builder Category
+  // Removed 'builder' from tabs to make it exclusive
   { id: 'cocktails', label: 'Cocktails & Shakes', icon: Wine },
   { id: 'bottles', label: 'Bottle Service', icon: Crown },
   { id: 'beverages', label: 'Beer & Drinks', icon: GlassWater },
@@ -248,8 +247,10 @@ const MenuItemCard: React.FC<{
       layout
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className={`relative overflow-hidden p-6 rounded-2xl border transition-all flex flex-col justify-between group backdrop-blur-md
-        ${isDark ? 'border-white/10 bg-black/40 hover:bg-black/60 hover:border-purple-500/30' : 'border-white/50 bg-white/50 hover:bg-white/80 hover:border-purple-500/30'}
+      className={`relative overflow-hidden p-6 rounded-2xl transition-all flex flex-col justify-between group
+        ${isDark 
+          ? 'bg-black/40 backdrop-blur-md border border-white/10 shadow-[0_0_15px_rgba(168,85,247,0.15)] hover:bg-black/60 hover:border-purple-500/50' 
+          : 'bg-white/50 backdrop-blur-md border border-white/50 shadow-sm hover:bg-white/80'}
       `}
     >
       <div className="flex justify-between items-start gap-4 mb-4">
@@ -505,6 +506,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
     setBuilderSpirit(null);
     setBuilderMixers([]);
     setBuilderGarnishes([]);
+    setActiveCategory('rice'); // Return to food menu
   };
 
   const toggleBuilderItem = (list: string[], setList: (l: string[]) => void, id: string) => {
@@ -667,7 +669,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
             <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
           </div>
 
-          {!searchQuery && (
+          {!searchQuery && activeCategory !== 'builder' && (
             <div className="flex overflow-x-auto gap-3 pb-2 no-scrollbar">
               {CATEGORIES.map(cat => (
                 <button 
@@ -691,11 +693,18 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
         </div>
 
         {/* --- CONTENT AREA --- */}
-        {activeCategory === 'builder' && !searchQuery ? (
+        {activeCategory === 'builder' ? (
           /* DRINK BUILDER UI */
           <div className="max-w-3xl mx-auto space-y-8 pb-24">
-            <div className={`p-6 rounded-3xl text-center border ${isDark ? 'bg-white/5 border-white/10' : 'bg-white/80 border-white'}`}>
-              <div className="inline-block p-4 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 mb-4 shadow-lg">
+             <div className="flex items-center gap-4 mb-4">
+                 <button onClick={() => setActiveCategory('rice')} className="p-2 rounded-full bg-white/10 hover:bg-white/20">
+                     <ArrowLeft className="w-5 h-5 text-white" />
+                 </button>
+                 <h2 className="text-xl font-bold text-white">Back to Food</h2>
+             </div>
+
+            <div className={`p-6 rounded-3xl text-center border ${isDark ? 'bg-black/50 backdrop-blur-md border-white/10 shadow-[0_0_20px_rgba(168,85,247,0.2)]' : 'bg-white/80 border-white'}`}>
+              <div className="inline-block p-4 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 mb-4 shadow-lg animate-pulse">
                 <Wand2 className="w-8 h-8 text-white" />
               </div>
               <h2 className={`text-3xl font-black mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>The Drink Lab</h2>
@@ -716,7 +725,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                     className={`p-4 rounded-xl border text-left transition-all relative overflow-hidden group
                       ${builderSpirit === spirit.id 
                         ? `${spirit.color} border-transparent text-white shadow-lg scale-[1.02]` 
-                        : isDark ? 'bg-white/5 border-white/10 hover:border-purple-500 text-gray-300' : 'bg-white border-gray-200 hover:border-purple-500 text-gray-700'}
+                        : isDark ? 'bg-black/40 border-white/10 hover:border-purple-500 text-gray-300' : 'bg-white border-gray-200 hover:border-purple-500 text-gray-700'}
                     `}
                   >
                     <div className="font-bold">{spirit.name}</div>
@@ -745,7 +754,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                         className={`p-3 rounded-lg border text-sm font-medium transition-all flex justify-between items-center
                           ${isSelected 
                             ? 'bg-purple-600 border-purple-500 text-white' 
-                            : isDark ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 text-gray-600'}
+                            : isDark ? 'bg-black/40 border-white/10 text-gray-400' : 'bg-white border-gray-200 text-gray-600'}
                         `}
                       >
                         <span>{mixer.name}</span>
@@ -772,7 +781,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                         className={`px-4 py-2 rounded-full border text-xs font-bold uppercase tracking-wider transition-all
                           ${isSelected 
                             ? 'bg-pink-600 border-pink-500 text-white' 
-                            : isDark ? 'bg-white/5 border-white/10 text-gray-500' : 'bg-white border-gray-200 text-gray-500'}
+                            : isDark ? 'bg-black/40 border-white/10 text-gray-500' : 'bg-white border-gray-200 text-gray-500'}
                         `}
                       >
                         {garnish.name} {garnish.price > 0 && `(+${garnish.price})`}
@@ -842,13 +851,28 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
         )}
       </AnimatePresence>
 
-      {/* Floating Cart Button (Bottom Right) */}
+      {/* Floating Action Button (FAB) for Drink Builder */}
+      {activeCategory !== 'builder' && (
+        <MotionButton
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setActiveCategory('builder')}
+            className="fixed bottom-24 right-6 z-[70] bg-gradient-to-r from-purple-600 to-pink-600 p-4 rounded-full shadow-[0_0_20px_rgba(236,72,153,0.6)] flex items-center gap-2 group overflow-hidden"
+        >
+            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+            <Wand2 className="w-6 h-6 text-white" />
+            <span className="text-white font-bold hidden group-hover:block transition-all whitespace-nowrap">Create Your Vibe</span>
+        </MotionButton>
+      )}
+
+      {/* Floating Cart Button (Bottom Right) - Shifted left slightly if FAB is present */}
       {cart.length > 0 && activeCategory !== 'builder' && (
         <MotionButton 
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           onClick={() => setIsCartOpen(true)} 
-          className="fixed bottom-8 right-8 z-[70] bg-purple-600 hover:bg-purple-500 p-4 rounded-full shadow-[0_0_30px_rgba(147,51,234,0.5)] flex items-center justify-center transition-all hover:scale-110 group"
+          className="fixed bottom-8 right-6 z-[70] bg-[#111] border border-white/20 p-4 rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-110 group"
         >
           <ShoppingBag className="w-6 h-6 text-white" />
           <span className="absolute -top-2 -right-2 bg-yellow-500 text-black text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-[#111]">

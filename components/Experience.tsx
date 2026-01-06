@@ -51,16 +51,17 @@ const Experience: React.FC = () => {
             transition={{ delay: idx * 0.1 }}
             className={`
               relative overflow-hidden p-8 rounded-2xl
-              bg-white/5 backdrop-blur-md border border-white/10
-              hover:bg-white/10 transition-colors duration-300
+              bg-black/40 backdrop-blur-md border border-white/10
+              shadow-[0_0_15px_rgba(0,0,0,0.2)]
+              hover:bg-black/60 hover:border-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.15)]
+              transition-all duration-300 group
               ${idx === 3 || idx === 4 ? 'md:col-span-1 lg:col-span-1' : ''} 
-              ${/* Center the last 2 items on large screens if desired, but 3 cols flows nicely */ ''}
             `}
           >
-            <div className="mb-6 inline-block p-4 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 shadow-lg">
+            <div className="mb-6 inline-block p-4 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 shadow-lg group-hover:scale-110 transition-transform duration-300">
               <feature.icon className="w-8 h-8 text-white" />
             </div>
-            <h3 className="text-xl font-bold text-white mb-3">{feature.title}</h3>
+            <h3 className="text-xl font-bold text-white mb-3 group-hover:text-purple-300 transition-colors">{feature.title}</h3>
             <p className="text-gray-300 leading-relaxed text-sm md:text-base">
               {feature.description}
             </p>
