@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, PartyPopper, AlertCircle, Sun, Moon, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, PartyPopper, AlertCircle, Sun, Moon, AlertTriangle, ArrowRight } from 'lucide-react';
 import { orderService, PastOrder } from '../lib/orderService';
 
 const MotionDiv = motion.div as any;
@@ -25,6 +25,7 @@ interface MenuProps {
 
 type OrderType = 'pickup' | 'delivery';
 type Theme = 'dark' | 'light';
+type CartView = 'items' | 'checkout';
 
 interface ConfirmAction {
   type: 'clear' | 'remove';
@@ -65,6 +66,8 @@ const CATEGORIES = [
   { id: 'bottles', label: 'Bottle Service', icon: Crown },
   { id: 'beverages', label: 'Beer & Drinks', icon: GlassWater },
 ];
+
+const FOOD_CATEGORIES = ['rice', 'pasta', 'sides'];
 
 const MENU_ITEMS: Record<string, Array<MenuItem>> = {
   rice: [
@@ -176,7 +179,7 @@ const formatPrice = (price: number) => "₦" + price.toLocaleString();
 const MenuItemCard: React.FC<{
   item: MenuItem;
   categoryId: string;
-  onAdd: (item: MenuItem) => void;
+  onAdd: (item: MenuItem, categoryId: string) => void;
   onOpenModal: (item: MenuItem) => void;
   theme: Theme;
 }> = ({ item, categoryId, onAdd, onOpenModal, theme }) => {
@@ -187,7 +190,7 @@ const MenuItemCard: React.FC<{
     if (['rice', 'pasta', 'sides'].includes(categoryId)) { 
       onOpenModal(item); 
     } else {
-      onAdd(item);
+      onAdd(item, categoryId);
       triggerFeedback();
     }
   };
@@ -244,7 +247,7 @@ const MenuItemCard: React.FC<{
               : isDark ? 'bg-white/10 hover:bg-purple-600 text-white' : 'bg-gray-100 hover:bg-purple-600 hover:text-white text-gray-800'}
           `}
         >
-          {['rice', 'pasta', 'sides'].includes(categoryId) ? (
+          {FOOD_CATEGORIES.includes(categoryId) ? (
             <>Customize <ChevronRight className="w-4 h-4" /></>
           ) : (
             isAdded ? <><CheckCircle className="w-4 h-4" /> Added</> : "Add to Order"
@@ -268,6 +271,7 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
   
   // Modal States
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [cartView, setCartView] = useState<CartView>('items'); // 'items' or 'checkout'
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [isMealModalOpen, setIsMealModalOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -296,6 +300,13 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
     setCustomerPhone(localStorage.getItem('reeplay_user_phone') || '');
   }, []);
 
+  // Reset cart view when opening/closing
+  useEffect(() => {
+    if (!isCartOpen) {
+      setCartView('items');
+    }
+  }, [isCartOpen]);
+
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
@@ -312,7 +323,7 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
   }, [activeCategory, searchQuery]);
 
   // Cart Logic
-  const addToCart = (item: MenuItem, quantity: number = 1, mods: string[] = [], customPrice?: number) => {
+  const addToCart = (item: MenuItem, category: string, quantity: number = 1, mods: string[] = [], customPrice?: number) => {
     setCart(prev => {
       let newCart = [...prev];
       const basePrice = parsePrice(item.price);
@@ -327,6 +338,22 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
         newCart.push({ ...item, priceRaw: unitPrice, quantity, modifiers: mods });
       }
       
+      // Auto-add Container if it's a food item and not already in a weird state
+      if (FOOD_CATEGORIES.includes(category)) {
+        // Find if container exists
+        const containerIndex = newCart.findIndex(i => i.name === EXTRAS.container.name);
+        if (containerIndex > -1) {
+            newCart[containerIndex].quantity += quantity;
+        } else {
+            newCart.push({ 
+                ...EXTRAS.container, 
+                priceRaw: parsePrice(EXTRAS.container.price), 
+                quantity: quantity, 
+                desc: "Required for meal" 
+            });
+        }
+      }
+
       // Auto-add Bag charge if not present for orders
       if (!newCart.find(i => i.name === EXTRAS.bag.name)) {
         newCart.push({ ...EXTRAS.bag, priceRaw: parsePrice(EXTRAS.bag.price), quantity: 1, desc: "Required for takeout" });
@@ -347,7 +374,8 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
         modifiersList.push(addon.name);
       }
     });
-    addToCart(selectedMealItem, 1, modifiersList, totalPrice);
+    // activeCategory is available here
+    addToCart(selectedMealItem, activeCategory, 1, modifiersList, totalPrice);
     setIsMealModalOpen(false);
     setSelectedAddOns([]);
     setSelectedMealItem(null);
@@ -479,7 +507,7 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
       )}
 
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-8 relative z-30">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className={`p-2 rounded-full transition-colors ${isDark ? 'bg-white/10 hover:bg-purple-600' : 'bg-gray-200 hover:bg-purple-600 hover:text-white'}`}>
             <ArrowLeft />
@@ -493,15 +521,16 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
           </button>
         </div>
         <div className="flex items-center gap-4">
-            <div className="text-right">
+            <div className="text-right hidden sm:block">
                 <h2 className="text-xl font-bold">Menu</h2>
                 <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Order for Pickup or Delivery</p>
             </div>
             <button 
                 onClick={toggleTheme}
-                className={`p-2 rounded-full transition-colors ${isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-gray-200 hover:bg-gray-300'}`}
+                className={`p-3 rounded-full transition-all shadow-md ${isDark ? 'bg-white/10 hover:bg-white/20 text-yellow-400' : 'bg-white hover:bg-gray-100 text-purple-600 border border-gray-200'}`}
+                title="Toggle Theme"
             >
-                {isDark ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-purple-600" />}
+                {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
         </div>
       </div>
@@ -696,10 +725,20 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
               initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
               className={`fixed top-0 right-0 h-full w-full max-w-md z-[101] flex flex-col shadow-2xl border-l ${isDark ? 'bg-[#121212] border-white/10' : 'bg-white border-gray-200'}`}
             >
+              {/* Cart Header */}
               <div className={`p-6 border-b flex justify-between items-center ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
-                <h2 className={`text-xl font-black uppercase tracking-wider ${isDark ? 'text-white' : 'text-gray-900'}`}>Your Order</h2>
                 <div className="flex items-center gap-3">
-                    {cart.length > 0 && (
+                    {cartView === 'checkout' && (
+                        <button onClick={() => setCartView('items')} className={`p-2 rounded-full -ml-2 ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-200'}`}>
+                            <ArrowLeft className="w-5 h-5" />
+                        </button>
+                    )}
+                    <h2 className={`text-xl font-black uppercase tracking-wider ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {cartView === 'items' ? 'Your Order' : 'Checkout'}
+                    </h2>
+                </div>
+                <div className="flex items-center gap-3">
+                    {cart.length > 0 && cartView === 'items' && (
                         <button 
                             onClick={() => setConfirmAction({ type: 'clear' })}
                             className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-red-400 bg-red-400/10 rounded-full border border-red-400/20 hover:bg-red-400/20 transition-colors"
@@ -713,94 +752,126 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                {cart.length === 0 ? (
-                  <div className={`h-full flex flex-col items-center justify-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                    <ShoppingBag className="w-12 h-12 mb-4 opacity-20" />
-                    <p>Your cart is empty.</p>
-                  </div>
-                ) : (
-                  cart.map((item, idx) => (
-                    <div key={idx} className={`p-4 rounded-xl border ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-200'}`}>
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <p className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{item.name}</p>
-                          {item.modifiers && item.modifiers.length > 0 && (
-                            <p className="text-xs text-gray-500 mt-1">+ {item.modifiers.join(', ')}</p>
-                          )}
+              {/* View 1: ITEMS LIST */}
+              {cartView === 'items' && (
+                  <>
+                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                        {cart.length === 0 ? (
+                        <div className={`h-full flex flex-col items-center justify-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                            <ShoppingBag className="w-12 h-12 mb-4 opacity-20" />
+                            <p>Your cart is empty.</p>
                         </div>
-                        <p className="text-yellow-500 font-mono text-sm">{formatPrice(item.priceRaw * item.quantity)}</p>
-                      </div>
-                      <div className="flex justify-between items-center mt-3">
-                         <div className={`flex items-center gap-3 rounded-lg p-1 ${isDark ? 'bg-black/30' : 'bg-gray-200'}`}>
-                            <button onClick={() => setCart(c => {
-                              const nc = [...c];
-                              if(nc[idx].quantity > 1) nc[idx].quantity--;
-                              return nc;
-                            })} className={`p-1 hover:text-purple-500 ${isDark ? 'text-white' : 'text-black'}`}><Minus className="w-4 h-4"/></button>
-                            <span className={`text-sm font-bold w-4 text-center ${isDark ? 'text-white' : 'text-black'}`}>{item.quantity}</span>
-                            <button onClick={() => setCart(c => {
-                              const nc = [...c];
-                              nc[idx].quantity++;
-                              return nc;
-                            })} className={`p-1 hover:text-purple-500 ${isDark ? 'text-white' : 'text-black'}`}><Plus className="w-4 h-4"/></button>
-                         </div>
-                         <button onClick={() => setConfirmAction({ type: 'remove', itemIndex: idx })} className="text-red-500/70 hover:text-red-500">
-                           <Trash2 className="w-4 h-4" />
-                         </button>
-                      </div>
+                        ) : (
+                        cart.map((item, idx) => (
+                            <div key={idx} className={`p-4 rounded-xl border ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-200'}`}>
+                            <div className="flex justify-between items-start mb-2">
+                                <div>
+                                <p className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{item.name}</p>
+                                {item.modifiers && item.modifiers.length > 0 && (
+                                    <p className="text-xs text-gray-500 mt-1">+ {item.modifiers.join(', ')}</p>
+                                )}
+                                </div>
+                                <p className="text-yellow-500 font-mono text-sm">{formatPrice(item.priceRaw * item.quantity)}</p>
+                            </div>
+                            <div className="flex justify-between items-center mt-3">
+                                <div className={`flex items-center gap-3 rounded-lg p-1 ${isDark ? 'bg-black/30' : 'bg-gray-200'}`}>
+                                    <button onClick={() => setCart(c => {
+                                    const nc = [...c];
+                                    if(nc[idx].quantity > 1) nc[idx].quantity--;
+                                    return nc;
+                                    })} className={`p-1 hover:text-purple-500 ${isDark ? 'text-white' : 'text-black'}`}><Minus className="w-4 h-4"/></button>
+                                    <span className={`text-sm font-bold w-4 text-center ${isDark ? 'text-white' : 'text-black'}`}>{item.quantity}</span>
+                                    <button onClick={() => setCart(c => {
+                                    const nc = [...c];
+                                    nc[idx].quantity++;
+                                    return nc;
+                                    })} className={`p-1 hover:text-purple-500 ${isDark ? 'text-white' : 'text-black'}`}><Plus className="w-4 h-4"/></button>
+                                </div>
+                                <button onClick={() => setConfirmAction({ type: 'remove', itemIndex: idx })} className="text-red-500/70 hover:text-red-500">
+                                <Trash2 className="w-4 h-4" />
+                                </button>
+                            </div>
+                            </div>
+                        ))
+                        )}
                     </div>
-                  ))
-                )}
-              </div>
 
-              {cart.length > 0 && (
-                <div className={`p-6 border-t ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
-                  <div className="space-y-4 mb-6">
-                    <div className={`flex p-1 rounded-xl ${isDark ? 'bg-black/50' : 'bg-gray-100'}`}>
-                      <button onClick={() => setOrderType('pickup')} className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${orderType === 'pickup' ? 'bg-purple-600 text-white shadow-lg' : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-black'}`}>Pickup</button>
-                      <button onClick={() => setOrderType('delivery')} className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${orderType === 'delivery' ? 'bg-purple-600 text-white shadow-lg' : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-black'}`}>Delivery</button>
-                    </div>
-
-                    {orderType === 'pickup' ? (
-                       <div className="space-y-2">
-                          <label className={`text-xs uppercase font-bold flex items-center gap-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}><Clock className="w-3 h-3"/> Pickup Time</label>
-                          <input type="time" value={pickupTime} onChange={e => setPickupTime(e.target.value)} className={`w-full border p-3 rounded-xl outline-none focus:border-purple-500 ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'}`} />
-                       </div>
-                    ) : (
-                       <div className="space-y-3">
-                          <div className="space-y-2">
-                            <label className={`text-xs uppercase font-bold flex items-center gap-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}><MapPin className="w-3 h-3"/> Delivery Area</label>
-                            <select value={deliveryZoneId} onChange={e => setDeliveryZoneId(e.target.value)} className={`w-full border p-3 rounded-xl outline-none focus:border-purple-500 appearance-none ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'}`}>
-                              {DELIVERY_ZONES.map(z => <option key={z.id} value={z.id} className={isDark ? "bg-gray-900" : "bg-white"}>{z.label} {z.price > 0 ? `(+${z.price})` : ''}</option>)}
-                            </select>
-                          </div>
-                          <div className="space-y-2">
-                             <label className={`text-xs uppercase font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Address Details</label>
-                             <textarea placeholder="Hostel Name, Room Number, Description..." value={address} onChange={e => setAddress(e.target.value)} className={`w-full border p-3 rounded-xl outline-none focus:border-purple-500 resize-none h-20 text-sm ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'}`}/>
-                          </div>
-                       </div>
+                    {cart.length > 0 && (
+                        <div className={`p-6 border-t ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
+                            <div className={`space-y-2 mb-4 text-sm`}>
+                                <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Subtotal</span><span>{formatPrice(cartSubTotal)}</span></div>
+                                <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>VAT (7.5%)</span><span>{formatPrice(vatAmount)}</span></div>
+                                <div className={`flex justify-between text-xl font-bold mt-2 ${isDark ? 'text-white' : 'text-black'}`}><span>Total</span><span className="text-yellow-500">{formatPrice(finalTotal)}</span></div>
+                            </div>
+                            <button 
+                                onClick={() => setCartView('checkout')}
+                                className="w-full py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg"
+                            >
+                                Proceed to Checkout <ArrowRight className="w-5 h-5" />
+                            </button>
+                        </div>
                     )}
+                  </>
+              )}
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <input type="text" placeholder="Your Name" value={customerName} onChange={e => setCustomerName(e.target.value)} className={`w-full border p-3 rounded-xl text-sm outline-none focus:border-purple-500 ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'}`} />
-                      <input type="tel" placeholder="Phone Number" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className={`w-full border p-3 rounded-xl text-sm outline-none focus:border-purple-500 ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'}`} />
+              {/* View 2: CHECKOUT DETAILS */}
+              {cartView === 'checkout' && (
+                <div className="flex-1 flex flex-col h-full">
+                    <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                        {/* Order Type */}
+                        <div className="space-y-2">
+                             <label className={`text-xs uppercase font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Order Type</label>
+                            <div className={`flex p-1 rounded-xl ${isDark ? 'bg-black/50' : 'bg-gray-100'}`}>
+                                <button onClick={() => setOrderType('pickup')} className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${orderType === 'pickup' ? 'bg-purple-600 text-white shadow-lg' : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-black'}`}>Pickup</button>
+                                <button onClick={() => setOrderType('delivery')} className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${orderType === 'delivery' ? 'bg-purple-600 text-white shadow-lg' : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-black'}`}>Delivery</button>
+                            </div>
+                        </div>
+
+                        {orderType === 'pickup' ? (
+                        <div className="space-y-2">
+                            <label className={`text-xs uppercase font-bold flex items-center gap-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}><Clock className="w-3 h-3"/> Pickup Time</label>
+                            <input type="time" value={pickupTime} onChange={e => setPickupTime(e.target.value)} className={`w-full border p-3 rounded-xl outline-none focus:border-purple-500 ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'}`} />
+                        </div>
+                        ) : (
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className={`text-xs uppercase font-bold flex items-center gap-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}><MapPin className="w-3 h-3"/> Delivery Area</label>
+                                <select value={deliveryZoneId} onChange={e => setDeliveryZoneId(e.target.value)} className={`w-full border p-3 rounded-xl outline-none focus:border-purple-500 appearance-none ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'}`}>
+                                {DELIVERY_ZONES.map(z => <option key={z.id} value={z.id} className={isDark ? "bg-gray-900" : "bg-white"}>{z.label} {z.price > 0 ? `(+${z.price})` : ''}</option>)}
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className={`text-xs uppercase font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Address Details</label>
+                                <textarea placeholder="Hostel Name, Room Number, Description..." value={address} onChange={e => setAddress(e.target.value)} className={`w-full border p-3 rounded-xl outline-none focus:border-purple-500 resize-none h-24 text-sm ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'}`}/>
+                            </div>
+                        </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                                <label className={`text-xs uppercase font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Your Name</label>
+                                <input type="text" placeholder="John Doe" value={customerName} onChange={e => setCustomerName(e.target.value)} className={`w-full border p-3 rounded-xl text-sm outline-none focus:border-purple-500 ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'}`} />
+                            </div>
+                            <div className="space-y-2">
+                                <label className={`text-xs uppercase font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Phone</label>
+                                <input type="tel" placeholder="080..." value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className={`w-full border p-3 rounded-xl text-sm outline-none focus:border-purple-500 ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'}`} />
+                            </div>
+                        </div>
                     </div>
-                  </div>
 
-                  <div className={`space-y-2 border-t pt-4 mb-4 text-sm ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-                    <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Subtotal</span><span>{formatPrice(cartSubTotal)}</span></div>
-                    <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>VAT (7.5%)</span><span>{formatPrice(vatAmount)}</span></div>
-                    {orderType === 'delivery' && <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Delivery Fee</span><span>{formatPrice(deliveryFee)}</span></div>}
-                    <div className={`flex justify-between text-xl font-bold mt-2 ${isDark ? 'text-white' : 'text-black'}`}><span>Total</span><span className="text-yellow-500">{formatPrice(finalTotal)}</span></div>
-                  </div>
+                    <div className={`p-6 border-t ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
+                        <div className={`space-y-2 mb-4 text-sm`}>
+                            {orderType === 'delivery' && <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Delivery Fee</span><span>{formatPrice(deliveryFee)}</span></div>}
+                            <div className={`flex justify-between text-xl font-bold mt-2 ${isDark ? 'text-white' : 'text-black'}`}><span>Total to Pay</span><span className="text-yellow-500">{formatPrice(finalTotal)}</span></div>
+                        </div>
 
-                  <button onClick={handleConfirmOrder} disabled={!canCheckout || isSubmitting} className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${canCheckout ? 'bg-green-600 hover:bg-green-500 text-white shadow-lg' : isDark ? 'bg-white/10 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
-                    {isSubmitting ? <Loader2 className="animate-spin w-5 h-5"/> : (
-                      <>Confirm Order <span className="bg-black/20 px-2 py-0.5 rounded text-xs ml-1">{formatPrice(finalTotal)}</span></>
-                    )}
-                  </button>
-                  {!canCheckout && <p className="text-red-400 text-xs text-center mt-2">Please fill in all details correctly.</p>}
+                        <button onClick={handleConfirmOrder} disabled={!canCheckout || isSubmitting} className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${canCheckout ? 'bg-green-600 hover:bg-green-500 text-white shadow-lg' : isDark ? 'bg-white/10 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
+                            {isSubmitting ? <Loader2 className="animate-spin w-5 h-5"/> : (
+                            <>Confirm Order <span className="bg-black/20 px-2 py-0.5 rounded text-xs ml-1">{formatPrice(finalTotal)}</span></>
+                            )}
+                        </button>
+                        {!canCheckout && <p className="text-red-400 text-xs text-center mt-2">Please fill in all details correctly.</p>}
+                    </div>
                 </div>
               )}
             </MotionDiv>
