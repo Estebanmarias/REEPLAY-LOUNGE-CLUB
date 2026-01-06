@@ -41,8 +41,20 @@ const ReservationModal: React.FC<ReservationModalProps> = ({ isOpen, onClose }) 
   };
 
   const sendToWhatsApp = () => {
-    const text = `*New Reservation Request - Reeplay Lounge* 🥂%0A%0A*Type:* ${formData.occasion.toUpperCase()}%0A*Date:* ${formData.date}%0A*Time:* ${formData.time}%0A*Guests:* ${formData.guests}%0A*Name:* ${formData.name}%0A*Notes:* ${formData.notes}`;
-    window.open(`${WHATSAPP_LINK}?text=${text}`, '_blank');
+    // Construct text lines array
+    const lines = [
+      `*New Reservation Request - Reeplay Lounge* 🥂`,
+      ``,
+      `*Type:* ${formData.occasion.toUpperCase()}`,
+      `*Date:* ${formData.date}`,
+      `*Time:* ${formData.time}`,
+      `*Guests:* ${formData.guests}`,
+      `*Name:* ${formData.name}`,
+      `*Notes:* ${formData.notes}`
+    ];
+    // Join with newlines and encode
+    const text = lines.join('\n');
+    window.open(`${WHATSAPP_LINK}?text=${encodeURIComponent(text)}`, '_blank');
     onClose();
     setTimeout(() => setStep(1), 500); // Reset after close
   };

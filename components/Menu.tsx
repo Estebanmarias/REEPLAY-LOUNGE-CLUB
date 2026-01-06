@@ -313,14 +313,14 @@ const getStatusBadge = (status: string) => {
   if (s === 'out for delivery') {
     return (
       <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-purple-500 bg-purple-500/10 px-2 py-1 rounded-full border border-purple-500/20">
-        <Bike className="w-3 h-3" /> On Route
+        <Bike className="w-3 h-3" /> Out for Delivery
       </span>
     );
   }
   if (s === 'confirmed') {
     return (
       <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-blue-500 bg-blue-500/10 px-2 py-1 rounded-full border border-blue-500/20">
-        <ChefHat className="w-3 h-3" /> Cooking
+        <ChefHat className="w-3 h-3" /> Confirmed
       </span>
     );
   }
@@ -571,7 +571,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
     if (orderType === 'delivery') {
       return deliveryZoneId !== 'select' && address.length > 5;
     } else {
-      return pickupTime !== '' && pickupError === '';
+      return pickupTime !== '' && !pickupError;
     }
   }, [customerName, customerPhone, orderType, deliveryZoneId, address, pickupTime, pickupError]);
 
@@ -926,7 +926,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                     <div key={i} className={`p-4 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
                       <div className="flex justify-between items-center mb-2">
                         <span className={`text-xs font-mono font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{new Date(order.date).toLocaleDateString()}</span>
-                        {/* NEW: Improved Status Indicator */}
+                        {/* Improved Status Indicator */}
                         {getStatusBadge(order.status)}
                       </div>
                       <div className="mb-3">
@@ -981,8 +981,27 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                 <div className="space-y-3">
                   <button 
                     onClick={() => {
-                        const msg = `*New Order ${lastOrder.id}* 🛒%0A%0A*Name:* ${lastOrder.customerName}%0A*Phone:* ${lastOrder.customerPhone}%0A*Type:* ${lastOrder.type.toUpperCase()}%0A${lastOrder.details.replace(/\n/g, '%0A')}%0A%0A*Order Details:*%0A${lastOrder.items.map(i => `- ${i.quantity}x ${i.name} (${formatPrice(i.priceRaw)})`).join('%0A')}%0A%0A*Total:* ${formatPrice(lastOrder.total)}%0A${lastOrder.deliveryPin ? `*PIN:* ${lastOrder.deliveryPin}` : ''}`;
-                        window.open(`${WHATSAPP_LINK}?text=${msg}`, '_blank');
+                        // FIX: Use encodeURIComponent to handle special characters (like #) correctly
+                        const lines = [
+                            `*New Order ${lastOrder.id}* 🛒`,
+                            ``,
+                            `*Name:* ${lastOrder.customerName}`,
+                            `*Phone:* ${lastOrder.customerPhone}`,
+                            `*Type:* ${lastOrder.type.toUpperCase()}`,
+                            lastOrder.details,
+                            ``,
+                            `*Order Details:*`,
+                            ...lastOrder.items.map(i => `- ${i.quantity}x ${i.name} (${formatPrice(i.priceRaw)})`),
+                            ``,
+                            `*Total:* ${formatPrice(lastOrder.total)}`
+                        ];
+                        
+                        if (lastOrder.deliveryPin) {
+                            lines.push(`*PIN:* ${lastOrder.deliveryPin}`);
+                        }
+
+                        const msg = lines.join('\n');
+                        window.open(`${WHATSAPP_LINK}?text=${encodeURIComponent(msg)}`, '_blank');
                     }}
                     className="w-full py-4 bg-[#25D366] hover:bg-[#128C7E] text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg"
                   >
@@ -1228,7 +1247,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                               onChange={handleTimeChange} 
                               className={`w-full border p-3 rounded-xl outline-none focus:border-purple-500 ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'} ${pickupError ? 'border-red-500' : ''}`} 
                             />
-                            {pickupError && <p className="text-red-400 text-xs mt-1">{pickupError}</p>}
+                            {pickupError && <p className="text-red-500 text-xs mt-1">{pickupError}</p>}
                         </div>
                         ) : (
                         <div className="space-y-4">
