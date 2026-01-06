@@ -43,6 +43,7 @@ export const upcomingSpecialEvents = [
 ];
 
 export const galleryImages = [
+  // TODO: Replace with images from: https://imgur.com/a/WhEj25s
   "https://images.unsplash.com/photo-1566737236500-c8ac43014a67?q=80&w=800&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1571266028243-3716f02d2d2e?q=80&w=800&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1514362545857-3bc16549766b?q=80&w=800&auto=format&fit=crop",

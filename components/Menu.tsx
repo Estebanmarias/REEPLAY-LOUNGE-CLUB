@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, PartyPopper, AlertCircle, Sun, Moon, AlertTriangle, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, Sun, Moon, ArrowRight } from 'lucide-react';
 import { orderService, PastOrder } from '../lib/orderService';
 
 const MotionDiv = motion.div as any;
@@ -338,9 +338,8 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
         newCart.push({ ...item, priceRaw: unitPrice, quantity, modifiers: mods });
       }
       
-      // Auto-add Container if it's a food item and not already in a weird state
+      // Auto-add Container if it's a food item
       if (FOOD_CATEGORIES.includes(category)) {
-        // Find if container exists
         const containerIndex = newCart.findIndex(i => i.name === EXTRAS.container.name);
         if (containerIndex > -1) {
             newCart[containerIndex].quantity += quantity;
@@ -374,7 +373,6 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
         modifiersList.push(addon.name);
       }
     });
-    // activeCategory is available here
     addToCart(selectedMealItem, activeCategory, 1, modifiersList, totalPrice);
     setIsMealModalOpen(false);
     setSelectedAddOns([]);
@@ -499,107 +497,116 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
     <MotionDiv 
       initial={{ opacity: 0, y: 50 }} 
       animate={{ opacity: 1, y: 0 }} 
-      className={`relative min-h-screen pt-24 pb-20 px-4 md:px-8 max-w-7xl mx-auto z-20 transition-colors duration-300 ${isDark ? 'text-white' : 'text-gray-900 bg-gray-50'}`}
+      exit={{ opacity: 0, y: 50 }}
+      className={`fixed inset-0 z-[60] overflow-y-auto transition-colors duration-300 ${isDark ? 'bg-black text-white' : 'bg-gray-50 text-gray-900'}`}
     >
-      {/* Background for Light Mode */}
-      {!isDark && (
-        <div className="fixed inset-0 bg-gray-50 -z-10" />
-      )}
-
-      {/* Header */}
-      <div className="flex justify-between items-center mb-8 relative z-30">
-        <div className="flex items-center gap-4">
-          <button onClick={onBack} className={`p-2 rounded-full transition-colors ${isDark ? 'bg-white/10 hover:bg-purple-600' : 'bg-gray-200 hover:bg-purple-600 hover:text-white'}`}>
-            <ArrowLeft />
-          </button>
-          <button 
-            onClick={() => setIsHistoryOpen(true)}
-            className={`p-2 rounded-full transition-colors flex items-center gap-2 px-4 ${isDark ? 'bg-white/10 hover:bg-yellow-600' : 'bg-gray-200 hover:bg-yellow-500 hover:text-white'}`}
-          >
-            <History className="w-5 h-5" />
-            <span className="text-sm font-bold hidden md:inline">My Orders</span>
-          </button>
-        </div>
-        <div className="flex items-center gap-4">
-            <div className="text-right hidden sm:block">
-                <h2 className="text-xl font-bold">Menu</h2>
-                <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Order for Pickup or Delivery</p>
-            </div>
-            <button 
-                onClick={toggleTheme}
-                className={`p-3 rounded-full transition-all shadow-md ${isDark ? 'bg-white/10 hover:bg-white/20 text-yellow-400' : 'bg-white hover:bg-gray-100 text-purple-600 border border-gray-200'}`}
-                title="Toggle Theme"
-            >
-                {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+      <div className="min-h-screen pb-32 px-4 md:px-8 max-w-7xl mx-auto pt-6">
+        
+        {/* Header */}
+        <div className={`flex justify-between items-center mb-8 sticky top-0 z-40 py-4 backdrop-blur-md transition-colors duration-300 ${isDark ? 'bg-black/80' : 'bg-white/80'}`}>
+          <div className="flex items-center gap-4">
+            <button onClick={onBack} className={`p-2 rounded-full transition-colors ${isDark ? 'bg-white/10 hover:bg-purple-600' : 'bg-gray-200 hover:bg-purple-600 hover:text-white'}`}>
+              <ArrowLeft />
             </button>
-        </div>
-      </div>
-
-      {/* Search & Categories */}
-      <div className={`mb-8 sticky top-20 z-30 pt-2 pb-4 transition-colors duration-300 ${isDark ? 'bg-black' : 'bg-gray-50'}`}>
-        <div className="relative max-w-md mx-auto mb-4">
-          <input 
-            type="text" 
-            placeholder="Search for Jollof, Drinks, Cocktails..." 
-            value={searchQuery} 
-            onChange={e => setSearchQuery(e.target.value)} 
-            className={`w-full border rounded-full py-3 pl-12 pr-4 outline-none transition-all
-              ${isDark 
-                ? 'bg-white/5 border-white/10 text-white focus:border-purple-500 placeholder:text-gray-500 focus:bg-white/10' 
-                : 'bg-white border-gray-300 text-gray-900 focus:border-purple-500 placeholder:text-gray-400 shadow-sm'}
-            `} 
-          />
-          <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
-        </div>
-
-        <div className="flex overflow-x-auto gap-3 pb-2 no-scrollbar">
-          {CATEGORIES.map(cat => (
             <button 
-              key={cat.id} 
-              onClick={() => setActiveCategory(cat.id)} 
-              className={`
-                flex items-center gap-2 px-5 py-2.5 rounded-full whitespace-nowrap border transition-all font-medium text-sm
-                ${activeCategory === cat.id 
-                  ? 'bg-purple-600 border-purple-500 text-white shadow-lg' 
-                  : isDark 
-                    ? 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10' 
-                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-100'}
-              `}
+              onClick={() => setIsHistoryOpen(true)}
+              className={`p-2 rounded-full transition-colors flex items-center gap-2 px-4 ${isDark ? 'bg-white/10 hover:bg-yellow-600' : 'bg-gray-200 hover:bg-yellow-500 hover:text-white'}`}
             >
-              <cat.icon className="w-4 h-4" />
-              {cat.label}
+              <History className="w-5 h-5" />
+              <span className="text-sm font-bold hidden md:inline">My Orders</span>
             </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Menu Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-20">
-        {filteredItems.map((item, i) => (
-          <MenuItemCard 
-            key={i} 
-            item={item} 
-            categoryId={activeCategory} 
-            onAdd={addToCart} 
-            onOpenModal={(it) => { setSelectedMealItem(it); setIsMealModalOpen(true); }} 
-            theme={theme}
-          />
-        ))}
-        {filteredItems.length === 0 && (
-          <div className={`col-span-full text-center py-12 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-            <Search className="w-12 h-12 mx-auto mb-3 opacity-20" />
-            <p>No items found for "{searchQuery}". Try another category or term.</p>
           </div>
-        )}
+          
+          <div className="flex items-center gap-3">
+             <div className="text-right block">
+                  <h2 className="text-xl font-bold">Menu</h2>
+                  <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Order for Pickup or Delivery</p>
+              </div>
+          </div>
+        </div>
+
+        {/* Search & Categories */}
+        <div className={`mb-8 sticky top-20 z-30 pt-2 pb-4 transition-colors duration-300`}>
+          <div className="relative max-w-md mx-auto mb-4">
+            <input 
+              type="text" 
+              placeholder="Search for Jollof, Drinks, Cocktails..." 
+              value={searchQuery} 
+              onChange={e => setSearchQuery(e.target.value)} 
+              className={`w-full border rounded-full py-3 pl-12 pr-4 outline-none transition-all
+                ${isDark 
+                  ? 'bg-white/5 border-white/10 text-white focus:border-purple-500 placeholder:text-gray-500 focus:bg-white/10' 
+                  : 'bg-white border-gray-300 text-gray-900 focus:border-purple-500 placeholder:text-gray-400 shadow-sm'}
+              `} 
+            />
+            <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+          </div>
+
+          <div className="flex overflow-x-auto gap-3 pb-2 no-scrollbar">
+            {CATEGORIES.map(cat => (
+              <button 
+                key={cat.id} 
+                onClick={() => setActiveCategory(cat.id)} 
+                className={`
+                  flex items-center gap-2 px-5 py-2.5 rounded-full whitespace-nowrap border transition-all font-medium text-sm
+                  ${activeCategory === cat.id 
+                    ? 'bg-purple-600 border-purple-500 text-white shadow-lg' 
+                    : isDark 
+                      ? 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10' 
+                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-100'}
+                `}
+              >
+                <cat.icon className="w-4 h-4" />
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Menu Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-20">
+          {filteredItems.map((item, i) => (
+            <MenuItemCard 
+              key={i} 
+              item={item} 
+              categoryId={activeCategory} 
+              onAdd={addToCart} 
+              onOpenModal={(it) => { setSelectedMealItem(it); setIsMealModalOpen(true); }} 
+              theme={theme}
+            />
+          ))}
+          {filteredItems.length === 0 && (
+            <div className={`col-span-full text-center py-12 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+              <Search className="w-12 h-12 mx-auto mb-3 opacity-20" />
+              <p>No items found for "{searchQuery}". Try another category or term.</p>
+            </div>
+          )}
+        </div>
+
       </div>
 
-      {/* Floating Cart Button */}
+      {/* Floating Theme Toggle (Bottom Left) */}
+      <MotionButton
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        onClick={toggleTheme}
+        className={`fixed bottom-8 left-8 z-[70] flex items-center gap-3 px-6 py-4 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.3)] border-2 transition-all hover:scale-105 group font-bold
+          ${isDark 
+            ? 'bg-white text-black border-white hover:bg-gray-200' 
+            : 'bg-black text-white border-black hover:bg-gray-800'
+          }`}
+      >
+        {isDark ? <Sun className="w-6 h-6 fill-black" /> : <Moon className="w-6 h-6 fill-white" />}
+        <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
+      </MotionButton>
+
+      {/* Floating Cart Button (Bottom Right) */}
       {cart.length > 0 && (
         <MotionButton 
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           onClick={() => setIsCartOpen(true)} 
-          className="fixed bottom-8 right-8 z-40 bg-purple-600 hover:bg-purple-500 p-4 rounded-full shadow-[0_0_30px_rgba(147,51,234,0.5)] flex items-center justify-center transition-all hover:scale-110 group"
+          className="fixed bottom-8 right-8 z-[70] bg-purple-600 hover:bg-purple-500 p-4 rounded-full shadow-[0_0_30px_rgba(147,51,234,0.5)] flex items-center justify-center transition-all hover:scale-110 group"
         >
           <ShoppingBag className="w-6 h-6 text-white" />
           <span className="absolute -top-2 -right-2 bg-yellow-500 text-black text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-[#111]">
@@ -726,7 +733,7 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
               className={`fixed top-0 right-0 h-full w-full max-w-md z-[101] flex flex-col shadow-2xl border-l ${isDark ? 'bg-[#121212] border-white/10' : 'bg-white border-gray-200'}`}
             >
               {/* Cart Header */}
-              <div className={`p-6 border-b flex justify-between items-center ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
+              <div className={`flex-none p-6 border-b flex justify-between items-center ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
                 <div className="flex items-center gap-3">
                     {cartView === 'checkout' && (
                         <button onClick={() => setCartView('items')} className={`p-2 rounded-full -ml-2 ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-200'}`}>
@@ -741,7 +748,7 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
                     {cart.length > 0 && cartView === 'items' && (
                         <button 
                             onClick={() => setConfirmAction({ type: 'clear' })}
-                            className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-red-400 bg-red-400/10 rounded-full border border-red-400/20 hover:bg-red-400/20 transition-colors"
+                            className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-full border transition-colors ${isDark ? 'text-red-400 bg-red-400/10 border-red-400/20 hover:bg-red-400/20' : 'text-red-600 bg-red-100 border-red-200 hover:bg-red-200'}`}
                         >
                             Clear
                         </button>
@@ -797,10 +804,8 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
                     </div>
 
                     {cart.length > 0 && (
-                        <div className={`p-6 border-t ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
+                        <div className={`flex-none p-6 border-t z-20 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
                             <div className={`space-y-2 mb-4 text-sm`}>
-                                <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Subtotal</span><span>{formatPrice(cartSubTotal)}</span></div>
-                                <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>VAT (7.5%)</span><span>{formatPrice(vatAmount)}</span></div>
                                 <div className={`flex justify-between text-xl font-bold mt-2 ${isDark ? 'text-white' : 'text-black'}`}><span>Total</span><span className="text-yellow-500">{formatPrice(finalTotal)}</span></div>
                             </div>
                             <button 
@@ -816,7 +821,7 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
 
               {/* View 2: CHECKOUT DETAILS */}
               {cartView === 'checkout' && (
-                <div className="flex-1 flex flex-col h-full">
+                <div className="flex-1 flex flex-col h-full overflow-hidden">
                     <div className="flex-1 overflow-y-auto p-6 space-y-6">
                         {/* Order Type */}
                         <div className="space-y-2">
@@ -859,8 +864,10 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
                         </div>
                     </div>
 
-                    <div className={`p-6 border-t ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
+                    <div className={`flex-none p-6 border-t ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
                         <div className={`space-y-2 mb-4 text-sm`}>
+                             <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Subtotal</span><span>{formatPrice(cartSubTotal)}</span></div>
+                             <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>VAT (7.5%)</span><span>{formatPrice(vatAmount)}</span></div>
                             {orderType === 'delivery' && <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Delivery Fee</span><span>{formatPrice(deliveryFee)}</span></div>}
                             <div className={`flex justify-between text-xl font-bold mt-2 ${isDark ? 'text-white' : 'text-black'}`}><span>Total to Pay</span><span className="text-yellow-500">{formatPrice(finalTotal)}</span></div>
                         </div>
@@ -876,176 +883,6 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
               )}
             </MotionDiv>
           </>
-        )}
-      </AnimatePresence>
-
-      {/* --- HISTORY MODAL --- */}
-      <AnimatePresence>
-        {isHistoryOpen && (
-          <MotionDiv 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/90 backdrop-blur-md z-[120] flex items-center justify-center p-4"
-          >
-            <div className={`w-full max-w-lg border rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
-              <div className={`p-6 border-b flex justify-between items-center ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
-                <div className="flex items-center gap-3">
-                  <History className="text-yellow-500" />
-                  <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Order History</h3>
-                </div>
-                <button onClick={() => setIsHistoryOpen(false)} className={`p-2 rounded-full ${isDark ? 'hover:bg-white/10 text-white' : 'hover:bg-gray-200 text-gray-900'}`}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
-                {history.length === 0 ? (
-                  <div className={`text-center py-10 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                    <ChefHat className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                    <p>No orders yet.</p>
-                  </div>
-                ) : (
-                  history.map((order, idx) => {
-                    const statusConfig = getStatusDisplay(order.status);
-                    return (
-                      <div key={idx} className={`border rounded-xl p-5 relative overflow-hidden group transition-colors ${isDark ? 'bg-white/5 border-white/5 hover:border-white/10' : 'bg-gray-50 border-gray-200 hover:border-purple-300'}`}>
-                        <div className="flex justify-between items-start mb-3 z-10 relative">
-                          <div>
-                            <p className="font-mono text-xs text-gray-500">ID: {order.id}</p>
-                            <p className={`font-bold text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>{formatPrice(order.total)}</p>
-                          </div>
-                          {statusConfig.badge}
-                        </div>
-                        
-                        <div className="space-y-1 mb-4 z-10 relative">
-                          {order.items.map((item, i) => (
-                             <div key={i} className={`text-sm flex justify-between ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                               <span>{item.quantity}x {item.name}</span>
-                             </div>
-                          ))}
-                        </div>
-
-                        <div className={`border-t pt-3 flex justify-between items-center text-xs z-10 relative ${isDark ? 'border-white/5 text-gray-400' : 'border-gray-200 text-gray-500'}`}>
-                           <span>{new Date(order.date).toLocaleDateString()} at {new Date(order.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                           <span className="uppercase font-bold">{order.type}</span>
-                        </div>
-                        
-                        {/* Status Watermark */}
-                        {statusConfig.bgIcon}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          </MotionDiv>
-        )}
-      </AnimatePresence>
-
-      {/* --- RECEIPT MODAL --- */}
-      <AnimatePresence>
-        {isReceiptOpen && (
-           <MotionDiv 
-             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-             className="fixed inset-0 bg-black/95 z-[130] flex items-center justify-center p-4 backdrop-blur-md"
-           >
-              <div className="bg-white text-black p-6 w-full max-w-sm font-mono text-xs leading-relaxed shadow-2xl relative overflow-hidden">
-                {/* Header Section */}
-                <div className="text-center mb-4">
-                    <h2 className="text-xl font-bold uppercase mb-1">Reeplay Lounge</h2>
-                    <p>Triple SK World</p>
-                    <p>Opp. Alari Akata</p>
-                    <p>Under G, Ogbomoso, OYO State</p>
-                    <p>Tel : 09060621425</p>
-                    <p>OS</p>
-                    <p>reeplaylounge@gmail.com</p>
-                </div>
-
-                {/* Info Line */}
-                <div className="border-b border-black border-dashed my-2" />
-                <div className="flex justify-between items-end mb-2">
-                    <div>
-                        <p>Copy - Order Details</p>
-                        <p>(Inc Tax)</p>
-                    </div>
-                    <div className="text-right">
-                        <p>{new Date().toLocaleDateString()}</p>
-                        <p>{new Date().toLocaleTimeString()}</p>
-                    </div>
-                </div>
-                <div className="flex justify-between mb-2">
-                    <span>Tab: Walk-in</span>
-                    <span>Staff: Admin</span>
-                </div>
-                <div className="flex justify-between mb-2">
-                    <span>Device: POS-01</span>
-                    <span>Est: 15m</span>
-                </div>
-                <div className="border-b border-black border-dashed my-2" />
-
-                {/* Items Header */}
-                <div className="grid grid-cols-12 font-bold mb-2 uppercase">
-                    <span className="col-span-6">PRODUCT</span>
-                    <span className="col-span-3 text-right">PRICE</span>
-                    <span className="col-span-1 text-center">QTY</span>
-                    <span className="col-span-2 text-right">TOTAL</span>
-                </div>
-
-                {/* Items List */}
-                <div className="mb-2 max-h-48 overflow-y-auto custom-scrollbar-light">
-                   {history[0]?.items.map((i, idx) => (
-                     <div key={idx} className="grid grid-cols-12 mb-1">
-                       <span className="col-span-6 truncate pr-1">{i.name.toUpperCase()}</span>
-                       <span className="col-span-3 text-right">{i.priceRaw.toLocaleString()}.00</span>
-                       <span className="col-span-1 text-center">{i.quantity}</span>
-                       <span className="col-span-2 text-right">{(i.priceRaw * i.quantity).toLocaleString()}.00</span>
-                     </div>
-                   ))}
-                   <div className="grid grid-cols-12 mb-1 font-bold mt-2">
-                       <span className="col-span-6">Total Qty</span>
-                       <span className="col-span-4"></span>
-                       <span className="col-span-2 text-right">{history[0]?.items.reduce((a, b) => a + b.quantity, 0)}</span>
-                   </div>
-                </div>
-
-                {/* Totals */}
-                <div className="border-b border-black border-dashed my-2" />
-                <div className="flex justify-between mb-1">
-                    <span>Sub Total</span>
-                    <span>{formatPrice(history[0]?.total || 0).replace('₦', '₦')}</span>
-                </div>
-                <div className="flex justify-between mb-1">
-                    <span>Total</span>
-                    <span>{formatPrice(history[0]?.total || 0).replace('₦', '₦')}</span>
-                </div>
-                <div className="flex justify-between font-bold text-xl mt-2">
-                    <span>Amount Due</span>
-                    <span>{formatPrice(history[0]?.total || 0).replace('₦', '₦')}</span>
-                </div>
-                
-                {generatedDeliveryPin && (
-                    <div className="border-t border-black border-dashed mt-4 pt-2 text-center">
-                        <p className="font-bold">DELIVERY PIN: {generatedDeliveryPin}</p>
-                    </div>
-                )}
-
-                <div className="border-b border-black border-dashed my-4" />
-                
-                {/* Footer */}
-                <div className="text-center font-bold mb-4">The Coolest Place to be!</div>
-                
-                {/* Simulated Barcode */}
-                <div className="h-10 w-full mx-auto mb-1 opacity-80" style={{
-                    backgroundImage: 'linear-gradient(90deg, #000 0%, #000 3%, transparent 3%, transparent 5%, #000 5%, #000 10%, transparent 10%, transparent 12%, #000 12%, #000 15%, transparent 15%, transparent 20%, #000 20%, #000 25%, transparent 25%, transparent 28%, #000 28%, #000 35%, transparent 35%, transparent 40%, #000 40%, #000 42%, transparent 42%, transparent 45%, #000 45%, #000 50%, transparent 50%, transparent 55%, #000 55%, #000 60%, transparent 60%, transparent 62%, #000 62%, #000 70%, transparent 70%, transparent 75%, #000 75%, #000 80%, transparent 80%, transparent 85%, #000 85%, #000 90%, transparent 90%, transparent 95%, #000 95%, #000 100%)',
-                    backgroundSize: '100% 100%'
-                }} />
-                <p className="text-center text-[10px] tracking-widest">{orderId}ASJLAYQQ3KG3K</p>
-
-                <div className="mt-6 flex flex-col gap-2">
-                     <button onClick={() => window.open(IG_DM_LINK)} className="w-full py-2 bg-black text-white font-bold rounded hover:bg-gray-800 transition-colors">DM Order</button>
-                     <button onClick={() => setIsReceiptOpen(false)} className="w-full py-2 border border-black text-black font-bold rounded hover:bg-gray-100 transition-colors">Close</button>
-                </div>
-              </div>
-           </MotionDiv>
         )}
       </AnimatePresence>
     </MotionDiv>
