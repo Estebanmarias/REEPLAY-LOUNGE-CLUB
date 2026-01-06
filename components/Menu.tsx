@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, Sun, Moon, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, ArrowRight } from 'lucide-react';
 import { orderService, PastOrder } from '../lib/orderService';
 import MenuBackground from './MenuBackground';
 
@@ -362,7 +362,13 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
     });
   };
 
-  const handleCustomizationSubmit = () => {
+  const handleCustomizationSubmit = (e?: React.MouseEvent | React.TouchEvent) => {
+    // Prevent event propagation to avoid ghost clicks on elements below the modal (like the floating cart button)
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+
     if (!selectedMealItem) return;
     let totalPrice = parsePrice(selectedMealItem.price);
     const modifiersList: string[] = [];
@@ -375,12 +381,16 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
     });
     addToCart(selectedMealItem, activeCategory, 1, modifiersList, totalPrice);
     
-    // Show feedback but DO NOT open cart
+    // Show feedback
     showToast(`${selectedMealItem.name} added to cart!`);
     
-    setIsMealModalOpen(false);
-    setSelectedAddOns([]);
-    setSelectedMealItem(null);
+    // Slight delay to allow animations and prevent ghost clicks from registering on underlying elements immediately
+    setTimeout(() => {
+        setIsMealModalOpen(false);
+        setSelectedAddOns([]);
+        setSelectedMealItem(null);
+        setIsCartOpen(false); // Explicitly ensure cart is closed
+    }, 50);
   };
 
   const toggleAddOn = (id: string) => {
