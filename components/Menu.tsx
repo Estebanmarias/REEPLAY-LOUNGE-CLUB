@@ -1,11 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, ArrowRight, ChevronDown, Wand2, Instagram, MessageCircle, Info, Sparkles } from 'lucide-react';
+import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, ArrowRight, ChevronDown, Wand2, Instagram, MessageCircle, Info, Sparkles, Calendar, Zap } from 'lucide-react';
 import { orderService, PastOrder } from '../lib/orderService';
+import { upcomingSpecialEvents } from '../staticData';
 import MenuBackground from './MenuBackground';
 
 const MotionDiv = motion.div as any;
 const MotionButton = motion.button as any;
+const MotionImg = motion.img as any;
 
 // --- Types ---
 interface MenuItem {
@@ -215,6 +217,78 @@ const parsePrice = (priceStr: string) => parseInt(priceStr.replace(/[^0-9]/g, ''
 const formatPrice = (price: number) => "₦" + price.toLocaleString();
 
 // --- Sub-Components ---
+
+const PromoCarousel = () => {
+  // Multiply items to ensure seamless looping
+  const carouselItems = [...upcomingSpecialEvents, ...upcomingSpecialEvents, ...upcomingSpecialEvents, ...upcomingSpecialEvents];
+
+  // Inline style for the marquee animation to allow pause-on-hover
+  const marqueeStyle = `
+    @keyframes marquee {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); } 
+    }
+    .animate-marquee {
+      animation: marquee 40s linear infinite;
+    }
+    .animate-marquee:hover {
+      animation-play-state: paused;
+    }
+  `;
+
+  return (
+    <div className="w-full overflow-hidden mb-8 relative z-20 group">
+      <style>{marqueeStyle}</style>
+      
+      {/* Label */}
+      <div className="flex items-center gap-2 mb-3 px-1">
+        <span className="relative flex h-3 w-3">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+        </span>
+        <span className="text-xs font-bold uppercase tracking-widest text-red-400">Happening Now & Upcoming</span>
+      </div>
+
+      <div className="flex gap-4 animate-marquee w-max hover:cursor-grab active:cursor-grabbing">
+        {carouselItems.map((event, i) => {
+           // Simulate "Live" status for the very first visual item to demo the feature
+           const isLive = i === 0 || i === upcomingSpecialEvents.length; 
+           
+           return (
+            <div 
+              key={`${event.id}-${i}`} 
+              className="relative w-[280px] h-[140px] rounded-2xl overflow-hidden border border-white/10 bg-black/60 flex-shrink-0 group/card"
+            >
+              <img src={event.image} alt={event.title} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover/card:opacity-40 transition-opacity" />
+              <div className="absolute inset-0 bg-gradient-to-r from-black via-black/50 to-transparent" />
+              
+              <div className="absolute inset-0 p-4 flex flex-col justify-between">
+                <div className="flex justify-between items-start">
+                   {isLive ? (
+                     <span className="px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-wider animate-pulse flex items-center gap-1 shadow-lg shadow-red-900/50">
+                       <Zap className="w-3 h-3 fill-white" /> Live Now
+                     </span>
+                   ) : (
+                     <span className="px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 text-[10px] font-bold uppercase tracking-wider">
+                       Upcoming
+                     </span>
+                   )}
+                </div>
+
+                <div>
+                   <h4 className="text-white font-bold text-lg leading-tight mb-1 truncate">{event.title}</h4>
+                   <div className="flex items-center text-xs text-gray-300 gap-2">
+                      <Calendar className="w-3 h-3" /> {event.date} • {event.time}
+                   </div>
+                </div>
+              </div>
+            </div>
+           )
+        })}
+      </div>
+    </div>
+  )
+}
 
 const MenuItemCard: React.FC<{
   item: MenuItem;
@@ -627,10 +701,10 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
       {/* BACKGROUND ANIMATION */}
       <MenuBackground theme={theme} />
 
-      <div className="min-h-screen pb-32 px-4 md:px-8 max-w-7xl mx-auto pt-6 relative z-10">
+      <div className="min-h-screen pb-32 px-4 md:px-8 max-w-7xl mx-auto pt-4 relative z-10">
         
-        {/* Header */}
-        <div className={`flex justify-between items-center mb-8 sticky top-0 z-40 py-4 backdrop-blur-md rounded-b-2xl transition-colors duration-300 ${isDark ? 'bg-black/60' : 'bg-white/60'}`}>
+        {/* Header - STICKY */}
+        <div className={`flex justify-between items-center sticky top-0 z-50 py-4 -mx-4 px-4 md:mx-0 md:px-0 backdrop-blur-xl transition-colors duration-300 border-b ${isDark ? 'bg-black/80 border-white/5' : 'bg-white/80 border-gray-100'}`}>
           <div className="flex items-center gap-4">
             <button onClick={onBack} className={`p-2 rounded-full transition-colors ${isDark ? 'bg-white/10 hover:bg-purple-600' : 'bg-gray-200 hover:bg-purple-600 hover:text-white'}`}>
               <ArrowLeft />
@@ -652,45 +726,51 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
           </div>
         </div>
 
-        {/* Search & Categories */}
-        <div className={`mb-8 sticky top-20 z-30 pt-2 pb-4 transition-colors duration-300`}>
-          <div className="relative max-w-md mx-auto mb-4">
-            <input 
-              type="text" 
-              placeholder="Search food, drinks, or cocktails..." 
-              value={searchQuery} 
-              onChange={e => setSearchQuery(e.target.value)} 
-              className={`w-full border rounded-full py-3 pl-12 pr-4 outline-none transition-all
-                ${isDark 
-                  ? 'bg-white/5 border-white/10 text-white focus:border-purple-500 placeholder:text-gray-500 focus:bg-white/10' 
-                  : 'bg-white/80 border-gray-300 text-gray-900 focus:border-purple-500 placeholder:text-gray-500 shadow-sm'}
-              `} 
-            />
-            <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
-          </div>
-
-          {!searchQuery && activeCategory !== 'builder' && (
-            <div className="flex overflow-x-auto gap-3 pb-2 no-scrollbar">
-              {CATEGORIES.map(cat => (
-                <button 
-                  key={cat.id} 
-                  onClick={() => setActiveCategory(cat.id)} 
-                  className={`
-                    flex items-center gap-2 px-5 py-2.5 rounded-full whitespace-nowrap border transition-all font-medium text-sm
-                    ${activeCategory === cat.id 
-                      ? 'bg-purple-600 border-purple-500 text-white shadow-lg' 
-                      : isDark 
-                        ? 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10' 
-                        : 'bg-white/80 border-gray-200 text-gray-700 hover:bg-white'}
-                  `}
-                >
-                  <cat.icon className="w-4 h-4" />
-                  {cat.label}
-                </button>
-              ))}
+        {/* Scrollable Search & Updates Area */}
+        <div className="pt-6 pb-2">
+            <div className="relative max-w-md mx-auto mb-6">
+              <input 
+                type="text" 
+                placeholder="Search food, drinks, or cocktails..." 
+                value={searchQuery} 
+                onChange={e => setSearchQuery(e.target.value)} 
+                className={`w-full border rounded-full py-3 pl-12 pr-4 outline-none transition-all
+                  ${isDark 
+                    ? 'bg-white/5 border-white/10 text-white focus:border-purple-500 placeholder:text-gray-500 focus:bg-white/10' 
+                    : 'bg-white/80 border-gray-300 text-gray-900 focus:border-purple-500 placeholder:text-gray-500 shadow-sm'}
+                `} 
+              />
+              <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
             </div>
-          )}
+
+            {/* PROMO CAROUSEL - No Sticky */}
+            {!searchQuery && activeCategory !== 'builder' && <PromoCarousel />}
         </div>
+
+        {/* Categories - STICKY (Sticks below header) */}
+        {!searchQuery && activeCategory !== 'builder' && (
+            <div className={`sticky top-[73px] z-40 py-3 mb-6 -mx-4 px-4 md:mx-0 md:px-0 backdrop-blur-xl border-b transition-colors duration-300 ${isDark ? 'bg-black/80 border-white/10' : 'bg-white/80 border-gray-200'}`}>
+               <div className="flex overflow-x-auto gap-3 pb-2 no-scrollbar">
+                {CATEGORIES.map(cat => (
+                  <button 
+                    key={cat.id} 
+                    onClick={() => setActiveCategory(cat.id)} 
+                    className={`
+                      flex items-center gap-2 px-5 py-2.5 rounded-full whitespace-nowrap border transition-all font-medium text-sm
+                      ${activeCategory === cat.id 
+                        ? 'bg-purple-600 border-purple-500 text-white shadow-lg' 
+                        : isDark 
+                          ? 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10' 
+                          : 'bg-white/80 border-gray-200 text-gray-700 hover:bg-white'}
+                    `}
+                  >
+                    <cat.icon className="w-4 h-4" />
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+        )}
 
         {/* --- CONTENT AREA --- */}
         {activeCategory === 'builder' ? (
