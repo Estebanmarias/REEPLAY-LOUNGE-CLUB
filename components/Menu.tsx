@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, ArrowRight, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, ArrowRight, ChevronDown, Beaker, Wand2 } from 'lucide-react';
 import { orderService, PastOrder } from '../lib/orderService';
 import MenuBackground from './MenuBackground';
 
@@ -53,7 +53,6 @@ const KITCHEN_ADDONS = [
 
 const EXTRAS = {
   container: { name: "Plastic Container", desc: "Packaging", price: "₦500" },
-  // Bag is now handled as a fixed fee, but we keep structure if needed for logic
   bag: { name: "Paper Bag", desc: "Packaging", price: "₦1000" }
 };
 
@@ -65,10 +64,43 @@ const DELIVERY_ZONES = [
   { id: 'outskirts', label: 'Outskirts / Far', price: 2000 },
 ];
 
+// DRINK BUILDER DATA
+const BUILDER_DATA = {
+  spirits: [
+    { id: 'vodka', name: 'Vodka', price: 3000, color: 'bg-blue-500' },
+    { id: 'gin', name: 'Dry Gin', price: 3000, color: 'bg-green-500' },
+    { id: 'white_rum', name: 'White Rum', price: 3000, color: 'bg-yellow-500' },
+    { id: 'dark_rum', name: 'Dark Rum', price: 3500, color: 'bg-amber-700' },
+    { id: 'tequila', name: 'Tequila', price: 4000, color: 'bg-orange-500' },
+    { id: 'whiskey', name: 'Whiskey', price: 4000, color: 'bg-amber-900' },
+    { id: 'brandy', name: 'Brandy', price: 3500, color: 'bg-red-800' },
+  ],
+  mixers: [
+    { id: 'coke', name: 'Coca Cola', price: 500 },
+    { id: 'sprite', name: 'Sprite', price: 500 },
+    { id: 'soda', name: 'Soda Water', price: 500 },
+    { id: 'tonic', name: 'Tonic Water', price: 500 },
+    { id: 'cranberry', name: 'Cranberry Juice', price: 1000 },
+    { id: 'orange', name: 'Orange Juice', price: 1000 },
+    { id: 'pineapple', name: 'Pineapple Juice', price: 1000 },
+    { id: 'energy', name: 'Energy Drink', price: 1500 },
+  ],
+  garnishes: [
+    { id: 'lime', name: 'Fresh Lime', price: 200 },
+    { id: 'lemon', name: 'Lemon Slice', price: 200 },
+    { id: 'mint', name: 'Mint Leaves', price: 200 },
+    { id: 'ice', name: 'Extra Ice', price: 0 },
+    { id: 'syrup', name: 'Grenadine Syrup', price: 500 },
+    { id: 'salt', name: 'Salt Rim', price: 0 },
+    { id: 'sugar', name: 'Sugar Rim', price: 0 },
+  ]
+};
+
 const CATEGORIES = [
   { id: 'rice', label: 'Rice Specialties', icon: Utensils },
   { id: 'pasta', label: 'Pasta & Noodles', icon: Utensils },
   { id: 'sides', label: 'Sides & Bites', icon: Flame },
+  { id: 'builder', label: 'Drink Lab', icon: Beaker }, // New Builder Category
   { id: 'cocktails', label: 'Cocktails & Shakes', icon: Wine },
   { id: 'bottles', label: 'Bottle Service', icon: Crown },
   { id: 'beverages', label: 'Beer & Drinks', icon: GlassWater },
@@ -287,6 +319,11 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   // Customization State
   const [selectedMealItem, setSelectedMealItem] = useState<MenuItem | null>(null);
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
+
+  // Drink Builder State
+  const [builderSpirit, setBuilderSpirit] = useState<string | null>(null);
+  const [builderMixers, setBuilderMixers] = useState<string[]>([]);
+  const [builderGarnishes, setBuilderGarnishes] = useState<string[]>([]);
   
   // Checkout Form State
   const [orderId, setOrderId] = useState('');
@@ -376,6 +413,53 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
 
       return newCart;
     });
+  };
+
+  // Drink Builder Logic
+  const calculateBuilderTotal = () => {
+    let total = 0;
+    if (builderSpirit) {
+      total += BUILDER_DATA.spirits.find(s => s.id === builderSpirit)?.price || 0;
+    }
+    builderMixers.forEach(id => {
+      total += BUILDER_DATA.mixers.find(m => m.id === id)?.price || 0;
+    });
+    builderGarnishes.forEach(id => {
+      total += BUILDER_DATA.garnishes.find(g => g.id === id)?.price || 0;
+    });
+    return total;
+  };
+
+  const handleAddBuiltDrink = () => {
+    if (!builderSpirit) return;
+    
+    const spiritObj = BUILDER_DATA.spirits.find(s => s.id === builderSpirit);
+    const mixerNames = builderMixers.map(id => BUILDER_DATA.mixers.find(m => m.id === id)?.name || '');
+    const garnishNames = builderGarnishes.map(id => BUILDER_DATA.garnishes.find(g => g.id === id)?.name || '');
+    
+    const modifiers = [...mixerNames, ...garnishNames];
+    
+    const customItem: MenuItem = {
+      name: `Custom ${spiritObj?.name}`,
+      desc: `Custom built drink with ${modifiers.join(', ')}`,
+      price: formatPrice(calculateBuilderTotal())
+    };
+
+    addToCart(customItem, 'builder', 1, modifiers, calculateBuilderTotal());
+    showToast("Custom Drink Created!");
+    
+    // Reset
+    setBuilderSpirit(null);
+    setBuilderMixers([]);
+    setBuilderGarnishes([]);
+  };
+
+  const toggleBuilderItem = (list: string[], setList: (l: string[]) => void, id: string) => {
+    if (list.includes(id)) {
+      setList(list.filter(item => item !== id));
+    } else {
+      setList([...list, id]);
+    }
   };
 
   const handleCustomizationSubmit = (e?: React.MouseEvent | React.TouchEvent) => {
@@ -556,25 +640,141 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
           )}
         </div>
 
-        {/* Menu Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-20">
-          {filteredItems.map((item, i) => (
-            <MenuItemCard 
-              key={`${item.name}-${i}`} 
-              item={item} 
-              categoryId={item.categoryId} // Use the item's mapped category 
-              onAdd={addToCart} 
-              onOpenModal={(it) => { setSelectedMealItem(it); setIsMealModalOpen(true); }} 
-              theme={theme}
-            />
-          ))}
-          {filteredItems.length === 0 && (
-            <div className={`col-span-full text-center py-12 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-              <Search className="w-12 h-12 mx-auto mb-3 opacity-20" />
-              <p>No items found for "{searchQuery}". Try another category or term.</p>
+        {/* --- CONTENT AREA --- */}
+        {activeCategory === 'builder' && !searchQuery ? (
+          /* DRINK BUILDER UI */
+          <div className="max-w-3xl mx-auto space-y-8 pb-24">
+            <div className={`p-6 rounded-3xl text-center border ${isDark ? 'bg-white/5 border-white/10' : 'bg-white/80 border-white'}`}>
+              <div className="inline-block p-4 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 mb-4 shadow-lg">
+                <Wand2 className="w-8 h-8 text-white" />
+              </div>
+              <h2 className={`text-3xl font-black mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>The Drink Lab</h2>
+              <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Mix and match to create your perfect poison.</p>
             </div>
-          )}
-        </div>
+
+            {/* Step 1: Base Spirit */}
+            <div>
+              <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-800'}`}>
+                <span className="bg-purple-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">1</span> 
+                Choose Base Spirit
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {BUILDER_DATA.spirits.map(spirit => (
+                  <button
+                    key={spirit.id}
+                    onClick={() => setBuilderSpirit(spirit.id)}
+                    className={`p-4 rounded-xl border text-left transition-all relative overflow-hidden group
+                      ${builderSpirit === spirit.id 
+                        ? `${spirit.color} border-transparent text-white shadow-lg scale-[1.02]` 
+                        : isDark ? 'bg-white/5 border-white/10 hover:border-purple-500 text-gray-300' : 'bg-white border-gray-200 hover:border-purple-500 text-gray-700'}
+                    `}
+                  >
+                    <div className="font-bold">{spirit.name}</div>
+                    <div className={`text-xs mt-1 ${builderSpirit === spirit.id ? 'text-white/80' : 'text-yellow-500 font-mono'}`}>
+                      {formatPrice(spirit.price)}
+                    </div>
+                    {builderSpirit === spirit.id && <CheckCircle className="absolute top-2 right-2 w-5 h-5 text-white" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Step 2: Mixers */}
+            <div>
+              <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-800'}`}>
+                <span className="bg-purple-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">2</span> 
+                Add Mixers
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                 {BUILDER_DATA.mixers.map(mixer => {
+                    const isSelected = builderMixers.includes(mixer.id);
+                    return (
+                      <button
+                        key={mixer.id}
+                        onClick={() => toggleBuilderItem(builderMixers, setBuilderMixers, mixer.id)}
+                        className={`p-3 rounded-lg border text-sm font-medium transition-all flex justify-between items-center
+                          ${isSelected 
+                            ? 'bg-purple-600 border-purple-500 text-white' 
+                            : isDark ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-white border-gray-200 text-gray-600'}
+                        `}
+                      >
+                        <span>{mixer.name}</span>
+                        {isSelected && <CheckCheck className="w-4 h-4" />}
+                      </button>
+                    );
+                 })}
+              </div>
+            </div>
+
+             {/* Step 3: Garnishes */}
+             <div>
+              <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-800'}`}>
+                <span className="bg-purple-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">3</span> 
+                Finishing Touches
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                 {BUILDER_DATA.garnishes.map(garnish => {
+                    const isSelected = builderGarnishes.includes(garnish.id);
+                    return (
+                      <button
+                        key={garnish.id}
+                        onClick={() => toggleBuilderItem(builderGarnishes, setBuilderGarnishes, garnish.id)}
+                        className={`px-4 py-2 rounded-full border text-xs font-bold uppercase tracking-wider transition-all
+                          ${isSelected 
+                            ? 'bg-pink-600 border-pink-500 text-white' 
+                            : isDark ? 'bg-white/5 border-white/10 text-gray-500' : 'bg-white border-gray-200 text-gray-500'}
+                        `}
+                      >
+                        {garnish.name} {garnish.price > 0 && `(+${garnish.price})`}
+                      </button>
+                    );
+                 })}
+              </div>
+            </div>
+            
+            {/* Builder Action Bar */}
+            <div className={`fixed bottom-0 left-0 right-0 p-4 border-t z-50 backdrop-blur-xl ${isDark ? 'bg-black/80 border-white/10' : 'bg-white/80 border-gray-200'}`}>
+                <div className="max-w-3xl mx-auto flex items-center gap-4">
+                  <div className="flex-1">
+                     <div className={`text-xs uppercase font-bold ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Total Price</div>
+                     <div className="text-2xl font-black text-yellow-500 font-mono">{formatPrice(calculateBuilderTotal())}</div>
+                  </div>
+                  <button
+                    disabled={!builderSpirit}
+                    onClick={handleAddBuiltDrink}
+                    className={`flex-[2] py-4 rounded-xl font-bold text-lg shadow-lg transition-all flex items-center justify-center gap-2
+                      ${builderSpirit 
+                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white' 
+                        : isDark ? 'bg-white/10 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}
+                    `}
+                  >
+                    {builderSpirit ? 'Add to Order' : 'Select a Spirit'}
+                  </button>
+                </div>
+            </div>
+
+          </div>
+        ) : (
+          /* STANDARD MENU GRID */
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-20">
+            {filteredItems.map((item, i) => (
+              <MenuItemCard 
+                key={`${item.name}-${i}`} 
+                item={item} 
+                categoryId={item.categoryId} // Use the item's mapped category 
+                onAdd={addToCart} 
+                onOpenModal={(it) => { setSelectedMealItem(it); setIsMealModalOpen(true); }} 
+                theme={theme}
+              />
+            ))}
+            {filteredItems.length === 0 && (
+              <div className={`col-span-full text-center py-12 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                <Search className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                <p>No items found for "{searchQuery}". Try another category or term.</p>
+              </div>
+            )}
+          </div>
+        )}
 
       </div>
 
@@ -593,7 +793,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
       </AnimatePresence>
 
       {/* Floating Cart Button (Bottom Right) */}
-      {cart.length > 0 && (
+      {cart.length > 0 && activeCategory !== 'builder' && (
         <MotionButton 
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
