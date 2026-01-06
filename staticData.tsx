@@ -43,15 +43,20 @@ export const upcomingSpecialEvents = [
 ];
 
 export const galleryImages = [
-  // TODO: Replace with images from: https://imgur.com/a/WhEj25s
-  "https://images.unsplash.com/photo-1566737236500-c8ac43014a67?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1571266028243-3716f02d2d2e?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1514362545857-3bc16549766b?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1598387993441-a364f854c3e1?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1572116469696-31de0f17cc34?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1534237710431-e2fc698436d5?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1525268323886-28818290ce0e?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1574100004472-e536d3b6b48c?q=80&w=800&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1621903649635-4672e817a586?q=80&w=800&auto=format&fit=crop"
+  // -------------------------------------------------------------------------
+  // ACTION REQUIRED:
+  // I cannot scrape the Imgur album directly. Please replace the placeholders 
+  // below with the DIRECT LINKS to your images (ending in .jpg, .png, etc.).
+  // -------------------------------------------------------------------------
+  "https://i.imgur.com/nSI6wPN.jpeg",
+  "https://i.imgur.com/mORdla9.jpeg",
+  "https://i.imgur.com/Erg17zU.jpeg",
+  "https://i.imgur.com/jXoovjL.jpeg",
+  "https://i.imgur.com/dAD5MYW.jpeg",
+  "https://i.imgur.com/1RqZHZ1.jpeg",
+  "https://i.imgur.com/omQqV77.jpeg",
+  "https://i.imgur.com/XPDEqDw.jpeg",
+  "https://i.imgur.com/ay9EOmL.jpeg",
+  "https://i.imgur.com/pZo6eNz.jpeg",
+  "https://i.imgur.com/Ag8O1nb.jpeg",
 ];
