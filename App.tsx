@@ -89,7 +89,7 @@ const App: React.FC = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              <Menu onBack={() => navigateTo('home')} />
+              <Menu onBack={() => navigateTo('home')} theme="dark" />
               <Footer />
             </MotionDiv>
           )}

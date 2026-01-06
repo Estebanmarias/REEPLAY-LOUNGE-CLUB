@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, Sun, Moon, ArrowRight } from 'lucide-react';
 import { orderService, PastOrder } from '../lib/orderService';
+import MenuBackground from './MenuBackground';
 
 const MotionDiv = motion.div as any;
 const MotionButton = motion.button as any;
@@ -21,10 +22,10 @@ interface CartItemExtended extends MenuItem {
 
 interface MenuProps {
   onBack: () => void;
+  theme: 'dark' | 'light';
 }
 
 type OrderType = 'pickup' | 'delivery';
-type Theme = 'dark' | 'light';
 type CartView = 'items' | 'checkout';
 
 interface ConfirmAction {
@@ -181,7 +182,7 @@ const MenuItemCard: React.FC<{
   categoryId: string;
   onAdd: (item: MenuItem, categoryId: string) => void;
   onOpenModal: (item: MenuItem) => void;
-  theme: Theme;
+  theme: 'dark' | 'light';
 }> = ({ item, categoryId, onAdd, onOpenModal, theme }) => {
   const [isAdded, setIsAdded] = useState(false);
   
@@ -207,8 +208,8 @@ const MenuItemCard: React.FC<{
       layout
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className={`relative overflow-hidden p-6 rounded-2xl border transition-all flex flex-col justify-between group
-        ${isDark ? 'border-white/10 bg-black/40 hover:bg-black/60 hover:border-purple-500/30' : 'border-gray-200 bg-white shadow-sm hover:shadow-md hover:border-purple-500/30'}
+      className={`relative overflow-hidden p-6 rounded-2xl border transition-all flex flex-col justify-between group backdrop-blur-md
+        ${isDark ? 'border-white/10 bg-black/40 hover:bg-black/60 hover:border-purple-500/30' : 'border-white/50 bg-white/50 hover:bg-white/80 hover:border-purple-500/30'}
       `}
     >
       <div className="flex justify-between items-start gap-4 mb-4">
@@ -244,7 +245,7 @@ const MenuItemCard: React.FC<{
             relative z-0 flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all duration-300
             ${isAdded 
               ? 'bg-green-600/20 text-green-500 border border-green-500/50' 
-              : isDark ? 'bg-white/10 hover:bg-purple-600 text-white' : 'bg-gray-100 hover:bg-purple-600 hover:text-white text-gray-800'}
+              : isDark ? 'bg-white/10 hover:bg-purple-600 text-white' : 'bg-gray-200 hover:bg-purple-600 hover:text-white text-gray-800'}
           `}
         >
           {FOOD_CATEGORIES.includes(categoryId) ? (
@@ -260,15 +261,15 @@ const MenuItemCard: React.FC<{
 
 // --- Main Component ---
 
-const Menu: React.FC<MenuProps> = ({ onBack }) => {
+const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   const [activeCategory, setActiveCategory] = useState('rice');
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState<CartItemExtended[]>([]);
   const [history, setHistory] = useState<PastOrder[]>([]);
-  const [theme, setTheme] = useState<Theme>(() => {
-    return (localStorage.getItem('reeplay_theme') as Theme) || 'dark';
-  });
   
+  // Toast State
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
   // Modal States
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartView, setCartView] = useState<CartView>('items'); // 'items' or 'checkout'
@@ -307,10 +308,9 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
     }
   }, [isCartOpen]);
 
-  const toggleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-    localStorage.setItem('reeplay_theme', newTheme);
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
   };
 
   const filteredItems = useMemo(() => {
@@ -374,10 +374,13 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
       }
     });
     addToCart(selectedMealItem, activeCategory, 1, modifiersList, totalPrice);
+    
+    // Show feedback but DO NOT open cart
+    showToast(`${selectedMealItem.name} added to cart!`);
+    
     setIsMealModalOpen(false);
     setSelectedAddOns([]);
     setSelectedMealItem(null);
-    setIsCartOpen(true);
   };
 
   const toggleAddOn = (id: string) => {
@@ -448,62 +451,20 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
     }, 1500);
   };
 
-  // Status Badge Logic for History
-  const getStatusDisplay = (status: string) => {
-    const s = status.toLowerCase();
-    
-    if (s === 'delivered' || s === 'completed') {
-      return {
-        badge: (
-          <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-green-500 bg-green-500/10 px-2 py-1 rounded-full border border-green-500/20">
-            <CheckCheck className="w-3 h-3" /> Completed
-          </span>
-        ),
-        bgIcon: <CheckCircle className="w-32 h-32 text-green-500/10 absolute -bottom-6 -right-6 transform rotate-12" />
-      };
-    }
-    if (s === 'out for delivery') {
-      return {
-        badge: (
-          <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-purple-500 bg-purple-500/10 px-2 py-1 rounded-full border border-purple-500/20">
-            <Bike className="w-3 h-3" /> On Route
-          </span>
-        ),
-        bgIcon: <Bike className="w-32 h-32 text-purple-500/10 absolute -bottom-6 -right-6 transform -rotate-12" />
-      };
-    }
-    if (s === 'confirmed') {
-      return {
-        badge: (
-          <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-blue-500 bg-blue-500/10 px-2 py-1 rounded-full border border-blue-500/20">
-            <ChefHat className="w-3 h-3" /> Cooking
-          </span>
-        ),
-        bgIcon: <ChefHat className="w-32 h-32 text-blue-500/10 absolute -bottom-6 -right-6 transform rotate-6" />
-      };
-    }
-    // Default Pending
-    return {
-      badge: (
-        <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded-full border border-yellow-500/20">
-          <Clock className="w-3 h-3 animate-pulse" /> Pending
-        </span>
-      ),
-      bgIcon: <Clock className="w-32 h-32 text-yellow-500/10 absolute -bottom-6 -right-6 transform -rotate-12" />
-    };
-  };
-
   return (
     <MotionDiv 
       initial={{ opacity: 0, y: 50 }} 
       animate={{ opacity: 1, y: 0 }} 
       exit={{ opacity: 0, y: 50 }}
-      className={`fixed inset-0 z-[60] overflow-y-auto transition-colors duration-300 ${isDark ? 'bg-black text-white' : 'bg-gray-50 text-gray-900'}`}
+      className={`fixed inset-0 z-[60] overflow-y-auto transition-colors duration-300 ${isDark ? 'text-white' : 'text-gray-900'}`}
     >
-      <div className="min-h-screen pb-32 px-4 md:px-8 max-w-7xl mx-auto pt-6">
+      {/* BACKGROUND ANIMATION */}
+      <MenuBackground theme={theme} />
+
+      <div className="min-h-screen pb-32 px-4 md:px-8 max-w-7xl mx-auto pt-6 relative z-10">
         
         {/* Header */}
-        <div className={`flex justify-between items-center mb-8 sticky top-0 z-40 py-4 backdrop-blur-md transition-colors duration-300 ${isDark ? 'bg-black/80' : 'bg-white/80'}`}>
+        <div className={`flex justify-between items-center mb-8 sticky top-0 z-40 py-4 backdrop-blur-md rounded-b-2xl transition-colors duration-300 ${isDark ? 'bg-black/60' : 'bg-white/60'}`}>
           <div className="flex items-center gap-4">
             <button onClick={onBack} className={`p-2 rounded-full transition-colors ${isDark ? 'bg-white/10 hover:bg-purple-600' : 'bg-gray-200 hover:bg-purple-600 hover:text-white'}`}>
               <ArrowLeft />
@@ -520,7 +481,7 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
           <div className="flex items-center gap-3">
              <div className="text-right block">
                   <h2 className="text-xl font-bold">Menu</h2>
-                  <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Order for Pickup or Delivery</p>
+                  <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Order for Pickup or Delivery</p>
               </div>
           </div>
         </div>
@@ -536,7 +497,7 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
               className={`w-full border rounded-full py-3 pl-12 pr-4 outline-none transition-all
                 ${isDark 
                   ? 'bg-white/5 border-white/10 text-white focus:border-purple-500 placeholder:text-gray-500 focus:bg-white/10' 
-                  : 'bg-white border-gray-300 text-gray-900 focus:border-purple-500 placeholder:text-gray-400 shadow-sm'}
+                  : 'bg-white/80 border-gray-300 text-gray-900 focus:border-purple-500 placeholder:text-gray-500 shadow-sm'}
               `} 
             />
             <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
@@ -553,7 +514,7 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
                     ? 'bg-purple-600 border-purple-500 text-white shadow-lg' 
                     : isDark 
                       ? 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10' 
-                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-100'}
+                      : 'bg-white/80 border-gray-200 text-gray-700 hover:bg-white'}
                 `}
               >
                 <cat.icon className="w-4 h-4" />
@@ -585,20 +546,19 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
 
       </div>
 
-      {/* Floating Theme Toggle (Bottom Left) */}
-      <MotionButton
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        onClick={toggleTheme}
-        className={`fixed bottom-8 left-8 z-[70] flex items-center gap-3 px-6 py-4 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.3)] border-2 transition-all hover:scale-105 group font-bold
-          ${isDark 
-            ? 'bg-white text-black border-white hover:bg-gray-200' 
-            : 'bg-black text-white border-black hover:bg-gray-800'
-          }`}
-      >
-        {isDark ? <Sun className="w-6 h-6 fill-black" /> : <Moon className="w-6 h-6 fill-white" />}
-        <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
-      </MotionButton>
+      {/* SUCCESS TOAST NOTIFICATION */}
+      <AnimatePresence>
+        {toastMessage && (
+          <MotionDiv
+             initial={{ opacity: 0, y: 50 }}
+             animate={{ opacity: 1, y: 0 }}
+             exit={{ opacity: 0, y: 20 }}
+             className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[80] bg-green-600 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-2 font-bold whitespace-nowrap pointer-events-none"
+          >
+            <CheckCircle className="w-5 h-5" /> {toastMessage}
+          </MotionDiv>
+        )}
+      </AnimatePresence>
 
       {/* Floating Cart Button (Bottom Right) */}
       {cart.length > 0 && (
