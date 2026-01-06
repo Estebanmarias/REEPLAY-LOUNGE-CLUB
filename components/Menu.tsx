@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, ArrowRight, ChevronDown, Beaker, Wand2 } from 'lucide-react';
+import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, ArrowRight, ChevronDown, Beaker, Wand2, Instagram, MessageCircle, Copy, Info } from 'lucide-react';
 import { orderService, PastOrder } from '../lib/orderService';
 import MenuBackground from './MenuBackground';
 
@@ -39,6 +39,8 @@ interface ConfirmAction {
 
 // --- Constants & Data ---
 const IG_DM_LINK = "https://ig.me/m/reeplaylounge_ogbomoso"; 
+// Changed to direct number link to ensure text pre-fill works correctly
+const WHATSAPP_LINK = "https://wa.me/2349060621425";
 const VAT_RATE = 0.075; 
 const PAPER_BAG_PRICE = 1000;
 
@@ -297,6 +299,39 @@ const MenuItemCard: React.FC<{
   );
 };
 
+// --- Helper for Status Badges ---
+const getStatusBadge = (status: string) => {
+  const s = status.toLowerCase();
+  
+  if (s === 'delivered' || s === 'completed') {
+    return (
+      <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-green-500 bg-green-500/10 px-2 py-1 rounded-full border border-green-500/20">
+        <CheckCheck className="w-3 h-3" /> Completed
+      </span>
+    );
+  }
+  if (s === 'out for delivery') {
+    return (
+      <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-purple-500 bg-purple-500/10 px-2 py-1 rounded-full border border-purple-500/20">
+        <Bike className="w-3 h-3" /> On Route
+      </span>
+    );
+  }
+  if (s === 'confirmed') {
+    return (
+      <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-blue-500 bg-blue-500/10 px-2 py-1 rounded-full border border-blue-500/20">
+        <ChefHat className="w-3 h-3" /> Cooking
+      </span>
+    );
+  }
+  // Default Pending
+  return (
+    <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded-full border border-yellow-500/20">
+      <Clock className="w-3 h-3 animate-pulse" /> Pending
+    </span>
+  );
+};
+
 // --- Main Component ---
 
 const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
@@ -315,6 +350,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   const [isMealModalOpen, setIsMealModalOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+  const [lastOrder, setLastOrder] = useState<PastOrder | null>(null); // To persist data for receipt after cart clear
 
   // Customization State
   const [selectedMealItem, setSelectedMealItem] = useState<MenuItem | null>(null);
@@ -331,6 +367,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   const [deliveryZoneId, setDeliveryZoneId] = useState('select');
   const [address, setAddress] = useState('');
   const [pickupTime, setPickupTime] = useState('');
+  const [pickupError, setPickupError] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -354,6 +391,25 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setPickupTime(val);
+    if (!val) {
+        setPickupError('');
+        return;
+    }
+    const [h, m] = val.split(':').map(Number);
+    const totalMins = h * 60 + m;
+    const start = 15 * 60; // 15:00 (3 PM)
+    const end = 22 * 60 + 30; // 22:30 (10:30 PM)
+
+    if (totalMins < start || totalMins > end) {
+        setPickupError('Pickup is only available between 3:00 PM and 10:30 PM.');
+    } else {
+        setPickupError('');
+    }
   };
 
   const filteredItems = useMemo(() => {
@@ -408,9 +464,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
             });
         }
       }
-
-      // NOTE: Bag Charge is now a separate fixed fee in total calc, not added as a cart item here.
-
       return newCart;
     });
   };
@@ -463,7 +516,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   };
 
   const handleCustomizationSubmit = (e?: React.MouseEvent | React.TouchEvent) => {
-    // Prevent event propagation to avoid ghost clicks on elements below the modal (like the floating cart button)
     if (e) {
       e.stopPropagation();
       e.preventDefault();
@@ -480,16 +532,13 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
       }
     });
     addToCart(selectedMealItem, activeCategory, 1, modifiersList, totalPrice);
-    
-    // Show feedback
     showToast(`${selectedMealItem.name} added to cart!`);
     
-    // Slight delay to allow animations and prevent ghost clicks from registering on underlying elements immediately
     setTimeout(() => {
         setIsMealModalOpen(false);
         setSelectedAddOns([]);
         setSelectedMealItem(null);
-        setIsCartOpen(false); // Explicitly ensure cart is closed
+        setIsCartOpen(false); 
     }, 50);
   };
 
@@ -522,9 +571,9 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
     if (orderType === 'delivery') {
       return deliveryZoneId !== 'select' && address.length > 5;
     } else {
-      return pickupTime !== '';
+      return pickupTime !== '' && pickupError === '';
     }
-  }, [customerName, customerPhone, orderType, deliveryZoneId, address, pickupTime]);
+  }, [customerName, customerPhone, orderType, deliveryZoneId, address, pickupTime, pickupError]);
 
   const handleConfirmOrder = () => {
     if (!canCheckout) return;
@@ -555,6 +604,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
 
       orderService.saveOrder(newOrder);
       setHistory(orderService.getHistory());
+      setLastOrder(newOrder); // Save details for receipt modal
       localStorage.setItem('reeplay_user_name', customerName);
       localStorage.setItem('reeplay_user_phone', customerPhone);
       
@@ -847,6 +897,122 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
         )}
       </AnimatePresence>
 
+      {/* --- HISTORY MODAL --- */}
+      <AnimatePresence>
+        {isHistoryOpen && (
+          <MotionDiv 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[110] flex items-center justify-center p-4"
+          >
+             <MotionDiv 
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className={`w-full max-w-md border rounded-2xl p-6 shadow-2xl flex flex-col max-h-[80vh] ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Order History</h3>
+                <button onClick={() => setIsHistoryOpen(false)} className={`p-2 rounded-full hover:bg-red-500/20 hover:text-red-500 ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar">
+                {history.length === 0 ? (
+                  <div className={`text-center py-10 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    <History className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                    <p>No past orders found.</p>
+                  </div>
+                ) : (
+                  history.map((order, i) => (
+                    <div key={i} className={`p-4 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className={`text-xs font-mono font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{new Date(order.date).toLocaleDateString()}</span>
+                        {/* NEW: Improved Status Indicator */}
+                        {getStatusBadge(order.status)}
+                      </div>
+                      <div className="mb-3">
+                         <p className={`font-bold text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                           {order.items.map(item => `${item.quantity}x ${item.name}`).join(', ')}
+                         </p>
+                      </div>
+                      <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-500/30">
+                         <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>ID: {order.id}</span>
+                         <span className="text-yellow-500 font-bold font-mono">{formatPrice(order.total)}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </MotionDiv>
+          </MotionDiv>
+        )}
+      </AnimatePresence>
+
+      {/* --- RECEIPT MODAL --- */}
+      <AnimatePresence>
+        {isReceiptOpen && lastOrder && (
+          <MotionDiv 
+            initial={{ opacity: 0, scale: 0.9 }} 
+            animate={{ opacity: 1, scale: 1 }} 
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
+          >
+            <div className={`w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl ${isDark ? 'bg-[#18181b] border border-white/10' : 'bg-white'}`}>
+              <div className="bg-green-600 p-8 text-center">
+                <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
+                  <CheckCheck className="w-10 h-10 text-white" />
+                </div>
+                <h2 className="text-3xl font-black text-white mb-1">Order Placed!</h2>
+                <p className="text-green-100">Order ID: <span className="font-mono font-bold">{lastOrder.id}</span></p>
+              </div>
+
+              <div className="p-6 space-y-6">
+                <div className={`text-center space-y-1 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                   <p>Thank you, <span className="font-bold">{lastOrder.customerName}</span>.</p>
+                   <p>Your order has been received.</p>
+                   {lastOrder.deliveryPin && (
+                     <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+                       <p className="text-xs uppercase font-bold text-yellow-600 mb-1">Delivery PIN</p>
+                       <p className="text-2xl font-mono font-black text-yellow-500 tracking-widest">{lastOrder.deliveryPin}</p>
+                       <p className="text-[10px] text-gray-500 mt-1">Show this to the rider.</p>
+                     </div>
+                   )}
+                </div>
+
+                <div className="space-y-3">
+                  <button 
+                    onClick={() => {
+                        const msg = `*New Order ${lastOrder.id}* 🛒%0A%0A*Name:* ${lastOrder.customerName}%0A*Phone:* ${lastOrder.customerPhone}%0A*Type:* ${lastOrder.type.toUpperCase()}%0A${lastOrder.details.replace(/\n/g, '%0A')}%0A%0A*Order Details:*%0A${lastOrder.items.map(i => `- ${i.quantity}x ${i.name} (${formatPrice(i.priceRaw)})`).join('%0A')}%0A%0A*Total:* ${formatPrice(lastOrder.total)}%0A${lastOrder.deliveryPin ? `*PIN:* ${lastOrder.deliveryPin}` : ''}`;
+                        window.open(`${WHATSAPP_LINK}?text=${msg}`, '_blank');
+                    }}
+                    className="w-full py-4 bg-[#25D366] hover:bg-[#128C7E] text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg"
+                  >
+                    <MessageCircle className="w-5 h-5" /> Send to WhatsApp
+                  </button>
+                  
+                  <button 
+                    onClick={() => {
+                         const msg = `Order ${lastOrder.id}\nName: ${lastOrder.customerName}\nTotal: ${formatPrice(lastOrder.total)}`;
+                         navigator.clipboard.writeText(msg);
+                         window.open(IG_DM_LINK, '_blank');
+                    }}
+                    className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg"
+                  >
+                    <Instagram className="w-5 h-5" /> Send to Instagram
+                  </button>
+                </div>
+
+                <button 
+                  onClick={() => setIsReceiptOpen(false)}
+                  className={`w-full py-3 rounded-xl font-bold transition-colors ${isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-800'}`}
+                >
+                  Close & Continue
+                </button>
+              </div>
+            </div>
+          </MotionDiv>
+        )}
+      </AnimatePresence>
+
       {/* --- CUSTOMIZATION MODAL --- */}
       <AnimatePresence>
         {isMealModalOpen && selectedMealItem && (
@@ -1056,7 +1222,13 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                         {orderType === 'pickup' ? (
                         <div className="space-y-2">
                             <label className={`text-xs uppercase font-bold flex items-center gap-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}><Clock className="w-3 h-3"/> Pickup Time</label>
-                            <input type="time" value={pickupTime} onChange={e => setPickupTime(e.target.value)} className={`w-full border p-3 rounded-xl outline-none focus:border-purple-500 ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'}`} />
+                            <input 
+                              type="time" 
+                              value={pickupTime} 
+                              onChange={handleTimeChange} 
+                              className={`w-full border p-3 rounded-xl outline-none focus:border-purple-500 ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'} ${pickupError ? 'border-red-500' : ''}`} 
+                            />
+                            {pickupError && <p className="text-red-400 text-xs mt-1">{pickupError}</p>}
                         </div>
                         ) : (
                         <div className="space-y-4">
@@ -1069,6 +1241,13 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                             <div className="space-y-2">
                                 <label className={`text-xs uppercase font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Address Details</label>
                                 <textarea placeholder="Hostel Name, Room Number, Description..." value={address} onChange={e => setAddress(e.target.value)} className={`w-full border p-3 rounded-xl outline-none focus:border-purple-500 resize-none h-24 text-sm ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'}`}/>
+                            </div>
+                            {/* NEW: Delivery Disclaimer */}
+                            <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg flex gap-3 items-start">
+                              <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                              <p className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                                <strong>Note:</strong> All cooked meals take 45 minutes or less to prepare and deliver. Thank you for your patience!
+                              </p>
                             </div>
                         </div>
                         )}

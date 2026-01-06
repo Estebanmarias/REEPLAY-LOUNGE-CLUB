@@ -17,6 +17,8 @@ const OCCASIONS = [
   { id: 'casual', label: 'Casual / Other', icon: Users, color: 'text-purple-500', bg: 'bg-purple-500/10', border: 'border-purple-500/50' },
 ];
 
+const WHATSAPP_LINK = "https://wa.me/message/JL7FQ3VJU44YN1";
+
 const ReservationModal: React.FC<ReservationModalProps> = ({ isOpen, onClose }) => {
   const [step, setStep] = useState(1); // 1: Details, 2: Success
   const [formData, setFormData] = useState({
@@ -40,7 +42,7 @@ const ReservationModal: React.FC<ReservationModalProps> = ({ isOpen, onClose }) 
 
   const sendToWhatsApp = () => {
     const text = `*New Reservation Request - Reeplay Lounge* 🥂%0A%0A*Type:* ${formData.occasion.toUpperCase()}%0A*Date:* ${formData.date}%0A*Time:* ${formData.time}%0A*Guests:* ${formData.guests}%0A*Name:* ${formData.name}%0A*Notes:* ${formData.notes}`;
-    window.open(`https://wa.me/2349060621425?text=${text}`, '_blank');
+    window.open(`${WHATSAPP_LINK}?text=${text}`, '_blank');
     onClose();
     setTimeout(() => setStep(1), 500); // Reset after close
   };
