@@ -35,7 +35,8 @@ const EventCard: React.FC<{
     offset: ["start end", "end start"]
   });
 
-  const y = useTransform(scrollYProgress, [0, 1], ["-15%", "15%"]);
+  // Smooth parallax effect: Image moves slower than the container
+  const y = useTransform(scrollYProgress, [0, 1], ["-10%", "10%"]);
 
   const handleShare = async () => {
     const shareData = {
@@ -61,10 +62,10 @@ const EventCard: React.FC<{
       initial={{ opacity: 0, scale: 0.95 }}
       whileInView={{ opacity: 1, scale: 1 }}
       viewport={{ once: true, margin: "-50px" }}
-      transition={{ duration: 0.5, delay: index * 0.1 }}
-      className="group relative bg-[#111] border border-white/10 rounded-3xl overflow-hidden hover:border-purple-500/50 transition-colors flex flex-col h-full"
+      transition={{ duration: 0.6, delay: index * 0.1, ease: "easeOut" }}
+      className="group relative bg-[#111] border border-white/10 rounded-3xl overflow-hidden hover:border-purple-500/50 transition-colors flex flex-col h-full shadow-2xl"
     >
-      <div className="h-64 overflow-hidden relative">
+      <div className="h-72 overflow-hidden relative">
         <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-transparent to-transparent z-10" />
         <MotionImg 
           style={{ y, scale: 1.15 }}
@@ -84,9 +85,10 @@ const EventCard: React.FC<{
           </h2>
           <button 
             onClick={handleShare}
-            className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors flex-shrink-0"
+            className="p-3 bg-white/5 rounded-full hover:bg-white/10 hover:text-white transition-all flex-shrink-0 text-gray-400"
+            title="Share Event"
           >
-            {isShared ? <Check className="w-5 h-5 text-green-500" /> : <Share2 className="w-5 h-5 text-gray-400" />}
+            {isShared ? <Check className="w-5 h-5 text-green-500" /> : <Share2 className="w-5 h-5" />}
           </button>
         </div>
 
@@ -115,7 +117,7 @@ const EventCard: React.FC<{
 
         <button 
           onClick={() => onReserve(event.title)}
-          className="w-full py-4 bg-white/5 hover:bg-purple-600 text-white font-bold rounded-xl border border-white/10 hover:border-purple-500 transition-all flex items-center justify-center gap-2 mt-auto"
+          className="w-full py-4 bg-white/5 hover:bg-purple-600 text-white font-bold rounded-xl border border-white/10 hover:border-purple-500 transition-all flex items-center justify-center gap-2 mt-auto shadow-lg"
         >
           Reserve Spot <Music className="w-4 h-4" />
         </button>
@@ -132,7 +134,7 @@ const EventsPage: React.FC<EventsPageProps> = ({ onBack }) => {
     const timer = setInterval(() => {
       const now = new Date();
       const target = new Date();
-      target.setHours(22, 0, 0, 0);
+      target.setHours(22, 0, 0, 0); // Next 10 PM
       if (now > target) target.setDate(target.getDate() + 1);
       const diff = target.getTime() - now.getTime();
       const h = Math.floor(diff / (1000 * 60 * 60));
@@ -167,18 +169,26 @@ const EventsPage: React.FC<EventsPageProps> = ({ onBack }) => {
            <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
             SPECIALS
           </h1>
-          <p className="text-gray-400 text-sm md:text-base mt-1 flex items-center gap-2">
-            Next event starts in: <span className="font-mono text-yellow-500 font-bold">{timeLeft}</span>
-          </p>
+          <p className="text-gray-400 text-sm mt-1">Upcoming Exclusive Nights</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {upcomingSpecialEvents.map((event, idx) => (
+      <div className="mb-12 p-6 rounded-2xl bg-gradient-to-r from-purple-900/50 to-blue-900/50 border border-white/10 flex flex-col md:flex-row items-center justify-between gap-6 backdrop-blur-md">
+        <div>
+          <h3 className="text-xl font-bold text-white mb-1">Next Event Countdown</h3>
+          <p className="text-purple-300">Don't miss the vibe check.</p>
+        </div>
+        <div className="text-4xl md:text-5xl font-mono font-bold text-white tracking-widest tabular-nums">
+          {timeLeft}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {upcomingSpecialEvents.map((event, index) => (
           <EventCard 
             key={event.id} 
             event={event} 
-            index={idx}
+            index={index}
             onReserve={(title) => setSelectedEvent(title)} 
           />
         ))}
