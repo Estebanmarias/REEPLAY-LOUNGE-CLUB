@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { ArrowLeft, Calendar, Clock, MapPin, Music, Ticket, Share2, Loader2, Check } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, MapPin, Music, Ticket, Share2, Check } from 'lucide-react';
 import RsvpModal from './RsvpModal';
-import { client, urlFor } from '../lib/sanity';
+import { upcomingSpecialEvents } from '../staticData';
 
 const MotionDiv = motion.div as any;
 const MotionImg = motion.img as any;
@@ -11,64 +11,30 @@ interface EventsPageProps {
   onBack: () => void;
 }
 
-interface SanityEvent {
-  _id: string;
+interface SpecialEvent {
+  id: string;
   title: string;
   date: string;
   time: string;
   category: string;
-  image: any;
+  image: string;
   description: string;
   price: string;
 }
 
-// Fallback if no Sanity connection
-const FALLBACK_EVENTS: SanityEvent[] = [
-  {
-    _id: "1",
-    title: "Flash Friday",
-    date: "This Friday",
-    time: "10:00 PM - Dawn",
-    category: "Party",
-    image: null, // Logic handles null image
-    description: "Kickstart the weekend with the hottest DJ sets and special bottle service offers.",
-    price: "Free Entry"
-  },
-  {
-    _id: "2",
-    title: "Sunday Chill & Grill",
-    date: "This Sunday",
-    time: "4:00 PM - 11:00 PM",
-    category: "Vibe",
-    image: null,
-    description: "Wind down the weekend with smooth Afro-beats, outdoor vibes, and spicy suya.",
-    price: "Reservation Recommended"
-  }
-];
-
-// --- Helper Functions ---
-const getImageUrl = (imageSource: any) => {
-  if (!imageSource) return "https://images.unsplash.com/photo-1545128485-c400e7702796?q=80&w=800&auto=format&fit=crop";
-  return urlFor(imageSource)?.width(800).url();
-};
-
-// --- Sub-Component: Event Card (Handles Parallax & Share) ---
 const EventCard: React.FC<{ 
-  event: SanityEvent; 
+  event: SpecialEvent; 
   onReserve: (title: string) => void;
   index: number;
 }> = ({ event, onReserve, index }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isShared, setIsShared] = useState(false);
 
-  // Parallax: Track scroll progress of this specific card
   const { scrollYProgress } = useScroll({
     target: cardRef,
     offset: ["start end", "end start"]
   });
 
-  // Transform Y position of image based on scroll (Parallax Effect)
-  // Moving from -15% to 15% creates a "slower" movement feel relative to the container
   const y = useTransform(scrollYProgress, [0, 1], ["-15%", "15%"]);
 
   const handleShare = async () => {
@@ -81,13 +47,9 @@ const EventCard: React.FC<{
     if (navigator.share) {
       try {
         await navigator.share(shareData);
-      } catch (err) {
-        // User cancelled share
-      }
+      } catch (err) {}
     } else {
-      // Fallback for desktop/unsupported browsers
-      const text = `${shareData.title}\n${shareData.text}\n${shareData.url}`;
-      navigator.clipboard.writeText(text);
+      navigator.clipboard.writeText(`${shareData.title}\n${shareData.text}\n${shareData.url}`);
       setIsShared(true);
       setTimeout(() => setIsShared(false), 2000);
     }
@@ -102,24 +64,19 @@ const EventCard: React.FC<{
       transition={{ duration: 0.5, delay: index * 0.1 }}
       className="group relative bg-[#111] border border-white/10 rounded-3xl overflow-hidden hover:border-purple-500/50 transition-colors flex flex-col h-full"
     >
-      {/* Image Section with Parallax */}
       <div className="h-64 overflow-hidden relative">
         <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-transparent to-transparent z-10" />
-        
-        {/* Parallax Image */}
         <MotionImg 
-          style={{ y, scale: 1.15 }} // Scale > 1 ensures no gaps appear during parallax movement
-          src={getImageUrl(event.image)} 
+          style={{ y, scale: 1.15 }}
+          src={event.image} 
           alt={event.title}
           className="w-full h-full object-cover"
         />
-        
         <div className="absolute top-4 right-4 z-20 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border border-white/10">
           {event.category}
         </div>
       </div>
 
-      {/* Content Section */}
       <div className="p-6 md:p-8 relative z-20 -mt-10 bg-[#111] rounded-t-3xl border-t border-white/5 flex-1 flex flex-col">
         <div className="flex justify-between items-start mb-4">
           <h2 className="text-3xl font-bold text-white leading-tight group-hover:text-purple-400 transition-colors">
@@ -128,7 +85,6 @@ const EventCard: React.FC<{
           <button 
             onClick={handleShare}
             className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors flex-shrink-0"
-            title="Share Event"
           >
             {isShared ? <Check className="w-5 h-5 text-green-500" /> : <Share2 className="w-5 h-5 text-gray-400" />}
           </button>
@@ -159,74 +115,29 @@ const EventCard: React.FC<{
 
         <button 
           onClick={() => onReserve(event.title)}
-          className="w-full py-4 bg-white/5 hover:bg-purple-600 text-white font-bold rounded-xl border border-white/10 hover:border-purple-500 transition-all flex items-center justify-center gap-2 group-hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] mt-auto"
+          className="w-full py-4 bg-white/5 hover:bg-purple-600 text-white font-bold rounded-xl border border-white/10 hover:border-purple-500 transition-all flex items-center justify-center gap-2 mt-auto"
         >
-          Reserve for this Event <Music className="w-4 h-4" />
+          Reserve Spot <Music className="w-4 h-4" />
         </button>
       </div>
     </MotionDiv>
   );
 };
 
-// --- Main Page Component ---
 const EventsPage: React.FC<EventsPageProps> = ({ onBack }) => {
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
-  const [events, setEvents] = useState<SanityEvent[]>([]);
-  const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState("");
 
-  // Fetch from Sanity
-  useEffect(() => {
-    const fetchEvents = async () => {
-      // Prevent network error if Project ID is not set
-      if (client.config().projectId === 'replace-with-your-project-id') {
-         console.log("Sanity Project ID not set, using fallback upcoming events.");
-         setEvents(FALLBACK_EVENTS);
-         setLoading(false);
-         return;
-      }
-
-      try {
-        const query = `*[_type == "upcomingEvent"] | order(eventDate asc) {
-          _id,
-          title,
-          date,
-          time,
-          category,
-          image,
-          description,
-          price
-        }`;
-        const data = await client.fetch(query);
-        
-        if (data && data.length > 0) {
-          setEvents(data);
-        } else {
-          setEvents(FALLBACK_EVENTS);
-        }
-      } catch (error) {
-        console.error("Sanity fetch error:", error);
-        setEvents(FALLBACK_EVENTS);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchEvents();
-  }, []);
-
-  // Simple countdown logic
   useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date();
       const target = new Date();
-      target.setHours(22, 0, 0, 0); // Target 10 PM tonight
+      target.setHours(22, 0, 0, 0);
       if (now > target) target.setDate(target.getDate() + 1);
-      
       const diff = target.getTime() - now.getTime();
       const h = Math.floor(diff / (1000 * 60 * 60));
       const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
       const s = Math.floor((diff % (1000 * 60)) / 1000);
-      
       setTimeLeft(`${h}h ${m}m ${s}s`);
     }, 1000);
     return () => clearInterval(timer);
@@ -254,7 +165,7 @@ const EventsPage: React.FC<EventsPageProps> = ({ onBack }) => {
         </button>
         <div>
            <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
-            UPCOMING EVENTS
+            SPECIALS
           </h1>
           <p className="text-gray-400 text-sm md:text-base mt-1 flex items-center gap-2">
             Next event starts in: <span className="font-mono text-yellow-500 font-bold">{timeLeft}</span>
@@ -262,23 +173,16 @@ const EventsPage: React.FC<EventsPageProps> = ({ onBack }) => {
         </div>
       </div>
 
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <Loader2 className="w-12 h-12 text-purple-500 animate-spin mb-4" />
-          <p className="text-gray-400">Loading events...</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {events.map((event, idx) => (
-            <EventCard 
-              key={event._id || idx} 
-              event={event} 
-              index={idx}
-              onReserve={(title) => setSelectedEvent(title)} 
-            />
-          ))}
-        </div>
-      )}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {upcomingSpecialEvents.map((event, idx) => (
+          <EventCard 
+            key={event.id} 
+            event={event} 
+            index={idx}
+            onReserve={(title) => setSelectedEvent(title)} 
+          />
+        ))}
+      </div>
     </MotionDiv>
   );
 };

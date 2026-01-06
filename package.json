@@ -1,7 +1,7 @@
 {
   "name": "reeplay-lounge",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,9 +12,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "framer-motion": "^10.16.4",
-    "lucide-react": "^0.460.0",
-    "@sanity/client": "^6.15.0",
-    "@sanity/image-url": "^1.0.2"
+    "lucide-react": "^0.460.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.37",
