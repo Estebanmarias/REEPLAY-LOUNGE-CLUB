@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, PartyPopper, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, PartyPopper, AlertCircle, Sun, Moon, AlertTriangle } from 'lucide-react';
 import { orderService, PastOrder } from '../lib/orderService';
 
 const MotionDiv = motion.div as any;
@@ -24,6 +24,12 @@ interface MenuProps {
 }
 
 type OrderType = 'pickup' | 'delivery';
+type Theme = 'dark' | 'light';
+
+interface ConfirmAction {
+  type: 'clear' | 'remove';
+  itemIndex?: number;
+}
 
 // --- Constants & Data ---
 const IG_DM_LINK = "https://ig.me/m/reeplaylounge_ogbomoso"; 
@@ -172,7 +178,8 @@ const MenuItemCard: React.FC<{
   categoryId: string;
   onAdd: (item: MenuItem) => void;
   onOpenModal: (item: MenuItem) => void;
-}> = ({ item, categoryId, onAdd, onOpenModal }) => {
+  theme: Theme;
+}> = ({ item, categoryId, onAdd, onOpenModal, theme }) => {
   const [isAdded, setIsAdded] = useState(false);
   
   const handleClick = () => {
@@ -190,17 +197,21 @@ const MenuItemCard: React.FC<{
     setTimeout(() => setIsAdded(false), 2000);
   };
 
+  const isDark = theme === 'dark';
+
   return (
     <MotionDiv
       layout
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="relative overflow-hidden p-6 rounded-2xl border border-white/10 bg-black/40 hover:bg-black/60 hover:border-purple-500/30 transition-all flex flex-col justify-between group"
+      className={`relative overflow-hidden p-6 rounded-2xl border transition-all flex flex-col justify-between group
+        ${isDark ? 'border-white/10 bg-black/40 hover:bg-black/60 hover:border-purple-500/30' : 'border-gray-200 bg-white shadow-sm hover:shadow-md hover:border-purple-500/30'}
+      `}
     >
       <div className="flex justify-between items-start gap-4 mb-4">
         <div className="flex-1">
-          <h3 className="text-xl font-bold text-white mb-2">{item.name}</h3>
-          <p className="text-gray-400 text-sm leading-relaxed">{item.desc}</p>
+          <h3 className={`text-xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>{item.name}</h3>
+          <p className={`text-sm leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{item.desc}</p>
         </div>
         <span className="text-lg font-black text-yellow-500 font-mono">{item.price}</span>
       </div>
@@ -230,7 +241,7 @@ const MenuItemCard: React.FC<{
             relative z-0 flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all duration-300
             ${isAdded 
               ? 'bg-green-600/20 text-green-500 border border-green-500/50' 
-              : 'bg-white/10 hover:bg-purple-600 text-white'}
+              : isDark ? 'bg-white/10 hover:bg-purple-600 text-white' : 'bg-gray-100 hover:bg-purple-600 hover:text-white text-gray-800'}
           `}
         >
           {['rice', 'pasta', 'sides'].includes(categoryId) ? (
@@ -251,13 +262,17 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState<CartItemExtended[]>([]);
   const [history, setHistory] = useState<PastOrder[]>([]);
+  const [theme, setTheme] = useState<Theme>(() => {
+    return (localStorage.getItem('reeplay_theme') as Theme) || 'dark';
+  });
   
   // Modal States
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [isMealModalOpen, setIsMealModalOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+
   // Customization State
   const [selectedMealItem, setSelectedMealItem] = useState<MenuItem | null>(null);
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
@@ -273,11 +288,19 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatedDeliveryPin, setGeneratedDeliveryPin] = useState<string | null>(null);
 
+  const isDark = theme === 'dark';
+
   useEffect(() => {
     setHistory(orderService.getHistory());
     setCustomerName(localStorage.getItem('reeplay_user_name') || '');
     setCustomerPhone(localStorage.getItem('reeplay_user_phone') || '');
   }, []);
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    localStorage.setItem('reeplay_theme', newTheme);
+  };
 
   const filteredItems = useMemo(() => {
     const items = MENU_ITEMS[activeCategory] || [];
@@ -333,6 +356,17 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
 
   const toggleAddOn = (id: string) => {
     setSelectedAddOns(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const performConfirmAction = () => {
+    if (!confirmAction) return;
+    if (confirmAction.type === 'clear') {
+      setCart([]);
+      setIsCartOpen(false);
+    } else if (confirmAction.type === 'remove' && confirmAction.itemIndex !== undefined) {
+      setCart(prev => prev.filter((_, i) => i !== confirmAction.itemIndex));
+    }
+    setConfirmAction(null);
   };
 
   const cartSubTotal = useMemo(() => cart.reduce((t, i) => t + (i.priceRaw * i.quantity), 0), [cart]);
@@ -437,39 +471,56 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
     <MotionDiv 
       initial={{ opacity: 0, y: 50 }} 
       animate={{ opacity: 1, y: 0 }} 
-      className="relative min-h-screen pt-24 pb-20 px-4 md:px-8 max-w-7xl mx-auto z-20"
+      className={`relative min-h-screen pt-24 pb-20 px-4 md:px-8 max-w-7xl mx-auto z-20 transition-colors duration-300 ${isDark ? 'text-white' : 'text-gray-900 bg-gray-50'}`}
     >
+      {/* Background for Light Mode */}
+      {!isDark && (
+        <div className="fixed inset-0 bg-gray-50 -z-10" />
+      )}
+
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-2 bg-white/10 rounded-full hover:bg-purple-600 transition-colors">
+          <button onClick={onBack} className={`p-2 rounded-full transition-colors ${isDark ? 'bg-white/10 hover:bg-purple-600' : 'bg-gray-200 hover:bg-purple-600 hover:text-white'}`}>
             <ArrowLeft />
           </button>
           <button 
             onClick={() => setIsHistoryOpen(true)}
-            className="p-2 bg-white/10 rounded-full hover:bg-yellow-600 transition-colors flex items-center gap-2 px-4"
+            className={`p-2 rounded-full transition-colors flex items-center gap-2 px-4 ${isDark ? 'bg-white/10 hover:bg-yellow-600' : 'bg-gray-200 hover:bg-yellow-500 hover:text-white'}`}
           >
             <History className="w-5 h-5" />
             <span className="text-sm font-bold hidden md:inline">My Orders</span>
           </button>
         </div>
-        <div className="text-right">
-          <h2 className="text-xl font-bold">Menu</h2>
-          <p className="text-xs text-gray-400">Order for Pickup or Delivery</p>
+        <div className="flex items-center gap-4">
+            <div className="text-right">
+                <h2 className="text-xl font-bold">Menu</h2>
+                <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Order for Pickup or Delivery</p>
+            </div>
+            <button 
+                onClick={toggleTheme}
+                className={`p-2 rounded-full transition-colors ${isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-gray-200 hover:bg-gray-300'}`}
+            >
+                {isDark ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-purple-600" />}
+            </button>
         </div>
       </div>
 
       {/* Search & Categories */}
-      <div className="mb-8 sticky top-20 z-30 bg-black pt-2 pb-4">
+      <div className={`mb-8 sticky top-20 z-30 pt-2 pb-4 transition-colors duration-300 ${isDark ? 'bg-black' : 'bg-gray-50'}`}>
         <div className="relative max-w-md mx-auto mb-4">
           <input 
             type="text" 
             placeholder="Search for Jollof, Drinks, Cocktails..." 
             value={searchQuery} 
             onChange={e => setSearchQuery(e.target.value)} 
-            className="w-full bg-white/5 border border-white/10 rounded-full py-3 pl-12 pr-4 text-white focus:border-purple-500 outline-none placeholder:text-gray-500 transition-all focus:bg-white/10" 
+            className={`w-full border rounded-full py-3 pl-12 pr-4 outline-none transition-all
+              ${isDark 
+                ? 'bg-white/5 border-white/10 text-white focus:border-purple-500 placeholder:text-gray-500 focus:bg-white/10' 
+                : 'bg-white border-gray-300 text-gray-900 focus:border-purple-500 placeholder:text-gray-400 shadow-sm'}
+            `} 
           />
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
         </div>
 
         <div className="flex overflow-x-auto gap-3 pb-2 no-scrollbar">
@@ -479,7 +530,11 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
               onClick={() => setActiveCategory(cat.id)} 
               className={`
                 flex items-center gap-2 px-5 py-2.5 rounded-full whitespace-nowrap border transition-all font-medium text-sm
-                ${activeCategory === cat.id ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-900/40' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}
+                ${activeCategory === cat.id 
+                  ? 'bg-purple-600 border-purple-500 text-white shadow-lg' 
+                  : isDark 
+                    ? 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10' 
+                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-100'}
               `}
             >
               <cat.icon className="w-4 h-4" />
@@ -498,10 +553,11 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
             categoryId={activeCategory} 
             onAdd={addToCart} 
             onOpenModal={(it) => { setSelectedMealItem(it); setIsMealModalOpen(true); }} 
+            theme={theme}
           />
         ))}
         {filteredItems.length === 0 && (
-          <div className="col-span-full text-center py-12 text-gray-500">
+          <div className={`col-span-full text-center py-12 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
             <Search className="w-12 h-12 mx-auto mb-3 opacity-20" />
             <p>No items found for "{searchQuery}". Try another category or term.</p>
           </div>
@@ -523,6 +579,46 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
         </MotionButton>
       )}
 
+      {/* --- CONFIRMATION MODAL --- */}
+      <AnimatePresence>
+        {confirmAction && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <MotionDiv 
+              initial={{ scale: 0.9, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className={`p-6 rounded-xl border max-w-xs w-full text-center shadow-2xl ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}
+            >
+              <div className="flex justify-center mb-4">
+                <div className="p-3 bg-red-500/10 rounded-full">
+                   <AlertTriangle className="w-8 h-8 text-red-500" />
+                </div>
+              </div>
+              <h3 className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>Are you sure?</h3>
+              <p className={`mb-6 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                {confirmAction.type === 'clear' 
+                  ? 'This will remove all items from your cart. This action cannot be undone.' 
+                  : 'This will remove this item from your cart.'}
+              </p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setConfirmAction(null)} 
+                  className={`flex-1 py-2.5 rounded-lg font-medium transition-colors ${isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-800'}`}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={performConfirmAction} 
+                  className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-lg font-medium transition-colors"
+                >
+                  Remove
+                </button>
+              </div>
+            </MotionDiv>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* --- CUSTOMIZATION MODAL --- */}
       <AnimatePresence>
         {isMealModalOpen && selectedMealItem && (
@@ -532,21 +628,21 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
           >
             <MotionDiv 
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-              className="w-full max-w-md bg-[#18181b] border-t md:border border-white/10 rounded-t-3xl md:rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+              className={`w-full max-w-md border-t md:border rounded-t-3xl md:rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}
             >
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h3 className="text-2xl font-bold text-white">{selectedMealItem.name}</h3>
+                  <h3 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{selectedMealItem.name}</h3>
                   <p className="text-yellow-500 font-mono text-lg">{selectedMealItem.price}</p>
                 </div>
-                <button onClick={() => setIsMealModalOpen(false)} className="p-2 bg-white/10 rounded-full hover:bg-red-500/20 hover:text-red-500">
+                <button onClick={() => setIsMealModalOpen(false)} className={`p-2 rounded-full hover:bg-red-500/20 hover:text-red-500 ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}>
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <div className="space-y-6">
                 <div>
-                  <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Add Extras</h4>
+                  <h4 className={`text-sm font-bold uppercase tracking-wider mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Add Extras</h4>
                   <div className="space-y-2">
                     {KITCHEN_ADDONS.map(addon => {
                       const isSelected = selectedAddOns.includes(addon.id);
@@ -554,9 +650,15 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
                         <div 
                           key={addon.id} 
                           onClick={() => toggleAddOn(addon.id)}
-                          className={`flex justify-between items-center p-3 rounded-xl border cursor-pointer transition-all ${isSelected ? 'bg-purple-600/20 border-purple-500' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+                          className={`flex justify-between items-center p-3 rounded-xl border cursor-pointer transition-all 
+                            ${isSelected 
+                              ? 'bg-purple-600/20 border-purple-500' 
+                              : isDark 
+                                ? 'bg-white/5 border-white/5 hover:bg-white/10' 
+                                : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}
+                          `}
                         >
-                          <span className={isSelected ? 'text-white' : 'text-gray-300'}>{addon.name}</span>
+                          <span className={isSelected ? (isDark ? 'text-white' : 'text-purple-700') : (isDark ? 'text-gray-300' : 'text-gray-700')}>{addon.name}</span>
                           <div className="flex items-center gap-3">
                             <span className="text-sm font-mono text-yellow-500">+{addon.price}</span>
                             <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${isSelected ? 'bg-purple-500 border-purple-500' : 'border-gray-500'}`}>
@@ -592,60 +694,58 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
             />
             <MotionDiv 
               initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-              className="fixed top-0 right-0 h-full w-full max-w-md bg-[#121212] z-[101] flex flex-col shadow-2xl border-l border-white/10"
+              className={`fixed top-0 right-0 h-full w-full max-w-md z-[101] flex flex-col shadow-2xl border-l ${isDark ? 'bg-[#121212] border-white/10' : 'bg-white border-gray-200'}`}
             >
-              <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-                <h2 className="text-xl font-black uppercase tracking-wider">Your Order</h2>
+              <div className={`p-6 border-b flex justify-between items-center ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
+                <h2 className={`text-xl font-black uppercase tracking-wider ${isDark ? 'text-white' : 'text-gray-900'}`}>Your Order</h2>
                 <div className="flex items-center gap-3">
                     {cart.length > 0 && (
                         <button 
-                            onClick={() => {
-                                if(window.confirm('Clear all items from your cart?')) setCart([]);
-                            }}
+                            onClick={() => setConfirmAction({ type: 'clear' })}
                             className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-red-400 bg-red-400/10 rounded-full border border-red-400/20 hover:bg-red-400/20 transition-colors"
                         >
                             Clear
                         </button>
                     )}
-                    <button onClick={() => setIsCartOpen(false)} className="p-2 hover:bg-white/10 rounded-full">
-                    <X />
+                    <button onClick={() => setIsCartOpen(false)} className={`p-2 rounded-full ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-200'}`}>
+                      <X className={isDark ? 'text-white' : 'text-gray-900'} />
                     </button>
                 </div>
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {cart.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-gray-500">
+                  <div className={`h-full flex flex-col items-center justify-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                     <ShoppingBag className="w-12 h-12 mb-4 opacity-20" />
                     <p>Your cart is empty.</p>
                   </div>
                 ) : (
                   cart.map((item, idx) => (
-                    <div key={idx} className="bg-white/5 p-4 rounded-xl border border-white/5">
+                    <div key={idx} className={`p-4 rounded-xl border ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-200'}`}>
                       <div className="flex justify-between items-start mb-2">
                         <div>
-                          <p className="font-bold text-white">{item.name}</p>
+                          <p className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{item.name}</p>
                           {item.modifiers && item.modifiers.length > 0 && (
-                            <p className="text-xs text-gray-400 mt-1">+ {item.modifiers.join(', ')}</p>
+                            <p className="text-xs text-gray-500 mt-1">+ {item.modifiers.join(', ')}</p>
                           )}
                         </div>
                         <p className="text-yellow-500 font-mono text-sm">{formatPrice(item.priceRaw * item.quantity)}</p>
                       </div>
                       <div className="flex justify-between items-center mt-3">
-                         <div className="flex items-center gap-3 bg-black/30 rounded-lg p-1">
+                         <div className={`flex items-center gap-3 rounded-lg p-1 ${isDark ? 'bg-black/30' : 'bg-gray-200'}`}>
                             <button onClick={() => setCart(c => {
                               const nc = [...c];
                               if(nc[idx].quantity > 1) nc[idx].quantity--;
                               return nc;
-                            })} className="p-1 hover:text-purple-500"><Minus className="w-4 h-4"/></button>
-                            <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
+                            })} className={`p-1 hover:text-purple-500 ${isDark ? 'text-white' : 'text-black'}`}><Minus className="w-4 h-4"/></button>
+                            <span className={`text-sm font-bold w-4 text-center ${isDark ? 'text-white' : 'text-black'}`}>{item.quantity}</span>
                             <button onClick={() => setCart(c => {
                               const nc = [...c];
                               nc[idx].quantity++;
                               return nc;
-                            })} className="p-1 hover:text-purple-500"><Plus className="w-4 h-4"/></button>
+                            })} className={`p-1 hover:text-purple-500 ${isDark ? 'text-white' : 'text-black'}`}><Plus className="w-4 h-4"/></button>
                          </div>
-                         <button onClick={() => setCart(c => c.filter((_, i) => i !== idx))} className="text-red-500/70 hover:text-red-500">
+                         <button onClick={() => setConfirmAction({ type: 'remove', itemIndex: idx })} className="text-red-500/70 hover:text-red-500">
                            <Trash2 className="w-4 h-4" />
                          </button>
                       </div>
@@ -655,47 +755,47 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
               </div>
 
               {cart.length > 0 && (
-                <div className="p-6 bg-[#18181b] border-t border-white/10">
+                <div className={`p-6 border-t ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
                   <div className="space-y-4 mb-6">
-                    <div className="flex bg-black/50 p-1 rounded-xl">
-                      <button onClick={() => setOrderType('pickup')} className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${orderType === 'pickup' ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Pickup</button>
-                      <button onClick={() => setOrderType('delivery')} className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${orderType === 'delivery' ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Delivery</button>
+                    <div className={`flex p-1 rounded-xl ${isDark ? 'bg-black/50' : 'bg-gray-100'}`}>
+                      <button onClick={() => setOrderType('pickup')} className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${orderType === 'pickup' ? 'bg-purple-600 text-white shadow-lg' : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-black'}`}>Pickup</button>
+                      <button onClick={() => setOrderType('delivery')} className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${orderType === 'delivery' ? 'bg-purple-600 text-white shadow-lg' : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-black'}`}>Delivery</button>
                     </div>
 
                     {orderType === 'pickup' ? (
                        <div className="space-y-2">
-                          <label className="text-xs text-gray-400 uppercase font-bold flex items-center gap-1"><Clock className="w-3 h-3"/> Pickup Time</label>
-                          <input type="time" value={pickupTime} onChange={e => setPickupTime(e.target.value)} className="w-full bg-white/5 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-purple-500" />
+                          <label className={`text-xs uppercase font-bold flex items-center gap-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}><Clock className="w-3 h-3"/> Pickup Time</label>
+                          <input type="time" value={pickupTime} onChange={e => setPickupTime(e.target.value)} className={`w-full border p-3 rounded-xl outline-none focus:border-purple-500 ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'}`} />
                        </div>
                     ) : (
                        <div className="space-y-3">
                           <div className="space-y-2">
-                            <label className="text-xs text-gray-400 uppercase font-bold flex items-center gap-1"><MapPin className="w-3 h-3"/> Delivery Area</label>
-                            <select value={deliveryZoneId} onChange={e => setDeliveryZoneId(e.target.value)} className="w-full bg-white/5 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-purple-500 appearance-none">
-                              {DELIVERY_ZONES.map(z => <option key={z.id} value={z.id} className="bg-gray-900">{z.label} {z.price > 0 ? `(+${z.price})` : ''}</option>)}
+                            <label className={`text-xs uppercase font-bold flex items-center gap-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}><MapPin className="w-3 h-3"/> Delivery Area</label>
+                            <select value={deliveryZoneId} onChange={e => setDeliveryZoneId(e.target.value)} className={`w-full border p-3 rounded-xl outline-none focus:border-purple-500 appearance-none ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'}`}>
+                              {DELIVERY_ZONES.map(z => <option key={z.id} value={z.id} className={isDark ? "bg-gray-900" : "bg-white"}>{z.label} {z.price > 0 ? `(+${z.price})` : ''}</option>)}
                             </select>
                           </div>
                           <div className="space-y-2">
-                             <label className="text-xs text-gray-400 uppercase font-bold">Address Details</label>
-                             <textarea placeholder="Hostel Name, Room Number, Description..." value={address} onChange={e => setAddress(e.target.value)} className="w-full bg-white/5 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-purple-500 resize-none h-20 text-sm"/>
+                             <label className={`text-xs uppercase font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Address Details</label>
+                             <textarea placeholder="Hostel Name, Room Number, Description..." value={address} onChange={e => setAddress(e.target.value)} className={`w-full border p-3 rounded-xl outline-none focus:border-purple-500 resize-none h-20 text-sm ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'}`}/>
                           </div>
                        </div>
                     )}
 
                     <div className="grid grid-cols-2 gap-3">
-                      <input type="text" placeholder="Your Name" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full bg-white/5 border border-white/10 p-3 rounded-xl text-sm outline-none focus:border-purple-500" />
-                      <input type="tel" placeholder="Phone Number" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="w-full bg-white/5 border border-white/10 p-3 rounded-xl text-sm outline-none focus:border-purple-500" />
+                      <input type="text" placeholder="Your Name" value={customerName} onChange={e => setCustomerName(e.target.value)} className={`w-full border p-3 rounded-xl text-sm outline-none focus:border-purple-500 ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'}`} />
+                      <input type="tel" placeholder="Phone Number" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className={`w-full border p-3 rounded-xl text-sm outline-none focus:border-purple-500 ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'}`} />
                     </div>
                   </div>
 
-                  <div className="space-y-2 border-t border-white/10 pt-4 mb-4 text-sm">
-                    <div className="flex justify-between text-gray-400"><span>Subtotal</span><span>{formatPrice(cartSubTotal)}</span></div>
-                    <div className="flex justify-between text-gray-400"><span>VAT (7.5%)</span><span>{formatPrice(vatAmount)}</span></div>
-                    {orderType === 'delivery' && <div className="flex justify-between text-gray-400"><span>Delivery Fee</span><span>{formatPrice(deliveryFee)}</span></div>}
-                    <div className="flex justify-between text-xl font-bold text-white mt-2"><span>Total</span><span className="text-yellow-500">{formatPrice(finalTotal)}</span></div>
+                  <div className={`space-y-2 border-t pt-4 mb-4 text-sm ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+                    <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Subtotal</span><span>{formatPrice(cartSubTotal)}</span></div>
+                    <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>VAT (7.5%)</span><span>{formatPrice(vatAmount)}</span></div>
+                    {orderType === 'delivery' && <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Delivery Fee</span><span>{formatPrice(deliveryFee)}</span></div>}
+                    <div className={`flex justify-between text-xl font-bold mt-2 ${isDark ? 'text-white' : 'text-black'}`}><span>Total</span><span className="text-yellow-500">{formatPrice(finalTotal)}</span></div>
                   </div>
 
-                  <button onClick={handleConfirmOrder} disabled={!canCheckout || isSubmitting} className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${canCheckout ? 'bg-green-600 hover:bg-green-500 text-white shadow-lg' : 'bg-white/10 text-gray-500 cursor-not-allowed'}`}>
+                  <button onClick={handleConfirmOrder} disabled={!canCheckout || isSubmitting} className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${canCheckout ? 'bg-green-600 hover:bg-green-500 text-white shadow-lg' : isDark ? 'bg-white/10 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
                     {isSubmitting ? <Loader2 className="animate-spin w-5 h-5"/> : (
                       <>Confirm Order <span className="bg-black/20 px-2 py-0.5 rounded text-xs ml-1">{formatPrice(finalTotal)}</span></>
                     )}
@@ -715,20 +815,20 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/90 backdrop-blur-md z-[120] flex items-center justify-center p-4"
           >
-            <div className="w-full max-w-lg bg-[#18181b] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-              <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+            <div className={`w-full max-w-lg border rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
+              <div className={`p-6 border-b flex justify-between items-center ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
                 <div className="flex items-center gap-3">
                   <History className="text-yellow-500" />
-                  <h3 className="text-xl font-bold text-white">Order History</h3>
+                  <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Order History</h3>
                 </div>
-                <button onClick={() => setIsHistoryOpen(false)} className="p-2 hover:bg-white/10 rounded-full">
+                <button onClick={() => setIsHistoryOpen(false)} className={`p-2 rounded-full ${isDark ? 'hover:bg-white/10 text-white' : 'hover:bg-gray-200 text-gray-900'}`}>
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
                 {history.length === 0 ? (
-                  <div className="text-center py-10 text-gray-500">
+                  <div className={`text-center py-10 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                     <ChefHat className="w-12 h-12 mx-auto mb-3 opacity-20" />
                     <p>No orders yet.</p>
                   </div>
@@ -736,24 +836,24 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
                   history.map((order, idx) => {
                     const statusConfig = getStatusDisplay(order.status);
                     return (
-                      <div key={idx} className="bg-white/5 border border-white/5 rounded-xl p-5 relative overflow-hidden group hover:border-white/10 transition-colors">
+                      <div key={idx} className={`border rounded-xl p-5 relative overflow-hidden group transition-colors ${isDark ? 'bg-white/5 border-white/5 hover:border-white/10' : 'bg-gray-50 border-gray-200 hover:border-purple-300'}`}>
                         <div className="flex justify-between items-start mb-3 z-10 relative">
                           <div>
                             <p className="font-mono text-xs text-gray-500">ID: {order.id}</p>
-                            <p className="font-bold text-white text-lg">{formatPrice(order.total)}</p>
+                            <p className={`font-bold text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>{formatPrice(order.total)}</p>
                           </div>
                           {statusConfig.badge}
                         </div>
                         
                         <div className="space-y-1 mb-4 z-10 relative">
                           {order.items.map((item, i) => (
-                             <div key={i} className="text-sm text-gray-300 flex justify-between">
+                             <div key={i} className={`text-sm flex justify-between ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                                <span>{item.quantity}x {item.name}</span>
                              </div>
                           ))}
                         </div>
 
-                        <div className="border-t border-white/5 pt-3 flex justify-between items-center text-xs text-gray-400 z-10 relative">
+                        <div className={`border-t pt-3 flex justify-between items-center text-xs z-10 relative ${isDark ? 'border-white/5 text-gray-400' : 'border-gray-200 text-gray-500'}`}>
                            <span>{new Date(order.date).toLocaleDateString()} at {new Date(order.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                            <span className="uppercase font-bold">{order.type}</span>
                         </div>
@@ -777,41 +877,102 @@ const Menu: React.FC<MenuProps> = ({ onBack }) => {
              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
              className="fixed inset-0 bg-black/95 z-[130] flex items-center justify-center p-4 backdrop-blur-md"
            >
-              <div className="bg-white text-black p-6 md:p-8 rounded-2xl w-full max-w-sm shadow-2xl relative overflow-hidden">
-                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-500 via-pink-500 to-yellow-500" />
-                 
-                 <div className="text-center border-b-2 border-black border-dashed pb-6 mb-6">
-                   <h3 className="font-black text-2xl tracking-tighter">REEPLAY LOUNGE</h3>
-                   <p className="text-xs text-gray-600 mt-1 uppercase">Order Receipt</p>
-                   <p className="font-mono text-sm mt-2">ID: {orderId}</p>
-                 </div>
+              <div className="bg-white text-black p-6 w-full max-w-sm font-mono text-xs leading-relaxed shadow-2xl relative overflow-hidden">
+                {/* Header Section */}
+                <div className="text-center mb-4">
+                    <h2 className="text-xl font-bold uppercase mb-1">Reeplay Lounge</h2>
+                    <p>Triple SK World</p>
+                    <p>Opp. Alari Akata</p>
+                    <p>Under G, Ogbomoso, OYO State</p>
+                    <p>Tel : 09060621425</p>
+                    <p>OS</p>
+                    <p>reeplaylounge@gmail.com</p>
+                </div>
 
-                 {generatedDeliveryPin && (
-                   <div className="bg-black text-white p-4 rounded-xl text-center mb-6">
-                     <p className="text-xs uppercase text-gray-400 mb-1">Delivery PIN</p>
-                     <p className="text-3xl font-mono font-bold tracking-widest text-yellow-500">{generatedDeliveryPin}</p>
-                     <p className="text-[10px] text-gray-500 mt-1">Show this to the rider</p>
-                   </div>
-                 )}
+                {/* Info Line */}
+                <div className="border-b border-black border-dashed my-2" />
+                <div className="flex justify-between items-end mb-2">
+                    <div>
+                        <p>Copy - Order Details</p>
+                        <p>(Inc Tax)</p>
+                    </div>
+                    <div className="text-right">
+                        <p>{new Date().toLocaleDateString()}</p>
+                        <p>{new Date().toLocaleTimeString()}</p>
+                    </div>
+                </div>
+                <div className="flex justify-between mb-2">
+                    <span>Tab: Walk-in</span>
+                    <span>Staff: Admin</span>
+                </div>
+                <div className="flex justify-between mb-2">
+                    <span>Device: POS-01</span>
+                    <span>Est: 15m</span>
+                </div>
+                <div className="border-b border-black border-dashed my-2" />
 
-                 <div className="space-y-2 mb-6 text-sm font-mono max-h-40 overflow-y-auto custom-scrollbar-light">
+                {/* Items Header */}
+                <div className="grid grid-cols-12 font-bold mb-2 uppercase">
+                    <span className="col-span-6">PRODUCT</span>
+                    <span className="col-span-3 text-right">PRICE</span>
+                    <span className="col-span-1 text-center">QTY</span>
+                    <span className="col-span-2 text-right">TOTAL</span>
+                </div>
+
+                {/* Items List */}
+                <div className="mb-2 max-h-48 overflow-y-auto custom-scrollbar-light">
                    {history[0]?.items.map((i, idx) => (
-                     <div key={idx} className="flex justify-between">
-                       <span className="truncate pr-2">{i.quantity}x {i.name}</span>
-                       <span className="whitespace-nowrap">{formatPrice(i.priceRaw * i.quantity)}</span>
+                     <div key={idx} className="grid grid-cols-12 mb-1">
+                       <span className="col-span-6 truncate pr-1">{i.name.toUpperCase()}</span>
+                       <span className="col-span-3 text-right">{i.priceRaw.toLocaleString()}.00</span>
+                       <span className="col-span-1 text-center">{i.quantity}</span>
+                       <span className="col-span-2 text-right">{(i.priceRaw * i.quantity).toLocaleString()}.00</span>
                      </div>
                    ))}
-                 </div>
-
-                 <div className="border-t-2 border-black border-dashed pt-4 mb-6">
-                   <div className="flex justify-between text-xl font-bold">
-                     <span>TOTAL</span>
-                     <span>{formatPrice(history[0]?.total || 0)}</span>
+                   <div className="grid grid-cols-12 mb-1 font-bold mt-2">
+                       <span className="col-span-6">Total Qty</span>
+                       <span className="col-span-4"></span>
+                       <span className="col-span-2 text-right">{history[0]?.items.reduce((a, b) => a + b.quantity, 0)}</span>
                    </div>
-                 </div>
+                </div>
 
-                 <button onClick={() => window.open(IG_DM_LINK)} className="w-full py-3 bg-purple-600 text-white font-bold rounded-xl mb-3 hover:bg-purple-700 transition-colors">Send to Instagram</button>
-                 <button onClick={() => setIsReceiptOpen(false)} className="w-full py-3 text-gray-500 font-bold hover:text-black transition-colors">Close Receipt</button>
+                {/* Totals */}
+                <div className="border-b border-black border-dashed my-2" />
+                <div className="flex justify-between mb-1">
+                    <span>Sub Total</span>
+                    <span>{formatPrice(history[0]?.total || 0).replace('₦', '₦')}</span>
+                </div>
+                <div className="flex justify-between mb-1">
+                    <span>Total</span>
+                    <span>{formatPrice(history[0]?.total || 0).replace('₦', '₦')}</span>
+                </div>
+                <div className="flex justify-between font-bold text-xl mt-2">
+                    <span>Amount Due</span>
+                    <span>{formatPrice(history[0]?.total || 0).replace('₦', '₦')}</span>
+                </div>
+                
+                {generatedDeliveryPin && (
+                    <div className="border-t border-black border-dashed mt-4 pt-2 text-center">
+                        <p className="font-bold">DELIVERY PIN: {generatedDeliveryPin}</p>
+                    </div>
+                )}
+
+                <div className="border-b border-black border-dashed my-4" />
+                
+                {/* Footer */}
+                <div className="text-center font-bold mb-4">The Coolest Place to be!</div>
+                
+                {/* Simulated Barcode */}
+                <div className="h-10 w-full mx-auto mb-1 opacity-80" style={{
+                    backgroundImage: 'linear-gradient(90deg, #000 0%, #000 3%, transparent 3%, transparent 5%, #000 5%, #000 10%, transparent 10%, transparent 12%, #000 12%, #000 15%, transparent 15%, transparent 20%, #000 20%, #000 25%, transparent 25%, transparent 28%, #000 28%, #000 35%, transparent 35%, transparent 40%, #000 40%, #000 42%, transparent 42%, transparent 45%, #000 45%, #000 50%, transparent 50%, transparent 55%, #000 55%, #000 60%, transparent 60%, transparent 62%, #000 62%, #000 70%, transparent 70%, transparent 75%, #000 75%, #000 80%, transparent 80%, transparent 85%, #000 85%, #000 90%, transparent 90%, transparent 95%, #000 95%, #000 100%)',
+                    backgroundSize: '100% 100%'
+                }} />
+                <p className="text-center text-[10px] tracking-widest">{orderId}ASJLAYQQ3KG3K</p>
+
+                <div className="mt-6 flex flex-col gap-2">
+                     <button onClick={() => window.open(IG_DM_LINK)} className="w-full py-2 bg-black text-white font-bold rounded hover:bg-gray-800 transition-colors">DM Order</button>
+                     <button onClick={() => setIsReceiptOpen(false)} className="w-full py-2 border border-black text-black font-bold rounded hover:bg-gray-100 transition-colors">Close</button>
+                </div>
               </div>
            </MotionDiv>
         )}
