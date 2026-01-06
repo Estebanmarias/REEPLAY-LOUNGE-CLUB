@@ -293,13 +293,15 @@ const PromoCarousel = () => {
 const MenuItemCard: React.FC<{
   item: MenuItem;
   categoryId: string;
+  quantityInCart: number;
   onAdd: (item: MenuItem, categoryId: string) => void;
+  onUpdateQuantity: (item: MenuItem, delta: number) => void;
   onOpenModal: (item: MenuItem) => void;
   theme: 'dark' | 'light';
-}> = ({ item, categoryId, onAdd, onOpenModal, theme }) => {
+}> = ({ item, categoryId, quantityInCart, onAdd, onUpdateQuantity, onOpenModal, theme }) => {
   const [isAdded, setIsAdded] = useState(false);
   
-  const handleClick = () => {
+  const handleAddClick = () => {
     // Only open modal for customizable food items (rice/pasta/sides)
     if (['rice', 'pasta', 'sides'].includes(categoryId)) { 
       onOpenModal(item); 
@@ -315,6 +317,7 @@ const MenuItemCard: React.FC<{
   };
 
   const isDark = theme === 'dark';
+  const hasQuantity = quantityInCart > 0;
 
   return (
     <MotionDiv
@@ -335,7 +338,7 @@ const MenuItemCard: React.FC<{
         <span className="text-lg font-black text-yellow-500 font-mono">{item.price}</span>
       </div>
       
-      <div className="flex justify-end mt-2 relative">
+      <div className="flex justify-end mt-2 relative items-center">
          {/* Flying Icon Animation */}
          <AnimatePresence>
             {isAdded && (
@@ -353,22 +356,41 @@ const MenuItemCard: React.FC<{
             )}
          </AnimatePresence>
 
-        <MotionButton
-          whileTap={{ scale: 0.95 }}
-          onClick={handleClick}
-          className={`
-            relative z-0 flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all duration-300
-            ${isAdded 
-              ? 'bg-green-600/20 text-green-500 border border-green-500/50' 
-              : isDark ? 'bg-white/10 hover:bg-purple-600 text-white' : 'bg-gray-200 hover:bg-purple-600 hover:text-white text-gray-800'}
-          `}
-        >
-          {FOOD_CATEGORIES.includes(categoryId) ? (
-            <>Customize <ChevronRight className="w-4 h-4" /></>
-          ) : (
-            isAdded ? <><CheckCircle className="w-4 h-4" /> Added</> : "Add to Order"
-          )}
-        </MotionButton>
+        {/* --- DYNAMIC BUTTON / QUANTITY CONTROL --- */}
+        {hasQuantity && !['rice', 'pasta', 'sides'].includes(categoryId) ? (
+            <MotionDiv 
+                initial={{ opacity: 0, scale: 0.8 }} 
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex items-center gap-3 bg-purple-900/40 border border-purple-500/50 rounded-lg p-1"
+            >
+                <button 
+                    onClick={() => onUpdateQuantity(item, -1)} 
+                    className="w-8 h-8 flex items-center justify-center rounded-md bg-white/10 hover:bg-white/20 text-white transition-colors"
+                >
+                    <Minus className="w-4 h-4" />
+                </button>
+                <span className="font-bold text-white w-4 text-center">{quantityInCart}</span>
+                <button 
+                    onClick={() => onUpdateQuantity(item, 1)} 
+                    className="w-8 h-8 flex items-center justify-center rounded-md bg-purple-600 hover:bg-purple-500 text-white transition-colors"
+                >
+                    <Plus className="w-4 h-4" />
+                </button>
+            </MotionDiv>
+        ) : (
+            <MotionButton
+                whileTap={{ scale: 0.95 }}
+                onClick={handleAddClick}
+                className={`
+                    relative z-0 flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all duration-300
+                    ${isDark ? 'bg-white/10 hover:bg-purple-600 text-white' : 'bg-gray-200 hover:bg-purple-600 hover:text-white text-gray-800'}
+                `}
+            >
+                {FOOD_CATEGORIES.includes(categoryId) ? (
+                    <>Customize <ChevronRight className="w-4 h-4" /></>
+                ) : "Add to Order"}
+            </MotionButton>
+        )}
       </div>
     </MotionDiv>
   );
@@ -543,6 +565,27 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
     });
   };
 
+  // Helper to update quantity directly from menu card (only works for non-food/custom items for simplicity)
+  const updateQuantityFromCard = (item: MenuItem, delta: number) => {
+    setCart(prev => {
+        let newCart = [...prev];
+        // For menu card updates, we assume "standard" items without modifiers
+        const uniqueId = `${item.name}-`; // Empty mods join
+        const existingIndex = newCart.findIndex(i => `${i.name}-${(i.modifiers || []).sort().join('-')}` === uniqueId);
+
+        if (existingIndex > -1) {
+            newCart[existingIndex].quantity += delta;
+            if (newCart[existingIndex].quantity <= 0) {
+                newCart.splice(existingIndex, 1);
+            }
+        } else if (delta > 0) {
+            // Should be handled by addToCart usually, but fail-safe here
+            newCart.push({ ...item, priceRaw: parsePrice(item.price), quantity: delta, modifiers: [] });
+        }
+        return newCart;
+    });
+  };
+
   // Drink Builder Logic
   const calculateBuilderTotal = () => {
     let total = 0;
@@ -696,7 +739,8 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
       initial={{ opacity: 0, y: 50 }} 
       animate={{ opacity: 1, y: 0 }} 
       exit={{ opacity: 0, y: 50 }}
-      className={`fixed inset-0 z-[60] overflow-y-auto transition-colors duration-300 ${isDark ? 'text-white' : 'text-gray-900'}`}
+      // Z-Index Bumped to 70 to sit on top of bottom navbar
+      className={`fixed inset-0 z-[70] overflow-y-auto transition-colors duration-300 ${isDark ? 'text-white' : 'text-gray-900'}`}
     >
       {/* BACKGROUND ANIMATION */}
       <MenuBackground theme={theme} />
@@ -896,16 +940,28 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
         ) : (
           /* STANDARD MENU GRID */
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-20">
-            {filteredItems.map((item, i) => (
-              <MenuItemCard 
-                key={`${item.name}-${i}`} 
-                item={item} 
-                categoryId={item.categoryId} // Use the item's mapped category 
-                onAdd={addToCart} 
-                onOpenModal={(it) => { setSelectedMealItem(it); setIsMealModalOpen(true); }} 
-                theme={theme}
-              />
-            ))}
+            {filteredItems.map((item, i) => {
+              // Find if this item is in the cart to pass quantity
+              // Note: This only works perfectly for non-custom items. 
+              // Custom items (built drinks) or food with different modifiers are treated as unique rows in cart.
+              // For standard bottles/cocktails/beverages, this is perfect.
+              const uniqueId = `${item.name}-`;
+              const cartItem = cart.find(c => `${c.name}-${(c.modifiers || []).sort().join('-')}` === uniqueId);
+              const qty = cartItem ? cartItem.quantity : 0;
+
+              return (
+                <MenuItemCard 
+                    key={`${item.name}-${i}`} 
+                    item={item} 
+                    categoryId={item.categoryId} 
+                    quantityInCart={qty}
+                    onAdd={addToCart} 
+                    onUpdateQuantity={updateQuantityFromCard}
+                    onOpenModal={(it) => { setSelectedMealItem(it); setIsMealModalOpen(true); }} 
+                    theme={theme}
+                />
+              )
+            })}
             {filteredItems.length === 0 && (
               <div className={`col-span-full text-center py-12 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                 <Search className="w-12 h-12 mx-auto mb-3 opacity-20" />
