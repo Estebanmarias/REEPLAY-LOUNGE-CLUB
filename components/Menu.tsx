@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, ArrowRight, ChevronDown } from 'lucide-react';
 import { orderService, PastOrder } from '../lib/orderService';
 import MenuBackground from './MenuBackground';
 
@@ -12,6 +12,10 @@ interface MenuItem {
   name: string;
   desc: string;
   price: string;
+}
+
+interface MenuItemExtended extends MenuItem {
+  categoryId: string;
 }
 
 interface CartItemExtended extends MenuItem {
@@ -36,6 +40,7 @@ interface ConfirmAction {
 // --- Constants & Data ---
 const IG_DM_LINK = "https://ig.me/m/reeplaylounge_ogbomoso"; 
 const VAT_RATE = 0.075; 
+const PAPER_BAG_PRICE = 1000;
 
 const KITCHEN_ADDONS = [
   { id: 'plantain', name: 'Fried Plantain', price: 1000 },
@@ -48,6 +53,7 @@ const KITCHEN_ADDONS = [
 
 const EXTRAS = {
   container: { name: "Plastic Container", desc: "Packaging", price: "₦500" },
+  // Bag is now handled as a fixed fee, but we keep structure if needed for logic
   bag: { name: "Paper Bag", desc: "Packaging", price: "₦1000" }
 };
 
@@ -314,12 +320,25 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   };
 
   const filteredItems = useMemo(() => {
+    // If search is active, we ignore activeCategory and search globally
+    if (searchQuery.length > 0) {
+      const results: MenuItemExtended[] = [];
+      Object.entries(MENU_ITEMS).forEach(([catId, items]) => {
+        items.forEach(item => {
+          if (
+            item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+            item.desc.toLowerCase().includes(searchQuery.toLowerCase())
+          ) {
+            results.push({ ...item, categoryId: catId });
+          }
+        });
+      });
+      return results;
+    }
+    
+    // Otherwise return just current category
     const items = MENU_ITEMS[activeCategory] || [];
-    if (!searchQuery) return items;
-    return items.filter(item => 
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      item.desc.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    return items.map(item => ({ ...item, categoryId: activeCategory }));
   }, [activeCategory, searchQuery]);
 
   // Cart Logic
@@ -353,10 +372,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
         }
       }
 
-      // Auto-add Bag charge if not present for orders
-      if (!newCart.find(i => i.name === EXTRAS.bag.name)) {
-        newCart.push({ ...EXTRAS.bag, priceRaw: parsePrice(EXTRAS.bag.price), quantity: 1, desc: "Required for takeout" });
-      }
+      // NOTE: Bag Charge is now a separate fixed fee in total calc, not added as a cart item here.
 
       return newCart;
     });
@@ -409,9 +425,13 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   };
 
   const cartSubTotal = useMemo(() => cart.reduce((t, i) => t + (i.priceRaw * i.quantity), 0), [cart]);
+  
+  // Fees
+  const bagFee = cart.length > 0 ? PAPER_BAG_PRICE : 0;
   const vatAmount = cartSubTotal * VAT_RATE;
   const deliveryFee = orderType === 'delivery' ? (DELIVERY_ZONES.find(z => z.id === deliveryZoneId)?.price || 0) : 0;
-  const finalTotal = cartSubTotal + vatAmount + deliveryFee;
+  
+  const finalTotal = cartSubTotal + vatAmount + bagFee + deliveryFee;
 
   const canCheckout = useMemo(() => {
     if (!customerName || !customerPhone) return false;
@@ -501,7 +521,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
           <div className="relative max-w-md mx-auto mb-4">
             <input 
               type="text" 
-              placeholder="Search for Jollof, Drinks, Cocktails..." 
+              placeholder="Search food, drinks, or cocktails..." 
               value={searchQuery} 
               onChange={e => setSearchQuery(e.target.value)} 
               className={`w-full border rounded-full py-3 pl-12 pr-4 outline-none transition-all
@@ -513,34 +533,36 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
             <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
           </div>
 
-          <div className="flex overflow-x-auto gap-3 pb-2 no-scrollbar">
-            {CATEGORIES.map(cat => (
-              <button 
-                key={cat.id} 
-                onClick={() => setActiveCategory(cat.id)} 
-                className={`
-                  flex items-center gap-2 px-5 py-2.5 rounded-full whitespace-nowrap border transition-all font-medium text-sm
-                  ${activeCategory === cat.id 
-                    ? 'bg-purple-600 border-purple-500 text-white shadow-lg' 
-                    : isDark 
-                      ? 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10' 
-                      : 'bg-white/80 border-gray-200 text-gray-700 hover:bg-white'}
-                `}
-              >
-                <cat.icon className="w-4 h-4" />
-                {cat.label}
-              </button>
-            ))}
-          </div>
+          {!searchQuery && (
+            <div className="flex overflow-x-auto gap-3 pb-2 no-scrollbar">
+              {CATEGORIES.map(cat => (
+                <button 
+                  key={cat.id} 
+                  onClick={() => setActiveCategory(cat.id)} 
+                  className={`
+                    flex items-center gap-2 px-5 py-2.5 rounded-full whitespace-nowrap border transition-all font-medium text-sm
+                    ${activeCategory === cat.id 
+                      ? 'bg-purple-600 border-purple-500 text-white shadow-lg' 
+                      : isDark 
+                        ? 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10' 
+                        : 'bg-white/80 border-gray-200 text-gray-700 hover:bg-white'}
+                  `}
+                >
+                  <cat.icon className="w-4 h-4" />
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Menu Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-20">
           {filteredItems.map((item, i) => (
             <MenuItemCard 
-              key={i} 
+              key={`${item.name}-${i}`} 
               item={item} 
-              categoryId={activeCategory} 
+              categoryId={item.categoryId} // Use the item's mapped category 
               onAdd={addToCart} 
               onOpenModal={(it) => { setSelectedMealItem(it); setIsMealModalOpen(true); }} 
               theme={theme}
@@ -714,7 +736,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                         {cartView === 'items' ? 'Your Order' : 'Checkout'}
                     </h2>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                     {cart.length > 0 && cartView === 'items' && (
                         <button 
                             onClick={() => setConfirmAction({ type: 'clear' })}
@@ -723,8 +745,13 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                             Clear
                         </button>
                     )}
-                    <button onClick={() => setIsCartOpen(false)} className={`p-2 rounded-full ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-200'}`}>
-                      <X className={isDark ? 'text-white' : 'text-gray-900'} />
+                    {/* Minimize Button */}
+                    <button 
+                      onClick={() => setIsCartOpen(false)} 
+                      className={`p-2 rounded-full flex items-center gap-1 ${isDark ? 'hover:bg-white/10 text-gray-400 hover:text-white' : 'hover:bg-gray-200 text-gray-500 hover:text-black'}`}
+                      title="Minimize Cart"
+                    >
+                      <ChevronDown className="w-5 h-5" />
                     </button>
                 </div>
               </div>
@@ -775,15 +802,39 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
 
                     {cart.length > 0 && (
                         <div className={`flex-none p-6 border-t z-20 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
-                            <div className={`space-y-2 mb-4 text-sm`}>
-                                <div className={`flex justify-between text-xl font-bold mt-2 ${isDark ? 'text-white' : 'text-black'}`}><span>Total</span><span className="text-yellow-500">{formatPrice(finalTotal)}</span></div>
+                            {/* NEW: Explicit charges summary */}
+                            <div className={`space-y-2 mb-4 text-sm border-b pb-4 mb-4 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+                                <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                                  <span>Subtotal</span>
+                                  <span>{formatPrice(cartSubTotal)}</span>
+                                </div>
+                                <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                                  <span className="flex items-center gap-1">Paper Bag <span className="text-[10px] bg-white/10 px-1 rounded">Required</span></span>
+                                  <span>{formatPrice(bagFee)}</span>
+                                </div>
+                                <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                                  <span>VAT (7.5%)</span>
+                                  <span>{formatPrice(vatAmount)}</span>
+                                </div>
                             </div>
-                            <button 
-                                onClick={() => setCartView('checkout')}
-                                className="w-full py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg"
-                            >
-                                Proceed to Checkout <ArrowRight className="w-5 h-5" />
-                            </button>
+                            
+                            <div className={`flex justify-between text-xl font-bold mt-2 mb-4 ${isDark ? 'text-white' : 'text-black'}`}><span>Total</span><span className="text-yellow-500">{formatPrice(finalTotal)}</span></div>
+                            
+                            <div className="flex gap-2">
+                              {/* Keep Shopping Button inside cart */}
+                              <button 
+                                  onClick={() => setIsCartOpen(false)}
+                                  className={`flex-1 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${isDark ? 'bg-white/5 hover:bg-white/10 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-800'}`}
+                              >
+                                  Minimize Cart
+                              </button>
+                              <button 
+                                  onClick={() => setCartView('checkout')}
+                                  className="flex-[2] py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg"
+                              >
+                                  Checkout <ArrowRight className="w-5 h-5" />
+                              </button>
+                            </div>
                         </div>
                     )}
                   </>
@@ -837,6 +888,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                     <div className={`flex-none p-6 border-t ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
                         <div className={`space-y-2 mb-4 text-sm`}>
                              <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Subtotal</span><span>{formatPrice(cartSubTotal)}</span></div>
+                             <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Bag Charge</span><span>{formatPrice(bagFee)}</span></div>
                              <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>VAT (7.5%)</span><span>{formatPrice(vatAmount)}</span></div>
                             {orderType === 'delivery' && <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Delivery Fee</span><span>{formatPrice(deliveryFee)}</span></div>}
                             <div className={`flex justify-between text-xl font-bold mt-2 ${isDark ? 'text-white' : 'text-black'}`}><span>Total to Pay</span><span className="text-yellow-500">{formatPrice(finalTotal)}</span></div>
