@@ -43,21 +43,23 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentView, onOpenReservat
         {isOpen ? <X className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
       </MotionButton>
 
-      {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-[60] bg-black/90 backdrop-blur-xl border-t border-white/10 pb-safe">
-         <div className="flex justify-around items-center h-16 px-2">
-            {navItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => onNavigate(item.id)}
-                className={`flex flex-col items-center justify-center gap-1 w-full h-full transition-colors ${currentView === item.id ? 'text-purple-500' : 'text-gray-400'}`}
-              >
-                <item.icon className={`w-5 h-5 ${currentView === item.id ? 'fill-purple-500/20' : ''}`} />
-                <span className="text-[10px] font-bold uppercase tracking-wide">{item.label}</span>
-              </button>
-            ))}
-         </div>
-      </div>
+      {/* Mobile Bottom Navigation - Hidden when in Menu view to avoid overlapping cart buttons */}
+      {currentView !== 'menu' && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-[60] bg-black/90 backdrop-blur-xl border-t border-white/10 pb-safe">
+          <div className="flex justify-around items-center h-16 px-2">
+              {navItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => onNavigate(item.id)}
+                  className={`flex flex-col items-center justify-center gap-1 w-full h-full transition-colors ${currentView === item.id ? 'text-purple-500' : 'text-gray-400'}`}
+                >
+                  <item.icon className={`w-5 h-5 ${currentView === item.id ? 'fill-purple-500/20' : ''}`} />
+                  <span className="text-[10px] font-bold uppercase tracking-wide">{item.label}</span>
+                </button>
+              ))}
+          </div>
+        </div>
+      )}
 
       {/* Navigation Drawer (Desktop) */}
       <AnimatePresence>
