@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, ArrowRight, ChevronDown, Wand2, Instagram, MessageCircle, Info, Sparkles, Calendar, Zap, PackageOpen, ToggleLeft, ToggleRight } from 'lucide-react';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, ArrowRight, ChevronDown, Wand2, Instagram, MessageCircle, Info, Sparkles, Calendar, Zap, PackageOpen, ToggleLeft, ToggleRight, User } from 'lucide-react';
 import { orderService, PastOrder } from '../lib/orderService';
 import { upcomingSpecialEvents } from '../staticData';
 import MenuBackground from './MenuBackground';
@@ -46,6 +46,9 @@ const WHATSAPP_LINK = "https://wa.me/2349060621425";
 const VAT_RATE = 0.075; 
 const PAPER_BAG_PRICE = 1000;
 const CONTAINER_PRICE = 500;
+
+// Items that generally don't need a plastic container (wrapped in foil/paper instead)
+const NO_CONTAINER_KEYWORDS = ['shawarma', 'spring roll', 'samosa', 'puff', 'chops', 'mosaic'];
 
 const KITCHEN_ADDONS = [
   { id: 'plantain', name: 'Fried Plantain', price: 1000 },
@@ -110,7 +113,6 @@ const CATEGORIES = [
   { id: 'beverages', label: 'Beer & Drinks', icon: GlassWater },
 ];
 
-// Items that trigger the customization modal
 const CUSTOMIZABLE_CATEGORIES = ['rice', 'pasta'];
 
 const MENU_ITEMS: Record<string, Array<MenuItem>> = {
@@ -218,6 +220,10 @@ const MENU_ITEMS: Record<string, Array<MenuItem>> = {
 const parsePrice = (priceStr: string) => parseInt((priceStr || '0').replace(/[^0-9]/g, ''), 10);
 const formatPrice = (price: number) => "₦" + price.toLocaleString();
 
+const needsContainer = (itemName: string) => {
+  return !NO_CONTAINER_KEYWORDS.some(keyword => itemName.toLowerCase().includes(keyword));
+};
+
 // --- Sub-Components ---
 
 const PromoCarousel = () => {
@@ -297,7 +303,6 @@ const MenuItemCard: React.FC<{
   
   const handleAddClick = () => {
     // Only open modal for specific customizable categories (Rice/Pasta)
-    // Sides will now add directly to cart
     if (CUSTOMIZABLE_CATEGORIES.includes(categoryId)) { 
       onOpenModal(item); 
     } else {
@@ -307,6 +312,7 @@ const MenuItemCard: React.FC<{
   };
 
   const triggerFeedback = () => {
+    if (navigator.vibrate) navigator.vibrate(50); // Haptic feedback
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 2000);
   };
@@ -350,9 +356,6 @@ const MenuItemCard: React.FC<{
             )}
          </AnimatePresence>
 
-        {/* If item is already in cart, show +/- buttons. 
-            EXCEPTION: Rice/Pasta (customizable) always show "Customize" to allow adding different variants 
-        */}
         {hasQuantity && !CUSTOMIZABLE_CATEGORIES.includes(categoryId) ? (
             <MotionDiv 
                 initial={{ opacity: 0, scale: 0.8 }} 
@@ -382,7 +385,6 @@ const MenuItemCard: React.FC<{
                     ${isDark ? 'bg-white/10 hover:bg-purple-600 text-white' : 'bg-gray-200 hover:bg-purple-600 hover:text-white text-gray-800'}
                 `}
             >
-                {/* Only show "Customize" for Rice/Pasta */}
                 {CUSTOMIZABLE_CATEGORIES.includes(categoryId) ? (
                     <>Customize <ChevronRight className="w-4 h-4" /></>
                 ) : "Add to Order"}
@@ -430,6 +432,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState<CartItemExtended[]>([]);
   const [history, setHistory] = useState<PastOrder[]>([]);
+  const [returningUser, setReturningUser] = useState<string | null>(null);
   
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -464,8 +467,16 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
 
   useEffect(() => {
     setHistory(orderService.getHistory());
-    setCustomerName(localStorage.getItem('reeplay_user_name') || '');
-    setCustomerPhone(localStorage.getItem('reeplay_user_phone') || '');
+    const storedName = localStorage.getItem('reeplay_user_name');
+    const storedPhone = localStorage.getItem('reeplay_user_phone');
+    
+    if (storedName) {
+      setReturningUser(storedName);
+      setCustomerName(storedName);
+    }
+    if (storedPhone) {
+      setCustomerPhone(storedPhone);
+    }
   }, []);
 
   useEffect(() => {
@@ -518,6 +529,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   }, [activeCategory, searchQuery]);
 
   const addToCart = (item: MenuItem, category: string, quantity: number = 1, mods: string[] = [], customPrice?: number) => {
+    if (navigator.vibrate) navigator.vibrate(50); // Haptic feedback
     setCart(prev => {
       let newCart = [...prev];
       const basePrice = parsePrice(item.price);
@@ -640,30 +652,37 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
 
   const cartSubTotal = useMemo(() => cart.reduce((t, i) => t + (i.priceRaw * i.quantity), 0), [cart]);
   
-  const mainMealCount = useMemo(() => {
-    return cart
-      .filter(i => ['rice', 'pasta'].includes(i.categoryId))
-      .reduce((sum, i) => sum + i.quantity, 0);
+  // LOGIC IMPROVEMENT:
+  // "Container" logic: Only for food items that are NOT in the excluded list (Shawarma, etc)
+  const containerRequiredCount = useMemo(() => {
+    return cart.reduce((total, item) => {
+        // Must be a food category
+        if (['rice', 'pasta', 'sides'].includes(item.categoryId)) {
+            // Must NOT be a wrapper item (shawarma, etc)
+            if (needsContainer(item.name)) {
+                return total + item.quantity;
+            }
+        }
+        return total;
+    }, 0);
   }, [cart]);
 
-  const sideCount = useMemo(() => {
-    return cart
-      .filter(i => ['sides'].includes(i.categoryId))
-      .reduce((sum, i) => sum + i.quantity, 0);
-  }, [cart]);
+  const containerCost = containerRequiredCount * CONTAINER_PRICE;
 
-  const totalFoodItems = mainMealCount + sideCount;
-  const containerCost = totalFoodItems * CONTAINER_PRICE;
+  // "Bag" logic: 1 bag for every 2 bulky items (Rice, Pasta, Sides - including Shawarma)
+  const baggableItemCount = useMemo(() => {
+    return cart.reduce((total, item) => {
+         if (['rice', 'pasta', 'sides'].includes(item.categoryId)) {
+             return total + item.quantity;
+         }
+         return total;
+    }, 0);
+  }, [cart]);
 
   const bagCount = useMemo(() => {
-    if (!needsBag) return 0;
-    if (mainMealCount > 0) {
-      return Math.ceil(mainMealCount / 2);
-    } else if (sideCount > 0) {
-      return 1;
-    }
-    return 0;
-  }, [needsBag, mainMealCount, sideCount]);
+    if (!needsBag || baggableItemCount === 0) return 0;
+    return Math.ceil(baggableItemCount / 2);
+  }, [needsBag, baggableItemCount]);
 
   const bagFee = bagCount * PAPER_BAG_PRICE;
   
@@ -693,13 +712,13 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
 
       const finalItems = [...cart];
       
-      if (totalFoodItems > 0) {
+      if (containerRequiredCount > 0) {
         finalItems.push({
             name: EXTRAS.container.name,
             desc: EXTRAS.container.desc,
             price: EXTRAS.container.price,
             priceRaw: CONTAINER_PRICE,
-            quantity: totalFoodItems,
+            quantity: containerRequiredCount,
             categoryId: 'packaging'
         } as any);
       }
@@ -778,7 +797,29 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
           </div>
         </div>
 
-        <div className="pt-6 pb-2">
+        {/* Welcome Back Banner */}
+        <AnimatePresence>
+            {returningUser && (
+                <MotionDiv 
+                    initial={{ height: 0, opacity: 0 }} 
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                >
+                    <div className="mb-4 bg-purple-900/20 border border-purple-500/30 rounded-xl p-3 flex items-center gap-3">
+                        <div className="p-2 bg-purple-600 rounded-full">
+                            <User className="w-4 h-4 text-white" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-white">Welcome back, {returningUser}!</p>
+                            <p className="text-xs text-purple-300">We've saved your details for a faster checkout.</p>
+                        </div>
+                    </div>
+                </MotionDiv>
+            )}
+        </AnimatePresence>
+
+        <div className="pt-2 pb-2">
             <div className="relative max-w-md mx-auto mb-6">
               <input 
                 type="text" 
@@ -1180,7 +1221,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
         )}
       </AnimatePresence>
       
-      {/* --- RESTORED MEAL CUSTOMIZATION MODAL --- */}
+      {/* --- MEAL CUSTOMIZATION MODAL --- */}
       <AnimatePresence>
         {isMealModalOpen && selectedMealItem && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
@@ -1317,41 +1358,44 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                     <div className="flex-1 overflow-y-auto p-6 space-y-4">
                         {cart.length === 0 ? (
                         <div className={`h-full flex flex-col items-center justify-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                            <ShoppingBag className="w-12 h-12 mb-4 opacity-20" />
-                            <p>Your cart is empty.</p>
+                            <ShoppingBag className="w-16 h-16 mb-4 opacity-20" />
+                            <p className="font-bold text-lg">Your cart is empty.</p>
+                            <p className="text-sm opacity-60">Start adding vibes from the menu.</p>
                         </div>
                         ) : (
-                        cart.map((item, idx) => (
-                            <div key={idx} className={`p-4 rounded-xl border ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-200'}`}>
-                            <div className="flex justify-between items-start mb-2">
-                                <div>
-                                <p className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{item.name}</p>
-                                {item.modifiers && item.modifiers.length > 0 && (
-                                    <p className="text-xs text-gray-500 mt-1">+ {item.modifiers.join(', ')}</p>
-                                )}
-                                </div>
-                                <p className="text-yellow-500 font-mono text-sm">{formatPrice(item.priceRaw * item.quantity)}</p>
-                            </div>
-                            <div className="flex justify-between items-center mt-3">
-                                <div className={`flex items-center gap-3 rounded-lg p-1 ${isDark ? 'bg-black/30' : 'bg-gray-200'}`}>
-                                    <button onClick={() => setCart(c => {
-                                    const nc = [...c];
-                                    if(nc[idx].quantity > 1) nc[idx].quantity--;
-                                    return nc;
-                                    })} className={`p-1 hover:text-purple-500 ${isDark ? 'text-white' : 'text-black'}`}><Minus className="w-4 h-4"/></button>
-                                    <span className={`text-sm font-bold w-4 text-center ${isDark ? 'text-white' : 'text-black'}`}>{item.quantity}</span>
-                                    <button onClick={() => setCart(c => {
-                                    const nc = [...c];
-                                    nc[idx].quantity++;
-                                    return nc;
-                                    })} className={`p-1 hover:text-purple-500 ${isDark ? 'text-white' : 'text-black'}`}><Plus className="w-4 h-4"/></button>
-                                </div>
-                                <button onClick={() => setConfirmAction({ type: 'remove', itemIndex: idx })} className="text-red-500/70 hover:text-red-500">
-                                <Trash2 className="w-4 h-4" />
-                                </button>
-                            </div>
-                            </div>
-                        ))
+                        <LayoutGroup>
+                          {cart.map((item, idx) => (
+                              <MotionDiv layout key={idx} initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} className={`p-4 rounded-xl border relative overflow-hidden ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-200'}`}>
+                              <div className="flex justify-between items-start mb-2 relative z-10">
+                                  <div>
+                                  <p className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{item.name}</p>
+                                  {item.modifiers && item.modifiers.length > 0 && (
+                                      <p className="text-xs text-gray-500 mt-1">+ {item.modifiers.join(', ')}</p>
+                                  )}
+                                  </div>
+                                  <p className="text-yellow-500 font-mono text-sm">{formatPrice(item.priceRaw * item.quantity)}</p>
+                              </div>
+                              <div className="flex justify-between items-center mt-3 relative z-10">
+                                  <div className={`flex items-center gap-3 rounded-lg p-1 ${isDark ? 'bg-black/30' : 'bg-gray-200'}`}>
+                                      <button onClick={() => setCart(c => {
+                                      const nc = [...c];
+                                      if(nc[idx].quantity > 1) nc[idx].quantity--;
+                                      return nc;
+                                      })} className={`p-1 hover:text-purple-500 ${isDark ? 'text-white' : 'text-black'}`}><Minus className="w-4 h-4"/></button>
+                                      <span className={`text-sm font-bold w-4 text-center ${isDark ? 'text-white' : 'text-black'}`}>{item.quantity}</span>
+                                      <button onClick={() => setCart(c => {
+                                      const nc = [...c];
+                                      nc[idx].quantity++;
+                                      return nc;
+                                      })} className={`p-1 hover:text-purple-500 ${isDark ? 'text-white' : 'text-black'}`}><Plus className="w-4 h-4"/></button>
+                                  </div>
+                                  <button onClick={() => setConfirmAction({ type: 'remove', itemIndex: idx })} className="text-red-500/70 hover:text-red-500">
+                                  <Trash2 className="w-4 h-4" />
+                                  </button>
+                              </div>
+                              </MotionDiv>
+                          ))}
+                        </LayoutGroup>
                         )}
                     </div>
 
@@ -1360,11 +1404,11 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                             <div className={`space-y-4 mb-4 text-sm border-b pb-4 mb-4 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
                                 <div className="space-y-2">
                                     <div className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Food & Drinks</div>
-                                    <div className={`flex justify-between ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                    <div className={`flex justify-between font-mono ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                                       <span>Subtotal</span>
                                       <span>{formatPrice(cartSubTotal)}</span>
                                     </div>
-                                    <div className={`flex justify-between ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                    <div className={`flex justify-between font-mono ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                                       <span>VAT (7.5%)</span>
                                       <span>{formatPrice(vatAmount)}</span>
                                     </div>
@@ -1373,17 +1417,17 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                                 <div className="space-y-2 pt-2 border-t border-dashed border-gray-500/20">
                                     <div className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Packaging & Services</div>
                                     
-                                    <div className={`flex justify-between ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                    <div className={`flex justify-between font-mono ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                                       <span className="flex items-center gap-1">
-                                        Containers <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded-md">x{totalFoodItems}</span>
+                                        Containers <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded-md text-gray-400">x{containerRequiredCount}</span>
                                       </span>
                                       <span>{formatPrice(containerCost)}</span>
                                     </div>
                                     
                                     {needsBag && bagCount > 0 && (
-                                      <div className={`flex justify-between ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                      <div className={`flex justify-between font-mono ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                                         <span className="flex items-center gap-1">
-                                          Paper Bags <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded-md">x{bagCount}</span>
+                                          Paper Bags <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded-md text-gray-400">x{bagCount}</span>
                                         </span>
                                         <span>{formatPrice(bagFee)}</span>
                                       </div>
@@ -1391,14 +1435,14 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                                 </div>
                             </div>
                             
-                            <div className={`flex justify-between text-xl font-bold mt-2 mb-4 ${isDark ? 'text-white' : 'text-black'}`}><span>Total</span><span className="text-yellow-500">{formatPrice(finalTotal)}</span></div>
+                            <div className={`flex justify-between text-xl font-bold mt-2 mb-4 ${isDark ? 'text-white' : 'text-black'}`}><span>Total</span><span className="text-yellow-500 font-mono">{formatPrice(finalTotal)}</span></div>
                             
                             <div className="flex gap-2">
                               <button 
                                   onClick={() => setIsCartOpen(false)}
                                   className={`flex-1 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${isDark ? 'bg-white/5 hover:bg-white/10 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-800'}`}
                               >
-                                  Minimize Cart
+                                  Minimize
                               </button>
                               <button 
                                   onClick={() => setCartView('checkout')}
@@ -1416,7 +1460,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                 <div className="flex-1 flex flex-col h-full overflow-hidden">
                     <div className="flex-1 overflow-y-auto p-6 space-y-6">
                         
-                        {totalFoodItems > 0 && (
+                        {(containerRequiredCount > 0 || bagCount > 0) && (
                           <div className={`p-4 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-blue-50 border-blue-100'}`}>
                              <div className="flex items-center justify-between mb-3">
                                <h4 className={`text-xs uppercase font-bold ${isDark ? 'text-gray-400' : 'text-blue-800'}`}>Packaging</h4>
@@ -1440,22 +1484,22 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                                      </div>
                                      <p className={`text-[10px] leading-tight mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
                                        {needsBag 
-                                         ? `Automatically calculated based on order size (1 bag per 2 meals).` 
-                                         : "Items will be handed over in containers only."}
+                                         ? `Required for takeaway (1 bag per 2 main items).` 
+                                         : "Items will be handed over individually."}
                                      </p>
                                   </div>
                                </div>
 
                                <div className="flex items-center gap-3 pt-3 border-t border-dashed border-gray-500/20">
                                   <div className={`w-5 h-5 rounded flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
-                                    <span className="text-[10px] font-bold">x{totalFoodItems}</span>
+                                    <span className="text-[10px] font-bold">x{containerRequiredCount}</span>
                                   </div>
                                   <div className="flex-1">
                                      <div className="flex justify-between items-center">
                                        <p className={`font-bold text-sm ${isDark ? 'text-white' : 'text-gray-800'}`}>Food Containers</p>
                                        <span className="text-xs font-mono text-yellow-500">{formatPrice(containerCost)}</span>
                                      </div>
-                                     <p className="text-[10px] text-gray-500 mt-0.5">Required for {totalFoodItems} food items.</p>
+                                     <p className="text-[10px] text-gray-500 mt-0.5">Required for unwrapped food items.</p>
                                   </div>
                                </div>
                              </div>
@@ -1516,16 +1560,16 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
 
                     <div className={`flex-none p-6 border-t ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
                         <div className={`space-y-2 mb-4 text-sm`}>
-                             <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Subtotal (Food & Drinks)</span><span>{formatPrice(cartSubTotal)}</span></div>
-                             <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Packaging</span><span>{formatPrice(containerCost + bagFee)}</span></div>
-                             <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>VAT (7.5%)</span><span>{formatPrice(vatAmount)}</span></div>
-                            {orderType === 'delivery' && <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Delivery Fee</span><span>{formatPrice(deliveryFee)}</span></div>}
-                            <div className={`flex justify-between text-xl font-bold mt-2 ${isDark ? 'text-white' : 'text-black'}`}><span>Total to Pay</span><span className="text-yellow-500">{formatPrice(finalTotal)}</span></div>
+                             <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Subtotal (Food & Drinks)</span><span className="font-mono">{formatPrice(cartSubTotal)}</span></div>
+                             <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Packaging</span><span className="font-mono">{formatPrice(containerCost + bagFee)}</span></div>
+                             <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>VAT (7.5%)</span><span className="font-mono">{formatPrice(vatAmount)}</span></div>
+                            {orderType === 'delivery' && <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Delivery Fee</span><span className="font-mono">{formatPrice(deliveryFee)}</span></div>}
+                            <div className={`flex justify-between text-xl font-bold mt-2 ${isDark ? 'text-white' : 'text-black'}`}><span>Total to Pay</span><span className="text-yellow-500 font-mono">{formatPrice(finalTotal)}</span></div>
                         </div>
 
                         <button onClick={handleConfirmOrder} disabled={!canCheckout || isSubmitting} className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${canCheckout ? 'bg-green-600 hover:bg-green-500 text-white shadow-lg' : isDark ? 'bg-white/10 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
                             {isSubmitting ? <Loader2 className="animate-spin w-5 h-5"/> : (
-                            <>Confirm Order <span className="bg-black/20 px-2 py-0.5 rounded text-xs ml-1">{formatPrice(finalTotal)}</span></>
+                            <>Confirm Order <span className="bg-black/20 px-2 py-0.5 rounded text-xs ml-1 font-mono">{formatPrice(finalTotal)}</span></>
                             )}
                         </button>
                         {!canCheckout && <p className="text-red-400 text-xs text-center mt-2">Please fill in all details correctly.</p>}
