@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, ArrowRight, ChevronDown, Wand2, Instagram, MessageCircle, Info, Sparkles, Calendar, Zap } from 'lucide-react';
+import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, ArrowRight, ChevronDown, Wand2, Instagram, MessageCircle, Info, Sparkles, Calendar, Zap, PackageOpen, ToggleLeft, ToggleRight } from 'lucide-react';
 import { orderService, PastOrder } from '../lib/orderService';
 import { upcomingSpecialEvents } from '../staticData';
 import MenuBackground from './MenuBackground';
@@ -24,6 +24,7 @@ interface CartItemExtended extends MenuItem {
   priceRaw: number;
   quantity: number;
   modifiers?: string[];
+  categoryId: string; // Added to track category for logic
 }
 
 interface MenuProps {
@@ -44,6 +45,7 @@ const IG_DM_LINK = "https://ig.me/m/reeplaylounge_ogbomoso";
 const WHATSAPP_LINK = "https://wa.me/2349060621425";
 const VAT_RATE = 0.075; 
 const PAPER_BAG_PRICE = 1000;
+const CONTAINER_PRICE = 500;
 
 const KITCHEN_ADDONS = [
   { id: 'plantain', name: 'Fried Plantain', price: 1000 },
@@ -469,6 +471,9 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   const [customerPhone, setCustomerPhone] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatedDeliveryPin, setGeneratedDeliveryPin] = useState<string | null>(null);
+  
+  // --- NEW: Packaging Preferences ---
+  const [needsBag, setNeedsBag] = useState(true);
 
   const isDark = theme === 'dark';
 
@@ -544,22 +549,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
       if (existingIndex > -1) {
         newCart[existingIndex].quantity += quantity;
       } else {
-        newCart.push({ ...item, priceRaw: unitPrice, quantity, modifiers: mods });
-      }
-      
-      // Auto-add Container if it's a food item
-      if (FOOD_CATEGORIES.includes(category)) {
-        const containerIndex = newCart.findIndex(i => i.name === EXTRAS.container.name);
-        if (containerIndex > -1) {
-            newCart[containerIndex].quantity += quantity;
-        } else {
-            newCart.push({ 
-                ...EXTRAS.container, 
-                priceRaw: parsePrice(EXTRAS.container.price), 
-                quantity: quantity, 
-                desc: "Required for meal" 
-            });
-        }
+        newCart.push({ ...item, priceRaw: unitPrice, quantity, modifiers: mods, categoryId: category });
       }
       return newCart;
     });
@@ -579,8 +569,11 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                 newCart.splice(existingIndex, 1);
             }
         } else if (delta > 0) {
-            // Should be handled by addToCart usually, but fail-safe here
-            newCart.push({ ...item, priceRaw: parsePrice(item.price), quantity: delta, modifiers: [] });
+             // Need to find the item in MENU_ITEMS to get category for safe adding if it wasn't there
+             // But updateQuantityFromCard is only called if quantityInCart > 0 (so item exists) OR via Add button which calls addToCart
+             // This branch is technically fallback. 
+             // We can infer category if needed, but for now assuming it exists is safe based on UI logic.
+             // If completely new add, `addToCart` is better.
         }
         return newCart;
     });
@@ -678,12 +671,43 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
 
   const cartSubTotal = useMemo(() => cart.reduce((t, i) => t + (i.priceRaw * i.quantity), 0), [cart]);
   
-  // Fees
-  const bagFee = cart.length > 0 ? PAPER_BAG_PRICE : 0;
+  // --- Smart Packaging Logic ---
+  // 1. Calculate Food Count for Containers (Rice, Pasta, Sides)
+  const mainMealCount = useMemo(() => {
+    return cart
+      .filter(i => ['rice', 'pasta'].includes(i.categoryId))
+      .reduce((sum, i) => sum + i.quantity, 0);
+  }, [cart]);
+
+  const sideCount = useMemo(() => {
+    return cart
+      .filter(i => ['sides'].includes(i.categoryId))
+      .reduce((sum, i) => sum + i.quantity, 0);
+  }, [cart]);
+
+  const totalFoodItems = mainMealCount + sideCount;
+  const containerCost = totalFoodItems * CONTAINER_PRICE;
+
+  // 2. Calculate Bag Count
+  // Rule: 1 Bag per 2 Main Meals.
+  // Fallback: If no mains but has sides, 1 bag.
+  const bagCount = useMemo(() => {
+    if (!needsBag) return 0;
+    if (mainMealCount > 0) {
+      return Math.ceil(mainMealCount / 2);
+    } else if (sideCount > 0) {
+      return 1;
+    }
+    return 0; // Drinks only or empty
+  }, [needsBag, mainMealCount, sideCount]);
+
+  const bagFee = bagCount * PAPER_BAG_PRICE;
+  
   const vatAmount = cartSubTotal * VAT_RATE;
   const deliveryFee = orderType === 'delivery' ? (DELIVERY_ZONES.find(z => z.id === deliveryZoneId)?.price || 0) : 0;
   
-  const finalTotal = cartSubTotal + vatAmount + bagFee + deliveryFee;
+  // Final Total 
+  const finalTotal = cartSubTotal + vatAmount + containerCost + bagFee + deliveryFee;
 
   const canCheckout = useMemo(() => {
     if (!customerName || !customerPhone) return false;
@@ -704,10 +728,35 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
       const pin = orderType === 'delivery' ? Math.floor(100000 + Math.random() * 899999).toString() : null;
       setGeneratedDeliveryPin(pin);
 
+      // Add Packaging Items explicitly for the Receipt/History
+      const finalItems = [...cart];
+      
+      if (totalFoodItems > 0) {
+        finalItems.push({
+            name: EXTRAS.container.name,
+            desc: EXTRAS.container.desc,
+            price: EXTRAS.container.price,
+            priceRaw: CONTAINER_PRICE,
+            quantity: totalFoodItems,
+            categoryId: 'packaging'
+        } as any);
+      }
+
+      if (bagCount > 0) {
+        finalItems.push({
+             name: EXTRAS.bag.name,
+             desc: `${EXTRAS.bag.desc} (Fits ~2 Meals)`,
+             price: EXTRAS.bag.price,
+             priceRaw: PAPER_BAG_PRICE,
+             quantity: bagCount,
+             categoryId: 'packaging'
+        } as any);
+      }
+
       const newOrder: PastOrder = {
         id,
         date: new Date().toISOString(),
-        items: cart.map(i => ({ 
+        items: finalItems.map(i => ({ 
           name: i.name + (i.modifiers?.length ? ` (${i.modifiers.join(', ')})` : ''), 
           quantity: i.quantity, 
           priceRaw: i.priceRaw 
@@ -1192,70 +1241,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
         )}
       </AnimatePresence>
 
-      {/* --- CUSTOMIZATION MODAL --- */}
-      <AnimatePresence>
-        {isMealModalOpen && selectedMealItem && (
-          <MotionDiv 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[110] flex items-end md:items-center justify-center p-0 md:p-4"
-          >
-            <MotionDiv 
-              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-              className={`w-full max-w-md border-t md:border rounded-t-3xl md:rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}
-            >
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h3 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{selectedMealItem.name}</h3>
-                  <p className="text-yellow-500 font-mono text-lg">{selectedMealItem.price}</p>
-                </div>
-                <button onClick={() => setIsMealModalOpen(false)} className={`p-2 rounded-full hover:bg-red-500/20 hover:text-red-500 ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                <div>
-                  <h4 className={`text-sm font-bold uppercase tracking-wider mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Add Extras</h4>
-                  <div className="space-y-2">
-                    {KITCHEN_ADDONS.map(addon => {
-                      const isSelected = selectedAddOns.includes(addon.id);
-                      return (
-                        <div 
-                          key={addon.id} 
-                          onClick={() => toggleAddOn(addon.id)}
-                          className={`flex justify-between items-center p-3 rounded-xl border cursor-pointer transition-all 
-                            ${isSelected 
-                              ? 'bg-purple-600/20 border-purple-500' 
-                              : isDark 
-                                ? 'bg-white/5 border-white/5 hover:bg-white/10' 
-                                : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}
-                          `}
-                        >
-                          <span className={isSelected ? (isDark ? 'text-white' : 'text-purple-700') : (isDark ? 'text-gray-300' : 'text-gray-700')}>{addon.name}</span>
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm font-mono text-yellow-500">+{addon.price}</span>
-                            <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${isSelected ? 'bg-purple-500 border-purple-500' : 'border-gray-500'}`}>
-                              {isSelected && <CheckCircle className="w-3 h-3 text-white" />}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                <button 
-                  onClick={handleCustomizationSubmit}
-                  className="w-full py-4 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl shadow-lg transition-all"
-                >
-                  Add to Cart
-                </button>
-              </div>
-            </MotionDiv>
-          </MotionDiv>
-        )}
-      </AnimatePresence>
-
       {/* --- CART DRAWER --- */}
       <AnimatePresence>
         {isCartOpen && (
@@ -1347,26 +1332,48 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
 
                     {cart.length > 0 && (
                         <div className={`flex-none p-6 border-t z-20 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
-                            {/* NEW: Explicit charges summary */}
-                            <div className={`space-y-2 mb-4 text-sm border-b pb-4 mb-4 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-                                <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                                  <span>Subtotal</span>
-                                  <span>{formatPrice(cartSubTotal)}</span>
+                            {/* UPDATED: Charges Summary with visual separation */}
+                            <div className={`space-y-4 mb-4 text-sm border-b pb-4 mb-4 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+                                {/* Food & Drinks Group */}
+                                <div className="space-y-2">
+                                    <div className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Food & Drinks</div>
+                                    <div className={`flex justify-between ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                      <span>Subtotal</span>
+                                      <span>{formatPrice(cartSubTotal)}</span>
+                                    </div>
+                                    <div className={`flex justify-between ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                      <span>VAT (7.5%)</span>
+                                      <span>{formatPrice(vatAmount)}</span>
+                                    </div>
                                 </div>
-                                <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                                  <span className="flex items-center gap-1">Paper Bag <span className="text-[10px] bg-white/10 px-1 rounded">Required</span></span>
-                                  <span>{formatPrice(bagFee)}</span>
-                                </div>
-                                <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                                  <span>VAT (7.5%)</span>
-                                  <span>{formatPrice(vatAmount)}</span>
+
+                                {/* Packaging & Services Group */}
+                                <div className="space-y-2 pt-2 border-t border-dashed border-gray-500/20">
+                                    <div className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Packaging & Services</div>
+                                    
+                                    {/* Smart Containers Item */}
+                                    <div className={`flex justify-between ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                      <span className="flex items-center gap-1">
+                                        Containers <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded-md">x{totalFoodItems}</span>
+                                      </span>
+                                      <span>{formatPrice(containerCost)}</span>
+                                    </div>
+                                    
+                                    {/* Smart Bag Item */}
+                                    {needsBag && bagCount > 0 && (
+                                      <div className={`flex justify-between ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                        <span className="flex items-center gap-1">
+                                          Paper Bags <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded-md">x{bagCount}</span>
+                                        </span>
+                                        <span>{formatPrice(bagFee)}</span>
+                                      </div>
+                                    )}
                                 </div>
                             </div>
                             
                             <div className={`flex justify-between text-xl font-bold mt-2 mb-4 ${isDark ? 'text-white' : 'text-black'}`}><span>Total</span><span className="text-yellow-500">{formatPrice(finalTotal)}</span></div>
                             
                             <div className="flex gap-2">
-                              {/* Keep Shopping Button inside cart */}
                               <button 
                                   onClick={() => setIsCartOpen(false)}
                                   className={`flex-1 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${isDark ? 'bg-white/5 hover:bg-white/10 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-800'}`}
@@ -1389,6 +1396,56 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
               {cartView === 'checkout' && (
                 <div className="flex-1 flex flex-col h-full overflow-hidden">
                     <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                        
+                        {/* Packaging Preferences Toggle */}
+                        {totalFoodItems > 0 && (
+                          <div className={`p-4 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-blue-50 border-blue-100'}`}>
+                             <div className="flex items-center justify-between mb-3">
+                               <h4 className={`text-xs uppercase font-bold ${isDark ? 'text-gray-400' : 'text-blue-800'}`}>Packaging</h4>
+                               <button 
+                                 onClick={() => setNeedsBag(!needsBag)}
+                                 className={`transition-colors ${needsBag ? (isDark ? 'text-green-400' : 'text-green-600') : 'text-gray-500'}`}
+                               >
+                                  {needsBag ? <ToggleRight className="w-8 h-8" /> : <ToggleLeft className="w-8 h-8" />}
+                               </button>
+                             </div>
+                             
+                             <div className="space-y-3">
+                               {/* Bag Info */}
+                               <div className="flex items-center gap-3">
+                                  <PackageOpen className={`w-5 h-5 ${isDark ? 'text-purple-500' : 'text-blue-500'}`} />
+                                  <div className="flex-1">
+                                     <div className="flex justify-between items-center">
+                                       <p className={`font-bold text-sm ${isDark ? 'text-white' : 'text-gray-800'}`}>
+                                         {needsBag ? `Premium Paper Bags (x${bagCount})` : 'No Paper Bag'}
+                                       </p>
+                                       {needsBag && <span className="text-xs font-mono text-yellow-500">{formatPrice(bagFee)}</span>}
+                                     </div>
+                                     <p className={`text-[10px] leading-tight mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                                       {needsBag 
+                                         ? `Automatically calculated based on order size (1 bag per 2 meals).` 
+                                         : "Items will be handed over in containers only."}
+                                     </p>
+                                  </div>
+                               </div>
+
+                               {/* Container Info */}
+                               <div className="flex items-center gap-3 pt-3 border-t border-dashed border-gray-500/20">
+                                  <div className={`w-5 h-5 rounded flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
+                                    <span className="text-[10px] font-bold">x{totalFoodItems}</span>
+                                  </div>
+                                  <div className="flex-1">
+                                     <div className="flex justify-between items-center">
+                                       <p className={`font-bold text-sm ${isDark ? 'text-white' : 'text-gray-800'}`}>Food Containers</p>
+                                       <span className="text-xs font-mono text-yellow-500">{formatPrice(containerCost)}</span>
+                                     </div>
+                                     <p className="text-[10px] text-gray-500 mt-0.5">Required for {totalFoodItems} food items.</p>
+                                  </div>
+                               </div>
+                             </div>
+                          </div>
+                        )}
+
                         {/* Order Type */}
                         <div className="space-y-2">
                              <label className={`text-xs uppercase font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Order Type</label>
@@ -1444,9 +1501,10 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                     </div>
 
                     <div className={`flex-none p-6 border-t ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
+                        {/* Final Summary in Checkout View */}
                         <div className={`space-y-2 mb-4 text-sm`}>
-                             <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Subtotal</span><span>{formatPrice(cartSubTotal)}</span></div>
-                             <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Bag Charge</span><span>{formatPrice(bagFee)}</span></div>
+                             <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Subtotal (Food & Drinks)</span><span>{formatPrice(cartSubTotal)}</span></div>
+                             <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Packaging</span><span>{formatPrice(containerCost + bagFee)}</span></div>
                              <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>VAT (7.5%)</span><span>{formatPrice(vatAmount)}</span></div>
                             {orderType === 'delivery' && <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Delivery Fee</span><span>{formatPrice(deliveryFee)}</span></div>}
                             <div className={`flex justify-between text-xl font-bold mt-2 ${isDark ? 'text-white' : 'text-black'}`}><span>Total to Pay</span><span className="text-yellow-500">{formatPrice(finalTotal)}</span></div>
