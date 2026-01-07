@@ -24,7 +24,7 @@ interface CartItemExtended extends MenuItem {
   priceRaw: number;
   quantity: number;
   modifiers?: string[];
-  categoryId: string; // Added to track category for logic
+  categoryId: string; 
 }
 
 interface MenuProps {
@@ -105,13 +105,13 @@ const CATEGORIES = [
   { id: 'rice', label: 'Rice Specialties', icon: Utensils },
   { id: 'pasta', label: 'Pasta & Noodles', icon: Utensils },
   { id: 'sides', label: 'Sides & Bites', icon: Flame },
-  // Removed 'builder' from tabs to make it exclusive
   { id: 'cocktails', label: 'Cocktails & Shakes', icon: Wine },
   { id: 'bottles', label: 'Bottle Service', icon: Crown },
   { id: 'beverages', label: 'Beer & Drinks', icon: GlassWater },
 ];
 
-const FOOD_CATEGORIES = ['rice', 'pasta', 'sides'];
+// Items that trigger the customization modal
+const CUSTOMIZABLE_CATEGORIES = ['rice', 'pasta'];
 
 const MENU_ITEMS: Record<string, Array<MenuItem>> = {
   rice: [
@@ -215,16 +215,14 @@ const MENU_ITEMS: Record<string, Array<MenuItem>> = {
   ]
 };
 
-const parsePrice = (priceStr: string) => parseInt(priceStr.replace(/[^0-9]/g, ''), 10);
+const parsePrice = (priceStr: string) => parseInt((priceStr || '0').replace(/[^0-9]/g, ''), 10);
 const formatPrice = (price: number) => "₦" + price.toLocaleString();
 
 // --- Sub-Components ---
 
 const PromoCarousel = () => {
-  // Multiply items to ensure seamless looping
   const carouselItems = [...upcomingSpecialEvents, ...upcomingSpecialEvents, ...upcomingSpecialEvents, ...upcomingSpecialEvents];
 
-  // Inline style for the marquee animation to allow pause-on-hover
   const marqueeStyle = `
     @keyframes marquee {
       0% { transform: translateX(0); }
@@ -241,8 +239,6 @@ const PromoCarousel = () => {
   return (
     <div className="w-full overflow-hidden mb-8 relative z-20 group">
       <style>{marqueeStyle}</style>
-      
-      {/* Label */}
       <div className="flex items-center gap-2 mb-3 px-1">
         <span className="relative flex h-3 w-3">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -253,9 +249,7 @@ const PromoCarousel = () => {
 
       <div className="flex gap-4 animate-marquee w-max hover:cursor-grab active:cursor-grabbing">
         {carouselItems.map((event, i) => {
-           // Simulate "Live" status for the very first visual item to demo the feature
            const isLive = i === 0 || i === upcomingSpecialEvents.length; 
-           
            return (
             <div 
               key={`${event.id}-${i}`} 
@@ -263,7 +257,6 @@ const PromoCarousel = () => {
             >
               <img src={event.image} alt={event.title} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover/card:opacity-40 transition-opacity" />
               <div className="absolute inset-0 bg-gradient-to-r from-black via-black/50 to-transparent" />
-              
               <div className="absolute inset-0 p-4 flex flex-col justify-between">
                 <div className="flex justify-between items-start">
                    {isLive ? (
@@ -276,7 +269,6 @@ const PromoCarousel = () => {
                      </span>
                    )}
                 </div>
-
                 <div>
                    <h4 className="text-white font-bold text-lg leading-tight mb-1 truncate">{event.title}</h4>
                    <div className="flex items-center text-xs text-gray-300 gap-2">
@@ -297,15 +289,16 @@ const MenuItemCard: React.FC<{
   categoryId: string;
   quantityInCart: number;
   onAdd: (item: MenuItem, categoryId: string) => void;
-  onUpdateQuantity: (item: MenuItem, delta: number) => void;
+  onUpdateQuantity: (item: MenuItem, delta: number, categoryId: string) => void;
   onOpenModal: (item: MenuItem) => void;
   theme: 'dark' | 'light';
 }> = ({ item, categoryId, quantityInCart, onAdd, onUpdateQuantity, onOpenModal, theme }) => {
   const [isAdded, setIsAdded] = useState(false);
   
   const handleAddClick = () => {
-    // Only open modal for customizable food items (rice/pasta/sides)
-    if (['rice', 'pasta', 'sides'].includes(categoryId)) { 
+    // Only open modal for specific customizable categories (Rice/Pasta)
+    // Sides will now add directly to cart
+    if (CUSTOMIZABLE_CATEGORIES.includes(categoryId)) { 
       onOpenModal(item); 
     } else {
       onAdd(item, categoryId);
@@ -341,7 +334,6 @@ const MenuItemCard: React.FC<{
       </div>
       
       <div className="flex justify-end mt-2 relative items-center">
-         {/* Flying Icon Animation */}
          <AnimatePresence>
             {isAdded && (
               <MotionDiv
@@ -358,22 +350,24 @@ const MenuItemCard: React.FC<{
             )}
          </AnimatePresence>
 
-        {/* --- DYNAMIC BUTTON / QUANTITY CONTROL --- */}
-        {hasQuantity && !['rice', 'pasta', 'sides'].includes(categoryId) ? (
+        {/* If item is already in cart, show +/- buttons. 
+            EXCEPTION: Rice/Pasta (customizable) always show "Customize" to allow adding different variants 
+        */}
+        {hasQuantity && !CUSTOMIZABLE_CATEGORIES.includes(categoryId) ? (
             <MotionDiv 
                 initial={{ opacity: 0, scale: 0.8 }} 
                 animate={{ opacity: 1, scale: 1 }}
                 className="flex items-center gap-3 bg-purple-900/40 border border-purple-500/50 rounded-lg p-1"
             >
                 <button 
-                    onClick={() => onUpdateQuantity(item, -1)} 
+                    onClick={() => onUpdateQuantity(item, -1, categoryId)} 
                     className="w-8 h-8 flex items-center justify-center rounded-md bg-white/10 hover:bg-white/20 text-white transition-colors"
                 >
                     <Minus className="w-4 h-4" />
                 </button>
                 <span className="font-bold text-white w-4 text-center">{quantityInCart}</span>
                 <button 
-                    onClick={() => onUpdateQuantity(item, 1)} 
+                    onClick={() => onUpdateQuantity(item, 1, categoryId)} 
                     className="w-8 h-8 flex items-center justify-center rounded-md bg-purple-600 hover:bg-purple-500 text-white transition-colors"
                 >
                     <Plus className="w-4 h-4" />
@@ -388,7 +382,8 @@ const MenuItemCard: React.FC<{
                     ${isDark ? 'bg-white/10 hover:bg-purple-600 text-white' : 'bg-gray-200 hover:bg-purple-600 hover:text-white text-gray-800'}
                 `}
             >
-                {FOOD_CATEGORIES.includes(categoryId) ? (
+                {/* Only show "Customize" for Rice/Pasta */}
+                {CUSTOMIZABLE_CATEGORIES.includes(categoryId) ? (
                     <>Customize <ChevronRight className="w-4 h-4" /></>
                 ) : "Add to Order"}
             </MotionButton>
@@ -398,10 +393,8 @@ const MenuItemCard: React.FC<{
   );
 };
 
-// --- Helper for Status Badges ---
 const getStatusBadge = (status: string) => {
   const s = status.toLowerCase();
-  
   if (s === 'delivered' || s === 'completed') {
     return (
       <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-green-500 bg-green-500/10 px-2 py-1 rounded-full border border-green-500/20">
@@ -423,7 +416,6 @@ const getStatusBadge = (status: string) => {
       </span>
     );
   }
-  // Default Pending
   return (
     <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded-full border border-yellow-500/20">
       <Clock className="w-3 h-3 animate-pulse" /> Pending
@@ -439,28 +431,22 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   const [cart, setCart] = useState<CartItemExtended[]>([]);
   const [history, setHistory] = useState<PastOrder[]>([]);
   
-  // Toast State
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  // Modal States
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [cartView, setCartView] = useState<CartView>('items'); // 'items' or 'checkout'
+  const [cartView, setCartView] = useState<CartView>('items');
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [isMealModalOpen, setIsMealModalOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
-  const [lastOrder, setLastOrder] = useState<PastOrder | null>(null); // To persist data for receipt after cart clear
+  const [lastOrder, setLastOrder] = useState<PastOrder | null>(null);
 
-  // Customization State
   const [selectedMealItem, setSelectedMealItem] = useState<MenuItem | null>(null);
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
 
-  // Drink Builder State
   const [builderSpirit, setBuilderSpirit] = useState<string | null>(null);
   const [builderMixers, setBuilderMixers] = useState<string[]>([]);
   const [builderGarnishes, setBuilderGarnishes] = useState<string[]>([]);
   
-  // Checkout Form State
   const [orderId, setOrderId] = useState('');
   const [orderType, setOrderType] = useState<OrderType>('pickup');
   const [deliveryZoneId, setDeliveryZoneId] = useState('select');
@@ -472,7 +458,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatedDeliveryPin, setGeneratedDeliveryPin] = useState<string | null>(null);
   
-  // --- NEW: Packaging Preferences ---
   const [needsBag, setNeedsBag] = useState(true);
 
   const isDark = theme === 'dark';
@@ -483,7 +468,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
     setCustomerPhone(localStorage.getItem('reeplay_user_phone') || '');
   }, []);
 
-  // Reset cart view when opening/closing
   useEffect(() => {
     if (!isCartOpen) {
       setCartView('items');
@@ -504,8 +488,8 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
     }
     const [h, m] = val.split(':').map(Number);
     const totalMins = h * 60 + m;
-    const start = 15 * 60; // 15:00 (3 PM)
-    const end = 22 * 60 + 30; // 22:30 (10:30 PM)
+    const start = 15 * 60; 
+    const end = 22 * 60 + 30; 
 
     if (totalMins < start || totalMins > end) {
         setPickupError('Pickup is only available between 3:00 PM and 10:30 PM.');
@@ -515,7 +499,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   };
 
   const filteredItems = useMemo(() => {
-    // If search is active, we ignore activeCategory and search globally
     if (searchQuery.length > 0) {
       const results: MenuItemExtended[] = [];
       Object.entries(MENU_ITEMS).forEach(([catId, items]) => {
@@ -530,13 +513,10 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
       });
       return results;
     }
-    
-    // Otherwise return just current category
     const items = MENU_ITEMS[activeCategory] || [];
     return items.map(item => ({ ...item, categoryId: activeCategory }));
   }, [activeCategory, searchQuery]);
 
-  // Cart Logic
   const addToCart = (item: MenuItem, category: string, quantity: number = 1, mods: string[] = [], customPrice?: number) => {
     setCart(prev => {
       let newCart = [...prev];
@@ -555,12 +535,10 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
     });
   };
 
-  // Helper to update quantity directly from menu card (only works for non-food/custom items for simplicity)
-  const updateQuantityFromCard = (item: MenuItem, delta: number) => {
+  const updateQuantityFromCard = (item: MenuItem, delta: number, categoryId: string) => {
     setCart(prev => {
         let newCart = [...prev];
-        // For menu card updates, we assume "standard" items without modifiers
-        const uniqueId = `${item.name}-`; // Empty mods join
+        const uniqueId = `${item.name}-`;
         const existingIndex = newCart.findIndex(i => `${i.name}-${(i.modifiers || []).sort().join('-')}` === uniqueId);
 
         if (existingIndex > -1) {
@@ -569,17 +547,12 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                 newCart.splice(existingIndex, 1);
             }
         } else if (delta > 0) {
-             // Need to find the item in MENU_ITEMS to get category for safe adding if it wasn't there
-             // But updateQuantityFromCard is only called if quantityInCart > 0 (so item exists) OR via Add button which calls addToCart
-             // This branch is technically fallback. 
-             // We can infer category if needed, but for now assuming it exists is safe based on UI logic.
-             // If completely new add, `addToCart` is better.
+            newCart.push({ ...item, priceRaw: parsePrice(item.price), quantity: delta, modifiers: [], categoryId: categoryId });
         }
         return newCart;
     });
   };
 
-  // Drink Builder Logic
   const calculateBuilderTotal = () => {
     let total = 0;
     if (builderSpirit) {
@@ -596,11 +569,9 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
 
   const handleAddBuiltDrink = () => {
     if (!builderSpirit) return;
-    
     const spiritObj = BUILDER_DATA.spirits.find(s => s.id === builderSpirit);
     const mixerNames = builderMixers.map(id => BUILDER_DATA.mixers.find(m => m.id === id)?.name || '');
     const garnishNames = builderGarnishes.map(id => BUILDER_DATA.garnishes.find(g => g.id === id)?.name || '');
-    
     const modifiers = [...mixerNames, ...garnishNames];
     
     const customItem: MenuItem = {
@@ -611,12 +582,10 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
 
     addToCart(customItem, 'builder', 1, modifiers, calculateBuilderTotal());
     showToast("Custom Drink Created!");
-    
-    // Reset
     setBuilderSpirit(null);
     setBuilderMixers([]);
     setBuilderGarnishes([]);
-    setActiveCategory('rice'); // Return to food menu
+    setActiveCategory('rice');
   };
 
   const toggleBuilderItem = (list: string[], setList: (l: string[]) => void, id: string) => {
@@ -671,8 +640,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
 
   const cartSubTotal = useMemo(() => cart.reduce((t, i) => t + (i.priceRaw * i.quantity), 0), [cart]);
   
-  // --- Smart Packaging Logic ---
-  // 1. Calculate Food Count for Containers (Rice, Pasta, Sides)
   const mainMealCount = useMemo(() => {
     return cart
       .filter(i => ['rice', 'pasta'].includes(i.categoryId))
@@ -688,9 +655,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   const totalFoodItems = mainMealCount + sideCount;
   const containerCost = totalFoodItems * CONTAINER_PRICE;
 
-  // 2. Calculate Bag Count
-  // Rule: 1 Bag per 2 Main Meals.
-  // Fallback: If no mains but has sides, 1 bag.
   const bagCount = useMemo(() => {
     if (!needsBag) return 0;
     if (mainMealCount > 0) {
@@ -698,7 +662,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
     } else if (sideCount > 0) {
       return 1;
     }
-    return 0; // Drinks only or empty
+    return 0;
   }, [needsBag, mainMealCount, sideCount]);
 
   const bagFee = bagCount * PAPER_BAG_PRICE;
@@ -706,7 +670,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   const vatAmount = cartSubTotal * VAT_RATE;
   const deliveryFee = orderType === 'delivery' ? (DELIVERY_ZONES.find(z => z.id === deliveryZoneId)?.price || 0) : 0;
   
-  // Final Total 
   const finalTotal = cartSubTotal + vatAmount + containerCost + bagFee + deliveryFee;
 
   const canCheckout = useMemo(() => {
@@ -728,7 +691,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
       const pin = orderType === 'delivery' ? Math.floor(100000 + Math.random() * 899999).toString() : null;
       setGeneratedDeliveryPin(pin);
 
-      // Add Packaging Items explicitly for the Receipt/History
       const finalItems = [...cart];
       
       if (totalFoodItems > 0) {
@@ -772,7 +734,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
 
       orderService.saveOrder(newOrder);
       setHistory(orderService.getHistory());
-      setLastOrder(newOrder); // Save details for receipt modal
+      setLastOrder(newOrder);
       localStorage.setItem('reeplay_user_name', customerName);
       localStorage.setItem('reeplay_user_phone', customerPhone);
       
@@ -788,15 +750,12 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
       initial={{ opacity: 0, y: 50 }} 
       animate={{ opacity: 1, y: 0 }} 
       exit={{ opacity: 0, y: 50 }}
-      // Z-Index Bumped to 70 to sit on top of bottom navbar
       className={`fixed inset-0 z-[70] overflow-y-auto transition-colors duration-300 ${isDark ? 'text-white' : 'text-gray-900'}`}
     >
-      {/* BACKGROUND ANIMATION */}
       <MenuBackground theme={theme} />
 
       <div className="min-h-screen pb-32 px-4 md:px-8 max-w-7xl mx-auto pt-4 relative z-10">
         
-        {/* Header - STICKY */}
         <div className={`flex justify-between items-center sticky top-0 z-50 py-4 -mx-4 px-4 md:mx-0 md:px-0 backdrop-blur-xl transition-colors duration-300 border-b ${isDark ? 'bg-black/80 border-white/5' : 'bg-white/80 border-gray-100'}`}>
           <div className="flex items-center gap-4">
             <button onClick={onBack} className={`p-2 rounded-full transition-colors ${isDark ? 'bg-white/10 hover:bg-purple-600' : 'bg-gray-200 hover:bg-purple-600 hover:text-white'}`}>
@@ -819,7 +778,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
           </div>
         </div>
 
-        {/* Scrollable Search & Updates Area */}
         <div className="pt-6 pb-2">
             <div className="relative max-w-md mx-auto mb-6">
               <input 
@@ -836,11 +794,9 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
               <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
             </div>
 
-            {/* PROMO CAROUSEL - No Sticky */}
             {!searchQuery && activeCategory !== 'builder' && <PromoCarousel />}
         </div>
 
-        {/* Categories - STICKY (Sticks below header) */}
         {!searchQuery && activeCategory !== 'builder' && (
             <div className={`sticky top-[73px] z-40 py-3 mb-6 -mx-4 px-4 md:mx-0 md:px-0 backdrop-blur-xl border-b transition-colors duration-300 ${isDark ? 'bg-black/80 border-white/10' : 'bg-white/80 border-gray-200'}`}>
                <div className="flex overflow-x-auto gap-3 pb-2 no-scrollbar">
@@ -865,9 +821,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
             </div>
         )}
 
-        {/* --- CONTENT AREA --- */}
         {activeCategory === 'builder' ? (
-          /* DRINK BUILDER UI */
           <div className="max-w-3xl mx-auto space-y-8 pb-24">
              <div className="flex items-center gap-4 mb-4">
                  <button onClick={() => setActiveCategory('rice')} className="p-2 rounded-full bg-white/10 hover:bg-white/20">
@@ -884,7 +838,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
               <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Mix and match to create your perfect poison.</p>
             </div>
 
-            {/* Step 1: Base Spirit */}
             <div>
               <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-800'}`}>
                 <span className="bg-purple-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">1</span> 
@@ -911,7 +864,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
               </div>
             </div>
 
-            {/* Step 2: Mixers */}
             <div>
               <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-800'}`}>
                 <span className="bg-purple-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">2</span> 
@@ -938,7 +890,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
               </div>
             </div>
 
-             {/* Step 3: Garnishes */}
              <div>
               <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-800'}`}>
                 <span className="bg-purple-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">3</span> 
@@ -964,7 +915,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
               </div>
             </div>
             
-            {/* Builder Action Bar */}
             <div className={`fixed bottom-0 left-0 right-0 p-4 border-t z-50 backdrop-blur-xl ${isDark ? 'bg-black/80 border-white/10' : 'bg-white/80 border-gray-200'}`}>
                 <div className="max-w-3xl mx-auto flex items-center gap-4">
                   <div className="flex-1">
@@ -987,13 +937,8 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
 
           </div>
         ) : (
-          /* STANDARD MENU GRID */
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-20">
             {filteredItems.map((item, i) => {
-              // Find if this item is in the cart to pass quantity
-              // Note: This only works perfectly for non-custom items. 
-              // Custom items (built drinks) or food with different modifiers are treated as unique rows in cart.
-              // For standard bottles/cocktails/beverages, this is perfect.
               const uniqueId = `${item.name}-`;
               const cartItem = cart.find(c => `${c.name}-${(c.modifiers || []).sort().join('-')}` === uniqueId);
               const qty = cartItem ? cartItem.quantity : 0;
@@ -1019,10 +964,8 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
             )}
           </div>
         )}
-
       </div>
 
-      {/* SUCCESS TOAST NOTIFICATION */}
       <AnimatePresence>
         {toastMessage && (
           <MotionDiv
@@ -1036,7 +979,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
         )}
       </AnimatePresence>
 
-      {/* Floating Action Button (FAB) for Drink Builder */}
       {activeCategory !== 'builder' && (
         <MotionButton
             initial={{ scale: 0 }}
@@ -1051,7 +993,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
         </MotionButton>
       )}
 
-      {/* Floating Cart Button (Bottom Right) - Shifted left slightly if FAB is present */}
       {cart.length > 0 && activeCategory !== 'builder' && (
         <MotionButton 
           initial={{ scale: 0 }}
@@ -1135,7 +1076,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                     <div key={i} className={`p-4 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
                       <div className="flex justify-between items-center mb-2">
                         <span className={`text-xs font-mono font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{new Date(order.date).toLocaleDateString()}</span>
-                        {/* Improved Status Indicator */}
                         {getStatusBadge(order.status)}
                       </div>
                       <div className="mb-3">
@@ -1190,7 +1130,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                 <div className="space-y-3">
                   <button 
                     onClick={() => {
-                        // FIX: Use encodeURIComponent to handle special characters (like #) correctly
                         const lines = [
                             `*New Order ${lastOrder.id}* 🛒`,
                             ``,
@@ -1240,8 +1179,97 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
           </MotionDiv>
         )}
       </AnimatePresence>
+      
+      {/* --- RESTORED MEAL CUSTOMIZATION MODAL --- */}
+      <AnimatePresence>
+        {isMealModalOpen && selectedMealItem && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+             <MotionDiv
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               onClick={() => {
+                 setIsMealModalOpen(false);
+                 setSelectedAddOns([]);
+                 setSelectedMealItem(null);
+               }}
+               className="absolute inset-0 bg-black/90 backdrop-blur-md"
+             />
+             
+             <MotionDiv
+                initial={{ scale: 0.9, y: 50, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                exit={{ scale: 0.9, y: 50, opacity: 0 }}
+                className="relative w-full max-w-md bg-[#18181b] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+             >
+                {/* Header */}
+                <div className="p-6 border-b border-white/10 bg-white/5 relative">
+                  <button 
+                    onClick={() => {
+                        setIsMealModalOpen(false);
+                        setSelectedAddOns([]);
+                        setSelectedMealItem(null);
+                    }}
+                    className="absolute top-4 right-4 p-2 bg-white/10 rounded-full hover:bg-white/20 text-white"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                  <h3 className="text-xl font-bold text-white pr-8">{selectedMealItem.name}</h3>
+                  <p className="text-yellow-500 font-mono font-bold mt-1">{selectedMealItem.price}</p>
+                </div>
 
-      {/* --- CART DRAWER --- */}
+                {/* Body */}
+                <div className="p-6 overflow-y-auto custom-scrollbar">
+                   <p className="text-gray-400 text-sm mb-6 leading-relaxed">{selectedMealItem.desc}</p>
+                   
+                   <div className="space-y-4">
+                      <h4 className="text-xs uppercase font-bold text-purple-400 tracking-widest mb-2">Add Extras (Optional)</h4>
+                      {KITCHEN_ADDONS.map(addon => {
+                        const isSelected = selectedAddOns.includes(addon.id);
+                        return (
+                           <div 
+                             key={addon.id}
+                             onClick={() => toggleAddOn(addon.id)}
+                             className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all
+                               ${isSelected ? 'bg-purple-900/30 border-purple-500' : 'bg-white/5 border-transparent hover:bg-white/10'}
+                             `}
+                           >
+                             <div className="flex items-center gap-3">
+                                <div className={`w-5 h-5 rounded-md border flex items-center justify-center ${isSelected ? 'bg-purple-600 border-purple-600' : 'border-gray-500'}`}>
+                                   {isSelected && <CheckCheck className="w-3.5 h-3.5 text-white" />}
+                                </div>
+                                <span className={isSelected ? 'text-white font-bold' : 'text-gray-300'}>{addon.name}</span>
+                             </div>
+                             <span className="text-xs font-mono text-yellow-500">+{formatPrice(addon.price)}</span>
+                           </div>
+                        );
+                      })}
+                   </div>
+                </div>
+
+                {/* Footer */}
+                <div className="p-4 border-t border-white/10 bg-black/50 backdrop-blur-md">
+                   <div className="flex justify-between items-center mb-4 text-sm">
+                      <span className="text-gray-400">Total Item Price:</span>
+                      <span className="text-xl font-bold text-white font-mono">
+                         {formatPrice(
+                             parsePrice(selectedMealItem.price) + 
+                             selectedAddOns.reduce((sum, id) => sum + (KITCHEN_ADDONS.find(k => k.id === id)?.price || 0), 0)
+                         )}
+                      </span>
+                   </div>
+                   <button
+                     onClick={handleCustomizationSubmit}
+                     className="w-full py-4 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+                   >
+                     Add to Order <Plus className="w-5 h-5" />
+                   </button>
+                </div>
+             </MotionDiv>
+          </div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {isCartOpen && (
           <>
@@ -1254,7 +1282,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
               initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
               className={`fixed top-0 right-0 h-full w-full max-w-md z-[101] flex flex-col shadow-2xl border-l ${isDark ? 'bg-[#121212] border-white/10' : 'bg-white border-gray-200'}`}
             >
-              {/* Cart Header */}
               <div className={`flex-none p-6 border-b flex justify-between items-center ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
                 <div className="flex items-center gap-3">
                     {cartView === 'checkout' && (
@@ -1275,7 +1302,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                             Clear
                         </button>
                     )}
-                    {/* Minimize Button */}
                     <button 
                       onClick={() => setIsCartOpen(false)} 
                       className={`p-2 rounded-full flex items-center gap-1 ${isDark ? 'hover:bg-white/10 text-gray-400 hover:text-white' : 'hover:bg-gray-200 text-gray-500 hover:text-black'}`}
@@ -1286,7 +1312,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                 </div>
               </div>
 
-              {/* View 1: ITEMS LIST */}
               {cartView === 'items' && (
                   <>
                     <div className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -1332,9 +1357,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
 
                     {cart.length > 0 && (
                         <div className={`flex-none p-6 border-t z-20 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
-                            {/* UPDATED: Charges Summary with visual separation */}
                             <div className={`space-y-4 mb-4 text-sm border-b pb-4 mb-4 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-                                {/* Food & Drinks Group */}
                                 <div className="space-y-2">
                                     <div className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Food & Drinks</div>
                                     <div className={`flex justify-between ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -1347,11 +1370,9 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                                     </div>
                                 </div>
 
-                                {/* Packaging & Services Group */}
                                 <div className="space-y-2 pt-2 border-t border-dashed border-gray-500/20">
                                     <div className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Packaging & Services</div>
                                     
-                                    {/* Smart Containers Item */}
                                     <div className={`flex justify-between ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                                       <span className="flex items-center gap-1">
                                         Containers <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded-md">x{totalFoodItems}</span>
@@ -1359,7 +1380,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                                       <span>{formatPrice(containerCost)}</span>
                                     </div>
                                     
-                                    {/* Smart Bag Item */}
                                     {needsBag && bagCount > 0 && (
                                       <div className={`flex justify-between ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                                         <span className="flex items-center gap-1">
@@ -1392,12 +1412,10 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                   </>
               )}
 
-              {/* View 2: CHECKOUT DETAILS */}
               {cartView === 'checkout' && (
                 <div className="flex-1 flex flex-col h-full overflow-hidden">
                     <div className="flex-1 overflow-y-auto p-6 space-y-6">
                         
-                        {/* Packaging Preferences Toggle */}
                         {totalFoodItems > 0 && (
                           <div className={`p-4 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-blue-50 border-blue-100'}`}>
                              <div className="flex items-center justify-between mb-3">
@@ -1411,7 +1429,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                              </div>
                              
                              <div className="space-y-3">
-                               {/* Bag Info */}
                                <div className="flex items-center gap-3">
                                   <PackageOpen className={`w-5 h-5 ${isDark ? 'text-purple-500' : 'text-blue-500'}`} />
                                   <div className="flex-1">
@@ -1429,7 +1446,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                                   </div>
                                </div>
 
-                               {/* Container Info */}
                                <div className="flex items-center gap-3 pt-3 border-t border-dashed border-gray-500/20">
                                   <div className={`w-5 h-5 rounded flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
                                     <span className="text-[10px] font-bold">x{totalFoodItems}</span>
@@ -1446,7 +1462,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                           </div>
                         )}
 
-                        {/* Order Type */}
                         <div className="space-y-2">
                              <label className={`text-xs uppercase font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Order Type</label>
                             <div className={`flex p-1 rounded-xl ${isDark ? 'bg-black/50' : 'bg-gray-100'}`}>
@@ -1478,7 +1493,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                                 <label className={`text-xs uppercase font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Address Details</label>
                                 <textarea placeholder="Hostel Name, Room Number, Description..." value={address} onChange={e => setAddress(e.target.value)} className={`w-full border p-3 rounded-xl outline-none focus:border-purple-500 resize-none h-24 text-sm ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'}`}/>
                             </div>
-                            {/* NEW: Delivery Disclaimer */}
                             <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg flex gap-3 items-start">
                               <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
                               <p className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
@@ -1501,7 +1515,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                     </div>
 
                     <div className={`flex-none p-6 border-t ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
-                        {/* Final Summary in Checkout View */}
                         <div className={`space-y-2 mb-4 text-sm`}>
                              <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Subtotal (Food & Drinks)</span><span>{formatPrice(cartSubTotal)}</span></div>
                              <div className={`flex justify-between ${isDark ? 'text-gray-400' : 'text-gray-600'}`}><span>Packaging</span><span>{formatPrice(containerCost + bagFee)}</span></div>
