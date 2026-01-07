@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Calendar, Music2, Moon, ArrowRight, Mic } from 'lucide-react';
 import RsvpModal from './RsvpModal';
 import { weeklyEvents } from '../staticData';
+import PromoCarousel from './PromoCarousel';
 
 const MotionDiv = motion.div as any;
 const MotionButton = motion.button as any;
@@ -47,6 +48,10 @@ const Events: React.FC = () => {
 
   return (
     <section id="events" className="py-20 px-6 max-w-7xl mx-auto">
+      <div className="mb-12">
+        <PromoCarousel />
+      </div>
+
       {selectedEvent && (
         <RsvpModal 
           isOpen={!!selectedEvent} 
