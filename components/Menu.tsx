@@ -219,6 +219,54 @@ const MENU_ITEMS: Record<string, Array<MenuItem>> = {
 const parsePrice = (priceStr: string) => parseInt((priceStr || '0').replace(/[^0-9]/g, ''), 10);
 const formatPrice = (price: number) => "₦" + price.toLocaleString();
 
+const generateWhatsAppReceipt = (order: PastOrder) => {
+  const separator = "--------------------------------";
+  const dateStr = new Date(order.date).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+
+  let lines = [
+      `🧾 *REEPLAY LOUNGE ORDER*`,
+      separator,
+      `🆔 *Order:* ${order.id}`,
+      `📅 *Date:* ${dateStr}`,
+      separator,
+      `👤 *Customer:* ${order.customerName}`,
+      `📞 *Phone:* ${order.customerPhone}`,
+      `🛵 *Type:* ${order.type.toUpperCase()}`,
+  ];
+
+  if (order.type === 'delivery') {
+       lines.push(`📍 *Address:* ${order.details.split('(')[0].trim()}`);
+  } else {
+       lines.push(`⏰ *Time:* ${order.details.replace('Pickup: ', '')}`);
+  }
+
+  lines.push(separator);
+  lines.push(`*ORDER ITEMS*`);
+
+  order.items.forEach(item => {
+      // Clean name
+      let itemName = item.name.replace("Plastic Container", "Container").replace("Paper Bag", "Bag");
+      lines.push(`${item.quantity}x ${itemName} ... ${formatPrice(item.priceRaw * item.quantity)}`);
+  });
+
+  lines.push(separator);
+  
+  // Calculate approximate breakdown for display if possible, or just total
+  // Since we don't store breakdown in PastOrder, we show the Total prominently.
+  
+  lines.push(`💰 *TOTAL:* ............... ${formatPrice(order.total)}`);
+  
+  if (order.deliveryPin) {
+      lines.push(separator);
+      lines.push(`🔐 *PIN:* ${order.deliveryPin}`);
+  }
+  
+  lines.push(separator);
+  lines.push(`_Thank you for vibing with us!_`);
+
+  return lines.join('\n');
+};
+
 const needsContainer = (itemName: string) => {
   return !NO_CONTAINER_KEYWORDS.some(keyword => itemName.toLowerCase().includes(keyword));
 };
@@ -1033,7 +1081,10 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
               className={`w-full max-w-md border rounded-2xl p-6 shadow-2xl flex flex-col max-h-[80vh] ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}
             >
               <div className="flex justify-between items-center mb-6">
-                <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Order History</h3>
+                <div>
+                  <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Order History</h3>
+                  <p className="text-xs text-gray-500 mt-1">Tap an order to view receipt</p>
+                </div>
                 <button onClick={() => setIsHistoryOpen(false)} className={`p-2 rounded-full hover:bg-red-500/20 hover:text-red-500 ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}>
                   <X className="w-5 h-5" />
                 </button>
@@ -1047,7 +1098,15 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                   </div>
                 ) : (
                   history.map((order, i) => (
-                    <div key={i} className={`p-4 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
+                    <div 
+                      key={i} 
+                      onClick={() => {
+                        setLastOrder(order);
+                        setIsReceiptOpen(true);
+                        setIsHistoryOpen(false);
+                      }}
+                      className={`p-4 rounded-xl border cursor-pointer transition-all hover:scale-[1.02] active:scale-95 ${isDark ? 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-purple-500/50' : 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-purple-300'}`}
+                    >
                       <div className="flex justify-between items-center mb-2">
                         <span className={`text-xs font-mono font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{new Date(order.date).toLocaleDateString()}</span>
                         {getStatusBadge(order.status)}
@@ -1059,7 +1118,10 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                       </div>
                       <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-500/30">
                          <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>ID: {order.id}</span>
-                         <span className="text-yellow-500 font-bold font-mono">{formatPrice(order.total)}</span>
+                         <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Tap to View</span>
+                            <span className="text-yellow-500 font-bold font-mono">{formatPrice(order.total)}</span>
+                         </div>
                       </div>
                     </div>
                   ))
@@ -1084,14 +1146,13 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                 <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
                   <CheckCheck className="w-10 h-10 text-white" />
                 </div>
-                <h2 className="text-3xl font-black text-white mb-1">Order Placed!</h2>
+                <h2 className="text-3xl font-black text-white mb-1">Order Details</h2>
                 <p className="text-green-100">Order ID: <span className="font-mono font-bold">{lastOrder.id}</span></p>
               </div>
 
               <div className="p-6 space-y-6">
                 <div className={`text-center space-y-1 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                   <p>Thank you, <span className="font-bold">{lastOrder.customerName}</span>.</p>
-                   <p>Your order has been received.</p>
+                   <p>Customer: <span className="font-bold">{lastOrder.customerName}</span></p>
                    {lastOrder.deliveryPin && (
                      <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
                        <p className="text-xs uppercase font-bold text-yellow-600 mb-1">Delivery PIN</p>
@@ -1104,30 +1165,12 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                 <div className="space-y-3">
                   <button 
                     onClick={() => {
-                        const lines = [
-                            `*New Order ${lastOrder.id}* 🛒`,
-                            ``,
-                            `*Name:* ${lastOrder.customerName}`,
-                            `*Phone:* ${lastOrder.customerPhone}`,
-                            `*Type:* ${lastOrder.type.toUpperCase()}`,
-                            lastOrder.details,
-                            ``,
-                            `*Order Details:*`,
-                            ...lastOrder.items.map(i => `- ${i.quantity}x ${i.name} (${formatPrice(i.priceRaw)})`),
-                            ``,
-                            `*Total:* ${formatPrice(lastOrder.total)}`
-                        ];
-                        
-                        if (lastOrder.deliveryPin) {
-                            lines.push(`*PIN:* ${lastOrder.deliveryPin}`);
-                        }
-
-                        const msg = lines.join('\n');
+                        const msg = generateWhatsAppReceipt(lastOrder);
                         window.open(`${WHATSAPP_LINK}?text=${encodeURIComponent(msg)}`, '_blank');
                     }}
                     className="w-full py-4 bg-[#25D366] hover:bg-[#128C7E] text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg"
                   >
-                    <MessageCircle className="w-5 h-5" /> Send to WhatsApp
+                    <MessageCircle className="w-5 h-5" /> Send Receipt to WhatsApp
                   </button>
                   
                   <button 
@@ -1146,7 +1189,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                   onClick={() => setIsReceiptOpen(false)}
                   className={`w-full py-3 rounded-xl font-bold transition-colors ${isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-800'}`}
                 >
-                  Close & Continue
+                  Close
                 </button>
               </div>
             </div>
