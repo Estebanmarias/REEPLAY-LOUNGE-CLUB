@@ -769,7 +769,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
       initial={{ opacity: 0, y: 50 }} 
       animate={{ opacity: 1, y: 0 }} 
       exit={{ opacity: 0, y: 50 }}
-      className={`fixed inset-0 z-[70] overflow-y-auto transition-colors duration-300 ${isDark ? 'text-white' : 'text-gray-900'}`}
+      className={`fixed inset-0 z-[45] overflow-y-auto transition-colors duration-300 ${isDark ? 'text-white' : 'text-gray-900'}`}
     >
       <MenuBackground theme={theme} />
 
@@ -1010,10 +1010,10 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
       <AnimatePresence>
         {toastMessage && (
           <MotionDiv
-             initial={{ opacity: 0, y: 50 }}
+             initial={{ opacity: 0, y: -50 }}
              animate={{ opacity: 1, y: 0 }}
-             exit={{ opacity: 0, y: 20 }}
-             className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[80] bg-green-600 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-2 font-bold whitespace-nowrap pointer-events-none"
+             exit={{ opacity: 0, y: -20 }}
+             className="fixed top-24 left-1/2 -translate-x-1/2 z-[80] bg-green-600 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-2 font-bold whitespace-nowrap pointer-events-none"
           >
             <CheckCircle className="w-5 h-5" /> {toastMessage}
           </MotionDiv>
@@ -1026,7 +1026,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
             animate={{ scale: 1 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setActiveCategory('builder')}
-            className="fixed bottom-24 right-6 z-[70] bg-gradient-to-r from-purple-600 to-pink-600 p-4 rounded-full shadow-[0_0_20px_rgba(236,72,153,0.6)] flex items-center gap-2 group overflow-hidden"
+            className="fixed bottom-40 md:bottom-24 right-6 z-[70] bg-gradient-to-r from-purple-600 to-pink-600 p-4 rounded-full shadow-[0_0_20px_rgba(236,72,153,0.6)] flex items-center gap-2 group overflow-hidden"
         >
             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
             <Wand2 className="w-6 h-6 text-white" />
@@ -1039,7 +1039,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           onClick={() => setIsCartOpen(true)} 
-          className="fixed bottom-8 right-6 z-[70] bg-[#111] border border-white/20 p-4 rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-110 group"
+          className="fixed bottom-24 md:bottom-8 right-6 z-[70] bg-[#111] border border-white/20 p-4 rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-110 group"
         >
           <ShoppingBag className="w-6 h-6 text-white" />
           <span className="absolute -top-2 -right-2 bg-yellow-500 text-black text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-[#111]">
