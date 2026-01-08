@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import BackgroundSlider from './components/BackgroundSlider';
 import Hero from './components/Hero';
 import Experience from './components/Experience';
-import SpecialNights from './components/SpecialNights';
 import Events from './components/Events';
 import Reviews from './components/Reviews';
 import Footer from './components/Footer';
@@ -140,10 +139,6 @@ const App: React.FC = () => {
               />
               <AboutSection theme={theme} />
               <Experience theme={theme} />
-              <SpecialNights 
-                onReservationClick={() => setIsReservationOpen(true)}
-                theme={theme}
-              />
               <Events theme={theme} />
               <Reviews theme={theme} />
               <ContactUs />
