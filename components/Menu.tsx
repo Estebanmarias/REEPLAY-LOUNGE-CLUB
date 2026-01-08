@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
-import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, ArrowRight, ChevronDown, Wand2, Instagram, MessageCircle, Info, PackageOpen, ToggleLeft, ToggleRight, User, Receipt, DollarSign, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, ArrowRight, ChevronDown, Wand2, Instagram, MessageCircle, Info, PackageOpen, ToggleLeft, ToggleRight, User, Receipt, DollarSign, ExternalLink, FileText } from 'lucide-react';
 import { orderService, PastOrder } from '../lib/orderService';
 import MenuBackground from './MenuBackground';
 import PromoCarousel from './PromoCarousel';
@@ -250,6 +250,11 @@ const generateWhatsAppReceipt = (order: PastOrder) => {
       lines.push(`   @ ${formatPrice(item.priceRaw)} = ${formatPrice(item.priceRaw * item.quantity)}`);
   });
 
+  if (order.specialRequests) {
+      lines.push(separator);
+      lines.push(`📝 *Note:* ${order.specialRequests}`);
+  }
+
   lines.push(separator);
   lines.push(`💰 *TOTAL:* ............... ${formatPrice(order.total)}`);
   
@@ -452,6 +457,9 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   const [pickupError, setPickupError] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [specialRequests, setSpecialRequests] = useState(''); // New State
+  const [nameError, setNameError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatedDeliveryPin, setGeneratedDeliveryPin] = useState<string | null>(null);
   
@@ -496,14 +504,49 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
     }
     const [h, m] = val.split(':').map(Number);
     const totalMins = h * 60 + m;
-    const start = 15 * 60; 
-    const end = 22 * 60 + 30; 
+    const start = 15 * 60; // 3:00 PM
+    const end = 22 * 60 + 30; // 10:30 PM
 
     if (totalMins < start || totalMins > end) {
         setPickupError('Pickup is only available between 3:00 PM and 10:30 PM.');
     } else {
         setPickupError('');
     }
+  };
+
+  // Validation functions
+  const validateName = (name: string) => {
+    const trimmed = name.trim();
+    if (trimmed.length < 3) return "Name is too short.";
+    if (trimmed.split(' ').length < 2) return "Please enter your full name (First & Last).";
+    if (/[^a-zA-Z\s'-]/.test(trimmed)) return "Name should only contain letters.";
+    return "";
+  };
+
+  const validatePhone = (phone: string) => {
+    const clean = phone.replace(/\s+/g, '');
+    // Standard 11 digit 080... OR +234...
+    // Regex: Starts with 0 and has 11 digits total OR starts with +234 and has 14 chars total
+    const nigerianPhoneRegex = /^(0\d{10}|\+234\d{10})$/;
+    
+    if (!nigerianPhoneRegex.test(clean)) {
+        return "Enter a valid Nigerian number (e.g. 08012345678 or +23480...)";
+    }
+    return "";
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setCustomerName(val);
+    if (val) setNameError(validateName(val));
+    else setNameError('');
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setCustomerPhone(val);
+    if (val) setPhoneError(validatePhone(val));
+    else setPhoneError('');
   };
 
   const clearHistory = () => {
@@ -695,13 +738,13 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   const finalTotal = cartSubTotal + vatAmount + containerCost + bagFee + deliveryFee;
 
   const canCheckout = useMemo(() => {
-    if (!customerName || !customerPhone) return false;
+    if (!customerName || !customerPhone || nameError || phoneError) return false;
     if (orderType === 'delivery') {
       return deliveryZoneId !== 'select' && address.length > 5;
     } else {
       return pickupTime !== '' && !pickupError;
     }
-  }, [customerName, customerPhone, orderType, deliveryZoneId, address, pickupTime, pickupError]);
+  }, [customerName, customerPhone, nameError, phoneError, orderType, deliveryZoneId, address, pickupTime, pickupError]);
 
   const handleConfirmOrder = () => {
     if (!canCheckout) return;
@@ -776,7 +819,8 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
         customerName,
         customerPhone: customerPhone.replace(/\D/g, ''),
         status: 'Pending', 
-        deliveryPin: pin || undefined
+        deliveryPin: pin || undefined,
+        specialRequests: specialRequests || undefined
       };
 
       // SAVE ORDER & UPDATE PROFILE
@@ -1337,6 +1381,14 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                     ))}
                 </div>
 
+                {/* Special Requests */}
+                {lastOrder.specialRequests && (
+                    <div className="mb-6 bg-gray-100 p-2 rounded text-xs">
+                        <p className="font-bold mb-1 uppercase text-[10px]">Special Instructions:</p>
+                        <p className="italic">{lastOrder.specialRequests}</p>
+                    </div>
+                )}
+
                 {/* Totals */}
                 <div className="border-t-2 border-dashed border-gray-300 pt-4 space-y-1 mb-6">
                     <div className="flex justify-between text-xs">
@@ -1620,7 +1672,9 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                         <div className="space-y-2">
                             <label className={`text-xs uppercase font-bold flex items-center gap-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}><Clock className="w-3 h-3"/> Pickup Time</label>
                             <input 
-                              type="time" 
+                              type="time"
+                              min="15:00"
+                              max="22:30"
                               value={pickupTime} 
                               onChange={handleTimeChange} 
                               className={`w-full border p-3 rounded-xl outline-none focus:border-purple-500 ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'} ${pickupError ? 'border-red-500' : ''}`} 
@@ -1648,16 +1702,44 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                         </div>
                         )}
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div className="space-y-2">
                                 <label className={`text-xs uppercase font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Your Name</label>
-                                <input type="text" placeholder="John Doe" value={customerName} onChange={e => setCustomerName(e.target.value)} className={`w-full border p-3 rounded-xl text-sm outline-none focus:border-purple-500 ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'}`} />
+                                <input 
+                                    type="text" 
+                                    placeholder="First & Last Name" 
+                                    value={customerName} 
+                                    onChange={handleNameChange} 
+                                    className={`w-full border p-3 rounded-xl text-sm outline-none focus:border-purple-500 ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'} ${nameError ? 'border-red-500' : ''}`} 
+                                />
+                                {nameError && <p className="text-red-500 text-xs">{nameError}</p>}
                             </div>
                             <div className="space-y-2">
                                 <label className={`text-xs uppercase font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Phone</label>
-                                <input type="tel" placeholder="080..." value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className={`w-full border p-3 rounded-xl text-sm outline-none focus:border-purple-500 ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'}`} />
+                                <input 
+                                    type="tel" 
+                                    placeholder="080... or +234..." 
+                                    value={customerPhone} 
+                                    onChange={handlePhoneChange} 
+                                    className={`w-full border p-3 rounded-xl text-sm outline-none focus:border-purple-500 ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'} ${phoneError ? 'border-red-500' : ''}`} 
+                                />
+                                {phoneError && <p className="text-red-500 text-xs">{phoneError}</p>}
                             </div>
                         </div>
+
+                        {/* Special Requests Field */}
+                        <div className="space-y-2">
+                            <label className={`text-xs uppercase font-bold flex items-center gap-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                <FileText className="w-3 h-3"/> Special Requests (Optional)
+                            </label>
+                            <textarea 
+                                placeholder="E.g., No onions, extra spicy, separate sauce..." 
+                                value={specialRequests} 
+                                onChange={e => setSpecialRequests(e.target.value)} 
+                                className={`w-full border p-3 rounded-xl outline-none focus:border-purple-500 resize-none h-20 text-sm ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'}`}
+                            />
+                        </div>
+
                     </div>
 
                     <div className={`flex-none p-6 border-t ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
@@ -1674,7 +1756,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                             <>Confirm Order <span className="bg-black/20 px-2 py-0.5 rounded text-xs ml-1 font-mono">{formatPrice(finalTotal)}</span></>
                             )}
                         </button>
-                        {!canCheckout && <p className="text-red-400 text-xs text-center mt-2">Please fill in all details correctly.</p>}
+                        {!canCheckout && <p className="text-red-400 text-xs text-center mt-2">Please fix the errors above to continue.</p>}
                     </div>
                 </div>
               )}

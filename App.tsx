@@ -11,6 +11,8 @@ import GalleryPage from './components/GalleryPage';
 import Navbar from './components/Navbar';
 import ReservationModal from './components/ReservationModal';
 import ContactUs from './components/ContactUs';
+import DJLineup from './components/DJLineup';
+import OpeningHours from './components/OpeningHours';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const MotionDiv = motion.div as any;
@@ -114,6 +116,8 @@ const App: React.FC = () => {
         onNavigate={navigateTo} 
         currentView={view} 
         onOpenReservation={() => setIsReservationOpen(true)}
+        theme={theme}
+        toggleTheme={toggleTheme}
       />
 
       {/* Special Reservation Modal */}
@@ -139,8 +143,10 @@ const App: React.FC = () => {
               />
               <AboutSection theme={theme} />
               <Experience theme={theme} />
+              <DJLineup theme={theme} />
               <Events theme={theme} />
               <Reviews theme={theme} />
+              <OpeningHours theme={theme} />
               <ContactUs />
               <Footer theme={theme} toggleTheme={toggleTheme} />
             </MotionDiv>

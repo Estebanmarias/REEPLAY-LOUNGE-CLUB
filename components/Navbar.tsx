@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu as MenuIcon, X, UtensilsCrossed, Calendar, Image as ImageIcon, Home, Star } from 'lucide-react';
+import { Menu as MenuIcon, X, UtensilsCrossed, Calendar, Image as ImageIcon, Home, Star, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const MotionDiv = motion.div as any;
@@ -9,10 +9,13 @@ interface NavbarProps {
   onNavigate: (view: 'home' | 'menu' | 'events' | 'gallery') => void;
   currentView: 'home' | 'menu' | 'events' | 'gallery';
   onOpenReservation: () => void;
+  theme: 'dark' | 'light';
+  toggleTheme: () => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentView, onOpenReservation }) => {
+const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentView, onOpenReservation, theme, toggleTheme }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const isDark = theme === 'dark';
 
   const navItems = [
     { id: 'home', label: 'Home', icon: Home },
@@ -38,22 +41,41 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentView, onOpenReservat
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         onClick={() => setIsOpen(!isOpen)}
-        className="hidden md:block fixed top-6 right-6 z-50 p-3 bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white hover:bg-purple-600 transition-colors shadow-lg"
+        className={`hidden md:block fixed top-6 right-6 z-50 p-3 backdrop-blur-md rounded-full transition-all shadow-lg border
+          ${isDark 
+            ? 'bg-white/10 border-white/10 text-white hover:bg-purple-600' 
+            : 'bg-white/80 border-gray-200 text-gray-800 hover:bg-purple-600 hover:text-white'}
+        `}
       >
         {isOpen ? <X className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
       </MotionButton>
 
-      {/* Mobile Bottom Navigation - Hidden when in Menu view to avoid overlapping cart buttons */}
+      {/* Mobile Bottom Navigation */}
       {currentView !== 'menu' && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-[60] bg-black/90 backdrop-blur-xl border-t border-white/10 pb-safe">
+        <div className={`md:hidden fixed bottom-0 left-0 right-0 z-[60] backdrop-blur-xl border-t pb-safe transition-colors duration-500
+          ${isDark 
+            ? 'bg-black/90 border-white/10' 
+            : 'bg-white/90 border-gray-200 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]'}
+        `}>
           <div className="flex justify-around items-center h-16 px-2">
               {navItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => onNavigate(item.id)}
-                  className={`flex flex-col items-center justify-center gap-1 w-full h-full transition-colors ${currentView === item.id ? 'text-purple-500' : 'text-gray-400'}`}
+                  className={`flex flex-col items-center justify-center gap-1 w-full h-full transition-colors relative
+                    ${currentView === item.id 
+                      ? (isDark ? 'text-purple-400' : 'text-purple-600') 
+                      : (isDark ? 'text-gray-500' : 'text-gray-400')}
+                  `}
                 >
-                  <item.icon className={`w-5 h-5 ${currentView === item.id ? 'fill-purple-500/20' : ''}`} />
+                  {/* Active Indicator */}
+                  {currentView === item.id && (
+                    <motion.div 
+                      layoutId="navIndicator"
+                      className={`absolute -top-[1px] w-8 h-1 rounded-b-full ${isDark ? 'bg-purple-500' : 'bg-purple-600'}`}
+                    />
+                  )}
+                  <item.icon className={`w-5 h-5 ${currentView === item.id ? 'scale-110' : 'scale-100'} transition-transform`} />
                   <span className="text-[10px] font-bold uppercase tracking-wide">{item.label}</span>
                 </button>
               ))}
@@ -77,7 +99,9 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentView, onOpenReservat
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed top-0 right-0 h-full w-full max-w-sm bg-black border-l border-white/10 z-50 flex flex-col p-8 hidden md:flex"
+              className={`fixed top-0 right-0 h-full w-full max-w-sm border-l z-50 flex flex-col p-8 hidden md:flex
+                ${isDark ? 'bg-black border-white/10' : 'bg-white border-gray-200'}
+              `}
             >
               <div className="mt-16 space-y-6">
                 {navItems.map((item, idx) => (
@@ -89,7 +113,9 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentView, onOpenReservat
                     onClick={() => handleNav(item.id)}
                     className={`
                       w-full flex items-center gap-4 text-3xl font-black uppercase tracking-tighter hover:text-purple-500 transition-colors
-                      ${currentView === item.id ? 'text-purple-500' : 'text-white'}
+                      ${currentView === item.id 
+                        ? 'text-purple-500' 
+                        : (isDark ? 'text-white' : 'text-gray-900')}
                     `}
                   >
                     <item.icon className="w-8 h-8" />
@@ -108,9 +134,23 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentView, onOpenReservat
                   <Star className="w-8 h-8" />
                   Book Table
                 </MotionButton>
+
+                {/* Theme Toggle in Desktop Menu */}
+                <MotionButton
+                   initial={{ opacity: 0, x: 20 }}
+                   animate={{ opacity: 1, x: 0 }}
+                   transition={{ delay: 0.6 }}
+                   onClick={toggleTheme}
+                   className={`w-full flex items-center gap-4 text-xl font-bold uppercase tracking-widest mt-4 transition-colors
+                    ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-black'}
+                   `}
+                >
+                   {isDark ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
+                   {isDark ? 'Light Mode' : 'Dark Mode'}
+                </MotionButton>
               </div>
 
-              <div className="mt-auto text-gray-500 text-sm">
+              <div className={`mt-auto text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                 <p>Reeplay Lounge & Club</p>
                 <p>Ogbomosho, Oyo State</p>
               </div>

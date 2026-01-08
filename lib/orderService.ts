@@ -16,6 +16,7 @@ export interface PastOrder {
   customerPhone: string;
   status: string;
   deliveryPin?: string;
+  specialRequests?: string;
 }
 
 export interface UserProfile {

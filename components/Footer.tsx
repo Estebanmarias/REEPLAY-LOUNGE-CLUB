@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Instagram, Video, Ghost, ArrowUpRight, MessageCircle, Moon, Sun } from 'lucide-react';
+import { MapPin, ArrowUpRight, Moon, Sun } from 'lucide-react';
 
 interface FooterProps {
   theme: 'dark' | 'light';
@@ -14,6 +14,11 @@ const Footer: React.FC<FooterProps> = ({ theme, toggleTheme }) => {
   const whatsappLink = "https://wa.me/2349060621425";
   const tiktokLink = "https://www.tiktok.com/@reeplaylounge"; 
   const igLink = "https://instagram.com/reeplaylounge_ogbomoso";
+
+  // Icons URLs
+  const whatsappIcon = "https://www.svgrepo.com/show/500461/whatsapp.svg";
+  const igIcon = "https://www.svgrepo.com/svg/512399/instagram-167";
+  const tiktokIcon = "https://www.svgrepo.com/show/447151/tiktok-outline.svg";
 
   return (
     <footer id="location" className={`relative pt-20 pb-36 md:pb-10 px-6 border-t transition-colors duration-500 ${isDark ? 'bg-black border-white/10' : 'bg-gray-100 border-gray-200'}`}>
@@ -36,18 +41,16 @@ const Footer: React.FC<FooterProps> = ({ theme, toggleTheme }) => {
           </div>
 
           <div className="mt-8 flex gap-6">
-            <a href={igLink} target="_blank" rel="noopener noreferrer" className={`p-3 rounded-full transition-colors ${isDark ? 'bg-white/5 hover:bg-purple-600 text-white' : 'bg-white hover:bg-purple-600 hover:text-white text-gray-700 shadow-sm'}`} aria-label="Instagram">
-              <Instagram className="w-5 h-5" />
+            <a href={igLink} target="_blank" rel="noopener noreferrer" className={`p-3 rounded-full transition-colors flex items-center justify-center ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-white hover:bg-purple-50 shadow-sm'}`} aria-label="Instagram">
+              <img src={igIcon} alt="Instagram" className={`w-5 h-5 ${isDark ? 'invert' : ''}`} />
             </a>
-            <a href="#" className={`p-3 rounded-full transition-colors ${isDark ? 'bg-white/5 hover:bg-yellow-500 text-white' : 'bg-white hover:bg-yellow-500 hover:text-white text-gray-700 shadow-sm'}`} aria-label="Snapchat">
-              <Ghost className="w-5 h-5" />
+            
+            <a href={tiktokLink} target="_blank" rel="noopener noreferrer" className={`p-3 rounded-full transition-colors flex items-center justify-center ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-white hover:bg-purple-50 shadow-sm'}`} aria-label="TikTok">
+              <img src={tiktokIcon} alt="TikTok" className={`w-5 h-5 ${isDark ? 'invert' : ''}`} />
             </a>
-            {/* Using Video icon for TikTok as Lucide generic set sometimes lacks brand icons */}
-            <a href={tiktokLink} target="_blank" rel="noopener noreferrer" className={`p-3 rounded-full transition-colors ${isDark ? 'bg-white/5 hover:bg-pink-500 text-white' : 'bg-white hover:bg-pink-500 hover:text-white text-gray-700 shadow-sm'}`} aria-label="TikTok">
-              <Video className="w-5 h-5" />
-            </a>
-            <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className={`p-3 rounded-full transition-colors ${isDark ? 'bg-white/5 hover:bg-green-500 text-white' : 'bg-white hover:bg-green-500 hover:text-white text-gray-700 shadow-sm'}`} aria-label="WhatsApp">
-              <MessageCircle className="w-5 h-5" />
+            
+            <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className={`p-3 rounded-full transition-colors flex items-center justify-center ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-white hover:bg-purple-50 shadow-sm'}`} aria-label="WhatsApp">
+               <img src={whatsappIcon} alt="WhatsApp" className={`w-5 h-5 ${isDark ? 'invert' : ''}`} />
             </a>
           </div>
         </div>
