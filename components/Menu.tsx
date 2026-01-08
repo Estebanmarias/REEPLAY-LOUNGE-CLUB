@@ -279,15 +279,22 @@ const MenuItemCard: React.FC<{
   theme: 'dark' | 'light';
 }> = ({ item, categoryId, quantityInCart, onAdd, onUpdateQuantity, onOpenModal, theme }) => {
   const [isAdded, setIsAdded] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   const handleAddClick = () => {
-    // Only open modal for specific customizable categories (Rice/Pasta)
-    if (CUSTOMIZABLE_CATEGORIES.includes(categoryId)) { 
-      onOpenModal(item); 
-    } else {
-      onAdd(item, categoryId);
-      triggerFeedback();
-    }
+    setIsProcessing(true);
+    
+    // 1 second delay for visual feedback
+    setTimeout(() => {
+        setIsProcessing(false);
+        // Only open modal for specific customizable categories (Rice/Pasta)
+        if (CUSTOMIZABLE_CATEGORIES.includes(categoryId)) { 
+          onOpenModal(item); 
+        } else {
+          onAdd(item, categoryId);
+          triggerFeedback();
+        }
+    }, 1000);
   };
 
   const triggerFeedback = () => {
@@ -307,7 +314,7 @@ const MenuItemCard: React.FC<{
       className={`relative overflow-hidden p-4 md:p-6 rounded-2xl transition-all flex flex-col justify-between group
         ${isDark 
           ? 'bg-black/40 backdrop-blur-md border border-white/10 shadow-[0_0_15px_rgba(168,85,247,0.15)] hover:bg-black/60 hover:border-purple-500/50' 
-          : 'bg-white/50 backdrop-blur-md border border-white/40 shadow-sm hover:bg-white/80 hover:shadow-purple-500/10'}
+          : 'bg-white/80 backdrop-blur-xl border border-purple-200/50 shadow-lg shadow-purple-500/10 hover:bg-white/90 hover:shadow-purple-500/20'}
       `}
     >
       <div className="flex justify-between items-start gap-4 mb-4">
@@ -357,16 +364,24 @@ const MenuItemCard: React.FC<{
             </MotionDiv>
         ) : (
             <MotionButton
-                whileTap={{ scale: 0.95 }}
+                whileTap={!isProcessing ? { scale: 0.95 } : {}}
                 onClick={handleAddClick}
+                disabled={isProcessing}
                 className={`
                     relative z-0 flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all duration-300
                     ${isDark ? 'bg-white/10 hover:bg-purple-600 text-white' : 'bg-gray-200 hover:bg-purple-600 hover:text-white text-gray-800'}
+                    ${isProcessing ? 'opacity-80 cursor-wait' : ''}
                 `}
             >
-                {CUSTOMIZABLE_CATEGORIES.includes(categoryId) ? (
-                    <>Customize <ChevronRight className="w-4 h-4" /></>
-                ) : "Add to Order"}
+                {isProcessing ? (
+                    <div className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                    </div>
+                ) : (
+                    CUSTOMIZABLE_CATEGORIES.includes(categoryId) ? (
+                        <>Customize <ChevronRight className="w-4 h-4" /></>
+                    ) : "Add to Order"
+                )}
             </MotionButton>
         )}
       </div>
@@ -1163,7 +1178,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                                 <div className={`w-5 h-5 rounded-md border flex items-center justify-center ${isSelected ? 'bg-purple-600 border-purple-600' : 'border-gray-500'}`}>
                                    {isSelected && <CheckCheck className="w-3.5 h-3.5 text-white" />}
                                 </div>
-                                <span className={isSelected ? 'text-white font-bold' : 'text-gray-300'}>{addon.name}</span>
+                                <span className="text-white font-bold">{addon.name}</span>
                              </div>
                              <span className="text-xs font-mono text-yellow-500">+{formatPrice(addon.price)}</span>
                            </div>

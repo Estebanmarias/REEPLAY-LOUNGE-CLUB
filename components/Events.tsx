@@ -130,7 +130,7 @@ const Events: React.FC<EventsProps> = ({ theme = 'dark' }) => {
                 backdrop-blur-md border shadow-lg transition-all duration-300
                 ${isDark 
                   ? 'bg-black/40 border-white/10 shadow-[0_0_20px_rgba(0,0,0,0.3)]' 
-                  : 'bg-white/70 border-white/50 shadow-purple-500/5'}
+                  : 'bg-white/85 backdrop-blur-xl border-white/60 shadow-xl shadow-purple-500/10 hover:bg-white/95'}
                 ${style.hoverBorder}
               `}
             >

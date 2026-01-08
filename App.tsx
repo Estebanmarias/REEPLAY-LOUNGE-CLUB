@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import BackgroundSlider from './components/BackgroundSlider';
 import Hero from './components/Hero';
 import Experience from './components/Experience';
+import SpecialNights from './components/SpecialNights';
 import Events from './components/Events';
 import Reviews from './components/Reviews';
 import Footer from './components/Footer';
@@ -23,7 +24,7 @@ const AboutSection: React.FC<{ theme: 'dark' | 'light' }> = ({ theme }) => {
       <div className={`p-8 md:p-12 rounded-3xl border shadow-2xl backdrop-blur-xl transition-all duration-500
         ${isDark 
           ? 'bg-black/50 border-white/10' 
-          : 'bg-white/60 border-white/40 shadow-purple-500/5'}
+          : 'bg-white/70 border-white/40 shadow-purple-500/5'}
       `}>
         <h2 className={`text-3xl font-bold mb-6 ${isDark ? 'text-white' : 'text-[#2D2438]'}`}>About Us</h2>
         <p className={`text-lg leading-relaxed ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
@@ -59,15 +60,30 @@ const App: React.FC = () => {
     localStorage.setItem('reeplay_theme', newTheme);
   };
 
-  // Handle Hash Changes
+  // Handle Hash Changes & Smooth Scrolling
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
+      
+      // Main Views
       if (['home', 'menu', 'events', 'gallery'].includes(hash)) {
         setView(hash as ViewState);
         window.scrollTo({ top: 0, behavior: 'smooth' });
-      } else if (!hash) {
+      } 
+      // Sections on Home Page (e.g. #contact, #location)
+      else if (['contact', 'location'].includes(hash)) {
         setView('home');
+        // Give React a moment to render the Home view if we weren't there
+        setTimeout(() => {
+          const el = document.getElementById(hash);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 100);
+      }
+      else if (!hash) {
+        setView('home');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     };
 
@@ -124,6 +140,10 @@ const App: React.FC = () => {
               />
               <AboutSection theme={theme} />
               <Experience theme={theme} />
+              <SpecialNights 
+                onReservationClick={() => setIsReservationOpen(true)}
+                theme={theme}
+              />
               <Events theme={theme} />
               <Reviews theme={theme} />
               <ContactUs />
