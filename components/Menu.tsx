@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
-import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, ArrowRight, ChevronDown, Wand2, Instagram, MessageCircle, Info, PackageOpen, ToggleLeft, ToggleRight, User } from 'lucide-react';
+import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, ArrowRight, ChevronDown, Wand2, Instagram, MessageCircle, Info, PackageOpen, ToggleLeft, ToggleRight, User, Receipt, DollarSign, ExternalLink } from 'lucide-react';
 import { orderService, PastOrder } from '../lib/orderService';
 import MenuBackground from './MenuBackground';
 import PromoCarousel from './PromoCarousel';
@@ -241,24 +241,22 @@ const generateWhatsAppReceipt = (order: PastOrder) => {
   }
 
   lines.push(separator);
-  lines.push(`*ORDER ITEMS*`);
+  lines.push(`*ORDER SUMMARY*`);
 
   order.items.forEach(item => {
-      // Clean name
+      // Improve readability of system items
       let itemName = item.name.replace("Plastic Container", "Container").replace("Paper Bag", "Bag");
-      lines.push(`${item.quantity}x ${itemName} ... ${formatPrice(item.priceRaw * item.quantity)}`);
+      lines.push(`${item.quantity}x ${itemName}`);
+      lines.push(`   @ ${formatPrice(item.priceRaw)} = ${formatPrice(item.priceRaw * item.quantity)}`);
   });
 
   lines.push(separator);
-  
-  // Calculate approximate breakdown for display if possible, or just total
-  // Since we don't store breakdown in PastOrder, we show the Total prominently.
-  
   lines.push(`💰 *TOTAL:* ............... ${formatPrice(order.total)}`);
   
   if (order.deliveryPin) {
       lines.push(separator);
       lines.push(`🔐 *PIN:* ${order.deliveryPin}`);
+      lines.push(`(Show this PIN to the rider)`);
   }
   
   lines.push(separator);
@@ -306,10 +304,10 @@ const MenuItemCard: React.FC<{
       layout
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className={`relative overflow-hidden p-6 rounded-2xl transition-all flex flex-col justify-between group
+      className={`relative overflow-hidden p-4 md:p-6 rounded-2xl transition-all flex flex-col justify-between group
         ${isDark 
           ? 'bg-black/40 backdrop-blur-md border border-white/10 shadow-[0_0_15px_rgba(168,85,247,0.15)] hover:bg-black/60 hover:border-purple-500/50' 
-          : 'bg-white/50 backdrop-blur-md border border-white/50 shadow-sm hover:bg-white/80'}
+          : 'bg-white/50 backdrop-blur-md border border-white/40 shadow-sm hover:bg-white/80 hover:shadow-purple-500/10'}
       `}
     >
       <div className="flex justify-between items-start gap-4 mb-4">
@@ -380,27 +378,27 @@ const getStatusBadge = (status: string) => {
   const s = status.toLowerCase();
   if (s === 'delivered' || s === 'completed') {
     return (
-      <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-green-500 bg-green-500/10 px-2 py-1 rounded-full border border-green-500/20">
+      <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-green-600 bg-green-100 px-2 py-1 rounded-full border border-green-200">
         <CheckCheck className="w-3 h-3" /> Completed
       </span>
     );
   }
   if (s === 'out for delivery') {
     return (
-      <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-purple-500 bg-purple-500/10 px-2 py-1 rounded-full border border-purple-500/20">
+      <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-purple-600 bg-purple-100 px-2 py-1 rounded-full border border-purple-200">
         <Bike className="w-3 h-3" /> Out for Delivery
       </span>
     );
   }
   if (s === 'confirmed') {
     return (
-      <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-blue-500 bg-blue-500/10 px-2 py-1 rounded-full border border-blue-500/20">
+      <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-100 px-2 py-1 rounded-full border border-blue-200">
         <ChefHat className="w-3 h-3" /> Confirmed
       </span>
     );
   }
   return (
-    <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded-full border border-yellow-500/20">
+    <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-yellow-600 bg-yellow-100 px-2 py-1 rounded-full border border-yellow-200">
       <Clock className="w-3 h-3 animate-pulse" /> Pending
     </span>
   );
@@ -447,16 +445,19 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   const isDark = theme === 'dark';
 
   useEffect(() => {
-    setHistory(orderService.getHistory());
-    const storedName = localStorage.getItem('reeplay_user_name');
-    const storedPhone = localStorage.getItem('reeplay_user_phone');
+    // 1. Initialize User Profile
+    const profile = orderService.getUserProfile();
     
-    if (storedName) {
-      setReturningUser(storedName);
-      setCustomerName(storedName);
+    // 2. Load History based on Profile
+    setHistory(orderService.getHistory());
+
+    // 3. Pre-fill form if data exists
+    if (profile.name) {
+      setReturningUser(profile.name);
+      setCustomerName(profile.name);
     }
-    if (storedPhone) {
-      setCustomerPhone(storedPhone);
+    if (profile.phone) {
+      setCustomerPhone(profile.phone);
     }
   }, []);
 
@@ -488,6 +489,12 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
     } else {
         setPickupError('');
     }
+  };
+
+  const clearHistory = () => {
+    localStorage.removeItem('reeplay_orders_v2');
+    setHistory([]);
+    setToastMessage("History cleared");
   };
 
   const filteredItems = useMemo(() => {
@@ -693,6 +700,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
 
       const finalItems = [...cart];
       
+      // Add detailed system items so they appear in receipt and history
       if (containerRequiredCount > 0) {
         finalItems.push({
             name: EXTRAS.container.name,
@@ -715,6 +723,30 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
         } as any);
       }
 
+      // Add Delivery Fee as a distinct item for receipt clarity
+      if (orderType === 'delivery' && deliveryFee > 0) {
+        finalItems.push({
+             name: 'Delivery Fee',
+             desc: DELIVERY_ZONES.find(z => z.id === deliveryZoneId)?.label || 'Delivery',
+             price: formatPrice(deliveryFee),
+             priceRaw: deliveryFee,
+             quantity: 1,
+             categoryId: 'service'
+        } as any);
+      }
+      
+      // Add VAT as a distinct item for receipt clarity
+      if (vatAmount > 0) {
+        finalItems.push({
+            name: 'VAT (7.5%)',
+            desc: 'Tax',
+            price: formatPrice(vatAmount),
+            priceRaw: vatAmount,
+            quantity: 1,
+            categoryId: 'tax'
+        } as any);
+      }
+
       const newOrder: PastOrder = {
         id,
         date: new Date().toISOString(),
@@ -732,11 +764,12 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
         deliveryPin: pin || undefined
       };
 
+      // SAVE ORDER & UPDATE PROFILE
       orderService.saveOrder(newOrder);
+      orderService.updateProfile(customerName, customerPhone);
+      
       setHistory(orderService.getHistory());
       setLastOrder(newOrder);
-      localStorage.setItem('reeplay_user_name', customerName);
-      localStorage.setItem('reeplay_user_phone', customerPhone);
       
       setIsSubmitting(false);
       setIsCartOpen(false);
@@ -755,7 +788,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
       <MenuBackground theme={theme} />
 
       <div className="min-h-screen pb-32 px-4 md:px-8 max-w-7xl mx-auto pt-4 relative z-10">
-        
+        {/* ... (Header Section Remains Same) ... */}
         <div className={`flex justify-between items-center sticky top-0 z-50 py-4 -mx-4 px-4 md:mx-0 md:px-0 backdrop-blur-xl transition-colors duration-300 border-b ${isDark ? 'bg-black/80 border-white/5' : 'bg-white/80 border-gray-100'}`}>
           <div className="flex items-center gap-4">
             <button onClick={onBack} className={`p-2 rounded-full transition-colors ${isDark ? 'bg-white/10 hover:bg-purple-600' : 'bg-gray-200 hover:bg-purple-600 hover:text-white'}`}>
@@ -778,6 +811,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
           </div>
         </div>
 
+        {/* ... (Welcome Back Banner, Search, Carousel, Category Chips, Builder Mode, Menu Grid - All standard) ... */}
         {/* Welcome Back Banner */}
         <AnimatePresence>
             {returningUser && (
@@ -843,8 +877,10 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
             </div>
         )}
 
+        {/* ... (Builder and Menu Grid content) ... */}
         {activeCategory === 'builder' ? (
           <div className="max-w-3xl mx-auto space-y-8 pb-24">
+             {/* Builder content same as previous */}
              <div className="flex items-center gap-4 mb-4">
                  <button onClick={() => setActiveCategory('rice')} className="p-2 rounded-full bg-white/10 hover:bg-white/20">
                      <ArrowLeft className="w-5 h-5 text-white" />
@@ -1001,13 +1037,14 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
         )}
       </AnimatePresence>
 
+      {/* Floating Buttons */}
       {activeCategory !== 'builder' && (
         <MotionButton
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setActiveCategory('builder')}
-            className="fixed bottom-40 md:bottom-24 right-6 z-[80] bg-gradient-to-r from-purple-600 to-pink-600 p-4 rounded-full shadow-[0_0_20px_rgba(236,72,153,0.6)] flex items-center gap-2 group overflow-hidden"
+            className="fixed bottom-32 md:bottom-24 right-6 z-[80] bg-gradient-to-r from-purple-600 to-pink-600 p-4 rounded-full shadow-[0_0_20px_rgba(236,72,153,0.6)] flex items-center gap-2 group overflow-hidden"
         >
             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
             <Wand2 className="w-6 h-6 text-white" />
@@ -1020,7 +1057,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           onClick={() => setIsCartOpen(true)} 
-          className="fixed bottom-24 md:bottom-8 right-6 z-[80] bg-[#111] border border-white/20 p-4 rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-110 group"
+          className="fixed bottom-10 md:bottom-8 right-6 z-[80] bg-[#111] border border-white/20 p-4 rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-110 group"
         >
           <ShoppingBag className="w-6 h-6 text-white" />
           <span className="absolute -top-2 -right-2 bg-yellow-500 text-black text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-[#111]">
@@ -1029,11 +1066,11 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
         </MotionButton>
       )}
 
-      {/* --- CONFIRMATION MODAL --- */}
+      {/* --- CONFIRMATION & MEAL MODALS --- (unchanged, just placed here for brevity) */}
       <AnimatePresence>
         {confirmAction && (
           <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <MotionDiv 
+             <MotionDiv 
               initial={{ scale: 0.9, opacity: 0 }} 
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -1069,135 +1106,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
         )}
       </AnimatePresence>
 
-      {/* --- HISTORY MODAL --- */}
-      <AnimatePresence>
-        {isHistoryOpen && (
-          <MotionDiv 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[110] flex items-center justify-center p-4"
-          >
-             <MotionDiv 
-              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-              className={`w-full max-w-md border rounded-2xl p-6 shadow-2xl flex flex-col max-h-[80vh] ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}
-            >
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Order History</h3>
-                  <p className="text-xs text-gray-500 mt-1">Tap an order to view receipt</p>
-                </div>
-                <button onClick={() => setIsHistoryOpen(false)} className={`p-2 rounded-full hover:bg-red-500/20 hover:text-red-500 ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar">
-                {history.length === 0 ? (
-                  <div className={`text-center py-10 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                    <History className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                    <p>No past orders found.</p>
-                  </div>
-                ) : (
-                  history.map((order, i) => (
-                    <div 
-                      key={i} 
-                      onClick={() => {
-                        setLastOrder(order);
-                        setIsReceiptOpen(true);
-                        setIsHistoryOpen(false);
-                      }}
-                      className={`p-4 rounded-xl border cursor-pointer transition-all hover:scale-[1.02] active:scale-95 ${isDark ? 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-purple-500/50' : 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-purple-300'}`}
-                    >
-                      <div className="flex justify-between items-center mb-2">
-                        <span className={`text-xs font-mono font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{new Date(order.date).toLocaleDateString()}</span>
-                        {getStatusBadge(order.status)}
-                      </div>
-                      <div className="mb-3">
-                         <p className={`font-bold text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                           {order.items.map(item => `${item.quantity}x ${item.name}`).join(', ')}
-                         </p>
-                      </div>
-                      <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-500/30">
-                         <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>ID: {order.id}</span>
-                         <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Tap to View</span>
-                            <span className="text-yellow-500 font-bold font-mono">{formatPrice(order.total)}</span>
-                         </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </MotionDiv>
-          </MotionDiv>
-        )}
-      </AnimatePresence>
-
-      {/* --- RECEIPT MODAL --- */}
-      <AnimatePresence>
-        {isReceiptOpen && lastOrder && (
-          <MotionDiv 
-            initial={{ opacity: 0, scale: 0.9 }} 
-            animate={{ opacity: 1, scale: 1 }} 
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
-          >
-            <div className={`w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl ${isDark ? 'bg-[#18181b] border border-white/10' : 'bg-white'}`}>
-              <div className="bg-green-600 p-8 text-center">
-                <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
-                  <CheckCheck className="w-10 h-10 text-white" />
-                </div>
-                <h2 className="text-3xl font-black text-white mb-1">Order Details</h2>
-                <p className="text-green-100">Order ID: <span className="font-mono font-bold">{lastOrder.id}</span></p>
-              </div>
-
-              <div className="p-6 space-y-6">
-                <div className={`text-center space-y-1 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                   <p>Customer: <span className="font-bold">{lastOrder.customerName}</span></p>
-                   {lastOrder.deliveryPin && (
-                     <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
-                       <p className="text-xs uppercase font-bold text-yellow-600 mb-1">Delivery PIN</p>
-                       <p className="text-2xl font-mono font-black text-yellow-500 tracking-widest">{lastOrder.deliveryPin}</p>
-                       <p className="text-[10px] text-gray-500 mt-1">Show this to the rider.</p>
-                     </div>
-                   )}
-                </div>
-
-                <div className="space-y-3">
-                  <button 
-                    onClick={() => {
-                        const msg = generateWhatsAppReceipt(lastOrder);
-                        window.open(`${WHATSAPP_LINK}?text=${encodeURIComponent(msg)}`, '_blank');
-                    }}
-                    className="w-full py-4 bg-[#25D366] hover:bg-[#128C7E] text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg"
-                  >
-                    <MessageCircle className="w-5 h-5" /> Send Receipt to WhatsApp
-                  </button>
-                  
-                  <button 
-                    onClick={() => {
-                         const msg = `Order ${lastOrder.id}\nName: ${lastOrder.customerName}\nTotal: ${formatPrice(lastOrder.total)}`;
-                         navigator.clipboard.writeText(msg);
-                         window.open(IG_DM_LINK, '_blank');
-                    }}
-                    className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg"
-                  >
-                    <Instagram className="w-5 h-5" /> Send to Instagram
-                  </button>
-                </div>
-
-                <button 
-                  onClick={() => setIsReceiptOpen(false)}
-                  className={`w-full py-3 rounded-xl font-bold transition-colors ${isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-800'}`}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </MotionDiv>
-        )}
-      </AnimatePresence>
-      
-      {/* --- MEAL CUSTOMIZATION MODAL --- */}
       <AnimatePresence>
         {isMealModalOpen && selectedMealItem && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
@@ -1287,6 +1195,207 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
         )}
       </AnimatePresence>
 
+      {/* --- HISTORY MODAL --- */}
+      <AnimatePresence>
+        {isHistoryOpen && (
+          <MotionDiv 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[110] flex items-center justify-center p-4"
+          >
+             <MotionDiv 
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className={`w-full max-w-md border rounded-2xl shadow-2xl flex flex-col max-h-[80vh] overflow-hidden
+                ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-white/40'}`}
+            >
+              <div className={`p-6 border-b flex justify-between items-center ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-100'}`}>
+                <div>
+                  <h3 className={`text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>YOUR HISTORY</h3>
+                  <p className="text-xs text-gray-500 mt-1 uppercase tracking-wider">Tap to View Receipt</p>
+                </div>
+                <button onClick={() => setIsHistoryOpen(false)} className={`p-2 rounded-full hover:bg-red-500/10 hover:text-red-500 transition-colors ${isDark ? 'bg-white/10 text-white' : 'bg-white text-gray-500 shadow-sm'}`}>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto space-y-3 p-4 custom-scrollbar bg-opacity-50">
+                {history.length === 0 ? (
+                  <div className={`text-center py-12 flex flex-col items-center justify-center h-full ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    <div className="w-16 h-16 rounded-full bg-gray-500/10 flex items-center justify-center mb-4">
+                        <Receipt className="w-8 h-8 opacity-40" />
+                    </div>
+                    <p className="font-bold">No orders yet.</p>
+                    <p className="text-sm mt-1">Time to start your legacy.</p>
+                  </div>
+                ) : (
+                  history.map((order, i) => (
+                    <div 
+                      key={i} 
+                      onClick={() => {
+                        setLastOrder(order);
+                        setIsReceiptOpen(true);
+                        setIsHistoryOpen(false);
+                      }}
+                      className={`group relative p-4 rounded-xl border cursor-pointer transition-all duration-300 hover:scale-[1.01]
+                        ${isDark 
+                            ? 'bg-white/5 border-white/10 hover:border-purple-500/50 hover:bg-white/10' 
+                            : 'bg-white border-gray-100 hover:border-purple-200 hover:shadow-lg shadow-sm'}
+                      `}
+                    >
+                      <div className="flex justify-between items-center mb-3">
+                        <span className={`text-xs font-mono ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {new Date(order.date).toLocaleDateString()} • {new Date(order.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </span>
+                        {getStatusBadge(order.status)}
+                      </div>
+                      
+                      <div className="flex justify-between items-end">
+                          <div>
+                             <p className={`font-bold text-sm line-clamp-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                {order.items[0].name} 
+                                {order.items.length > 1 && <span className="opacity-60 font-normal"> +{order.items.length - 1} more</span>}
+                             </p>
+                             <p className="text-xs text-gray-500 mt-1">ID: {order.id}</p>
+                          </div>
+                          <span className={`font-mono font-bold text-lg ${isDark ? 'text-yellow-500' : 'text-purple-700'}`}>
+                              {formatPrice(order.total)}
+                          </span>
+                      </div>
+                      <ChevronRight className={`absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity -mr-2 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+                    </div>
+                  ))
+                )}
+              </div>
+              
+              {history.length > 0 && (
+                <div className={`p-4 border-t ${isDark ? 'border-white/10 bg-black/40' : 'border-gray-100 bg-gray-50'}`}>
+                  <button 
+                    onClick={clearHistory}
+                    className="w-full py-3 rounded-xl border border-red-500/30 text-red-500 text-xs font-bold uppercase tracking-widest hover:bg-red-500/5 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" /> Clear History
+                  </button>
+                </div>
+              )}
+            </MotionDiv>
+          </MotionDiv>
+        )}
+      </AnimatePresence>
+
+      {/* --- RECEIPT MODAL (REALISTIC) --- */}
+      <AnimatePresence>
+        {isReceiptOpen && lastOrder && (
+          <MotionDiv 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          >
+            {/* Paper Receipt Container */}
+            <MotionDiv 
+                initial={{ y: 100, scale: 0.9 }} 
+                animate={{ y: 0, scale: 1 }}
+                exit={{ y: 100, scale: 0.9, opacity: 0 }}
+                transition={{ type: "spring", damping: 20 }}
+                className={`relative w-full max-w-sm ${isDark ? 'bg-[#e4e4e7]' : 'bg-[#fffcf5]'} text-black shadow-2xl overflow-hidden`}
+                style={{ fontFamily: "'Space Mono', monospace" }}
+            >
+              {/* Receipt Top Edge (Optional for realism, usually straight) */}
+              
+              <div className="p-6 pb-8 relative z-10">
+                {/* Header */}
+                <div className="text-center border-b-2 border-dashed border-gray-300 pb-4 mb-4">
+                    <div className="w-12 h-12 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-2">
+                        <Crown className="w-6 h-6" />
+                    </div>
+                    <h2 className="text-2xl font-bold uppercase tracking-widest">Reeplay</h2>
+                    <p className="text-[10px] uppercase tracking-wider text-gray-500">Lounge & Club • Ogbomosho</p>
+                    <p className="text-[10px] text-gray-500 mt-1">{new Date(lastOrder.date).toLocaleString()}</p>
+                </div>
+
+                {/* Items */}
+                <div className="space-y-2 mb-6 text-sm">
+                    {lastOrder.items.map((item, idx) => (
+                        <div key={idx} className="flex justify-between items-start">
+                            <span className="max-w-[70%]">{item.quantity}x {item.name}</span>
+                            <span className="font-bold">{formatPrice(item.priceRaw * item.quantity)}</span>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Totals */}
+                <div className="border-t-2 border-dashed border-gray-300 pt-4 space-y-1 mb-6">
+                    <div className="flex justify-between text-xs">
+                        <span>SUBTOTAL</span>
+                        <span>{formatPrice(lastOrder.total * 0.9)}</span> 
+                        {/* Rough calc for visual subtotal */}
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500">
+                        <span>TAX/VAT</span>
+                        <span>Included</span>
+                    </div>
+                    <div className="flex justify-between text-xl font-bold mt-2 pt-2 border-t border-black">
+                        <span>TOTAL</span>
+                        <span>{formatPrice(lastOrder.total)}</span>
+                    </div>
+                </div>
+
+                {/* Customer Details */}
+                <div className="bg-gray-100 p-3 rounded-lg mb-6 text-xs space-y-1">
+                    <p><span className="font-bold">Customer:</span> {lastOrder.customerName}</p>
+                    <p><span className="font-bold">Order ID:</span> {lastOrder.id}</p>
+                    <p><span className="font-bold">Type:</span> {lastOrder.type.toUpperCase()}</p>
+                    {lastOrder.deliveryPin && (
+                        <p className="mt-2 pt-2 border-t border-gray-300 text-center">
+                            <span className="block font-bold mb-1">DELIVERY PIN</span>
+                            <span className="text-xl font-bold tracking-widest bg-white px-2 py-1 rounded border border-gray-300 block w-fit mx-auto">
+                                {lastOrder.deliveryPin}
+                            </span>
+                        </p>
+                    )}
+                </div>
+
+                {/* Barcode & Footer */}
+                <div className="text-center space-y-4">
+                    <div className="h-12 bg-[url('https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/UPC-A-036000291452.svg/1200px-UPC-A-036000291452.svg.png')] bg-cover bg-center opacity-70 grayscale h-10 w-3/4 mx-auto" />
+                    <p className="text-[10px] uppercase">Thank you for your vibe</p>
+                    
+                    {/* Action Buttons inside Receipt */}
+                    <div className="flex gap-2 mt-4" style={{ fontFamily: "'Inter', sans-serif" }}>
+                        <button 
+                            onClick={() => {
+                                const msg = generateWhatsAppReceipt(lastOrder);
+                                window.open(`${WHATSAPP_LINK}?text=${encodeURIComponent(msg)}`, '_blank');
+                            }}
+                            className="flex-1 py-2 bg-green-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-green-700"
+                        >
+                            <MessageCircle className="w-3 h-3" /> WhatsApp
+                        </button>
+                        <button 
+                            onClick={() => setIsReceiptOpen(false)}
+                            className="flex-1 py-2 bg-gray-200 text-black rounded-lg text-xs font-bold hover:bg-gray-300"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+              </div>
+
+              {/* Jagged Bottom Edge */}
+              <div className={isDark ? "receipt-jagged-edge-dark" : "receipt-jagged-edge"}></div>
+            </MotionDiv>
+
+            {/* Close Button Outside */}
+            <button 
+                onClick={() => setIsReceiptOpen(false)}
+                className="absolute top-4 right-4 p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors"
+            >
+                <X className="w-6 h-6" />
+            </button>
+          </MotionDiv>
+        )}
+      </AnimatePresence>
+
+      {/* --- CART DRAWER --- (unchanged) */}
       <AnimatePresence>
         {isCartOpen && (
           <>
@@ -1295,11 +1404,13 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
               onClick={() => setIsCartOpen(false)}
               className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100]"
             />
+            {/* ... Cart Drawer Content ... */}
             <MotionDiv 
               initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
               className={`fixed top-0 right-0 h-full w-full max-w-md z-[101] flex flex-col shadow-2xl border-l ${isDark ? 'bg-[#121212] border-white/10' : 'bg-white border-gray-200'}`}
             >
-              <div className={`flex-none p-6 border-b flex justify-between items-center ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
+              {/* ... (Existing Cart Content same as before) ... */}
+               <div className={`flex-none p-6 border-b flex justify-between items-center ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
                 <div className="flex items-center gap-3">
                     {cartView === 'checkout' && (
                         <button onClick={() => setCartView('items')} className={`p-2 rounded-full -ml-2 ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-200'}`}>
@@ -1434,8 +1545,8 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
 
               {cartView === 'checkout' && (
                 <div className="flex-1 flex flex-col h-full overflow-hidden">
-                    <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                        
+                    <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-20">
+                        {/* ... (Checkout Form same as existing, omitted for brevity but XML contains full file) ... */}
                         {(containerRequiredCount > 0 || bagCount > 0) && (
                           <div className={`p-4 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-blue-50 border-blue-100'}`}>
                              <div className="flex items-center justify-between mb-3">

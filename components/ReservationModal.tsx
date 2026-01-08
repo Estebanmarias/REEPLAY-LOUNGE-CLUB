@@ -17,7 +17,7 @@ const OCCASIONS = [
   { id: 'casual', label: 'Casual / Other', icon: Users, color: 'text-purple-500', bg: 'bg-purple-500/10', border: 'border-purple-500/50' },
 ];
 
-const WHATSAPP_LINK = "https://wa.me/message/JL7FQ3VJU44YN1";
+const WHATSAPP_LINK = "https://wa.me/2349060621425";
 
 const ReservationModal: React.FC<ReservationModalProps> = ({ isOpen, onClose }) => {
   const [step, setStep] = useState(1); // 1: Details, 2: Success
@@ -41,18 +41,21 @@ const ReservationModal: React.FC<ReservationModalProps> = ({ isOpen, onClose }) 
   };
 
   const sendToWhatsApp = () => {
-    // Construct text lines array
+    const separator = "--------------------------------";
     const lines = [
-      `*New Reservation Request - Reeplay Lounge* 🥂`,
-      ``,
+      `📅 *RESERVATION REQUEST*`,
+      separator,
       `*Type:* ${formData.occasion.toUpperCase()}`,
       `*Date:* ${formData.date}`,
       `*Time:* ${formData.time}`,
       `*Guests:* ${formData.guests}`,
-      `*Name:* ${formData.name}`,
-      `*Notes:* ${formData.notes}`
+      separator,
+      `👤 *Name:* ${formData.name}`,
+      `📝 *Notes:* ${formData.notes || 'None'}`,
+      separator,
+      `_Sent from Reeplay Web App_`
     ];
-    // Join with newlines and encode
+    
     const text = lines.join('\n');
     window.open(`${WHATSAPP_LINK}?text=${encodeURIComponent(text)}`, '_blank');
     onClose();

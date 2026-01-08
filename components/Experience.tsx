@@ -33,11 +33,17 @@ const features: FeatureItem[] = [
   },
 ];
 
-const Experience: React.FC = () => {
+interface ExperienceProps {
+  theme?: 'dark' | 'light';
+}
+
+const Experience: React.FC<ExperienceProps> = ({ theme = 'dark' }) => {
+  const isDark = theme === 'dark';
+
   return (
     <section className="py-20 px-6 max-w-7xl mx-auto">
       <div className="text-center mb-16">
-        <h2 className="text-3xl md:text-5xl font-bold mb-4 text-white">The Experience</h2>
+        <h2 className={`text-3xl md:text-5xl font-bold mb-4 ${isDark ? 'text-white' : 'text-[#2D2438]'}`}>The Experience</h2>
         <div className="h-1 w-20 bg-purple-500 mx-auto rounded-full"></div>
       </div>
 
@@ -51,18 +57,20 @@ const Experience: React.FC = () => {
             transition={{ delay: idx * 0.1 }}
             className={`
               relative overflow-hidden p-8 rounded-2xl
-              bg-black/40 backdrop-blur-md border border-white/10
-              shadow-[0_0_15px_rgba(0,0,0,0.2)]
-              hover:bg-black/60 hover:border-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.15)]
-              transition-all duration-300 group
+              backdrop-blur-md border transition-all duration-300 group
+              ${isDark 
+                ? 'bg-black/40 border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.2)] hover:bg-black/60 hover:border-purple-500/30' 
+                : 'bg-white/60 border-white/60 shadow-xl shadow-purple-500/5 hover:bg-white/80 hover:border-purple-200'}
               ${idx === 3 || idx === 4 ? 'md:col-span-1 lg:col-span-1' : ''} 
             `}
           >
             <div className="mb-6 inline-block p-4 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 shadow-lg group-hover:scale-110 transition-transform duration-300">
               <feature.icon className="w-8 h-8 text-white" />
             </div>
-            <h3 className="text-xl font-bold text-white mb-3 group-hover:text-purple-300 transition-colors">{feature.title}</h3>
-            <p className="text-gray-300 leading-relaxed text-sm md:text-base">
+            <h3 className={`text-xl font-bold mb-3 transition-colors ${isDark ? 'text-white group-hover:text-purple-300' : 'text-gray-900 group-hover:text-purple-600'}`}>
+              {feature.title}
+            </h3>
+            <p className={`leading-relaxed text-sm md:text-base ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
               {feature.description}
             </p>
           </MotionDiv>

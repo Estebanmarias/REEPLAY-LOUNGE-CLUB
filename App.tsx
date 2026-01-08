@@ -16,25 +16,48 @@ import { AnimatePresence, motion } from 'framer-motion';
 const MotionDiv = motion.div as any;
 
 // Simple About Section Component localized here for simplicity as it's small
-const AboutSection: React.FC = () => (
-  <section className="py-20 px-6 max-w-3xl mx-auto text-center relative z-10">
-    <div className="bg-black/50 backdrop-blur-xl p-8 md:p-12 rounded-3xl border border-white/10 shadow-2xl">
-      <h2 className="text-3xl font-bold text-white mb-6">About Us</h2>
-      <p className="text-gray-300 text-lg leading-relaxed">
-        Reeplay Lounge & Club is not just a destination; it's a feeling. 
-        Located in the heart of Ogbomosho, we redefine nightlife with premium service, 
-        electrifying ambiance, and a community that knows how to celebrate life. 
-        Whether you're here to unwind or unleash, you're exactly where you need to be.
-      </p>
-    </div>
-  </section>
-);
+const AboutSection: React.FC<{ theme: 'dark' | 'light' }> = ({ theme }) => {
+  const isDark = theme === 'dark';
+  return (
+    <section className="py-20 px-6 max-w-3xl mx-auto text-center relative z-10">
+      <div className={`p-8 md:p-12 rounded-3xl border shadow-2xl backdrop-blur-xl transition-all duration-500
+        ${isDark 
+          ? 'bg-black/50 border-white/10' 
+          : 'bg-white/60 border-white/40 shadow-purple-500/5'}
+      `}>
+        <h2 className={`text-3xl font-bold mb-6 ${isDark ? 'text-white' : 'text-[#2D2438]'}`}>About Us</h2>
+        <p className={`text-lg leading-relaxed ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+          Reeplay Lounge & Club is not just a destination; it's a feeling. 
+          Located in the heart of Ogbomosho, we redefine nightlife with premium service, 
+          electrifying ambiance, and a community that knows how to celebrate life. 
+          Whether you're here to unwind or unleash, you're exactly where you need to be.
+        </p>
+      </div>
+    </section>
+  );
+};
 
 type ViewState = 'home' | 'menu' | 'events' | 'gallery';
+type Theme = 'dark' | 'light';
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewState>('home');
   const [isReservationOpen, setIsReservationOpen] = useState(false);
+  const [theme, setTheme] = useState<Theme>('dark');
+
+  // Handle Theme Persistence
+  useEffect(() => {
+    const storedTheme = localStorage.getItem('reeplay_theme') as Theme | null;
+    if (storedTheme) {
+      setTheme(storedTheme);
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    localStorage.setItem('reeplay_theme', newTheme);
+  };
 
   // Handle Hash Changes
   useEffect(() => {
@@ -60,9 +83,16 @@ const App: React.FC = () => {
   };
 
   return (
-    <main className="relative min-h-screen text-white overflow-x-hidden selection:bg-purple-500 selection:text-white">
-      {/* Fixed Background */}
-      <BackgroundSlider />
+    <main className={`relative min-h-screen overflow-x-hidden selection:bg-purple-500 selection:text-white transition-colors duration-500 
+      ${theme === 'dark' 
+        ? 'text-white bg-black' 
+        : 'text-[#2D2438] bg-gradient-to-br from-[#FDFBF7] to-[#EAE5D9]'
+      }`}
+    >
+      {/* Fixed Background - Only visible in dark mode or Home view mostly */}
+      <div className={`fixed inset-0 z-0 transition-opacity duration-1000 ${theme === 'dark' ? 'opacity-100' : 'opacity-0'}`}>
+        <BackgroundSlider />
+      </div>
 
       {/* Navigation (Always visible toggle) */}
       <Navbar 
@@ -90,13 +120,14 @@ const App: React.FC = () => {
               <Hero 
                 onMenuClick={() => navigateTo('menu')} 
                 onReservationClick={() => setIsReservationOpen(true)}
+                theme={theme}
               />
-              <AboutSection />
-              <Experience />
-              <Events />
-              <Reviews />
+              <AboutSection theme={theme} />
+              <Experience theme={theme} />
+              <Events theme={theme} />
+              <Reviews theme={theme} />
               <ContactUs />
-              <Footer />
+              <Footer theme={theme} toggleTheme={toggleTheme} />
             </MotionDiv>
           )}
 
@@ -107,8 +138,8 @@ const App: React.FC = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              <Menu onBack={() => navigateTo('home')} theme="dark" />
-              <Footer />
+              <Menu onBack={() => navigateTo('home')} theme={theme} />
+              <Footer theme={theme} toggleTheme={toggleTheme} />
             </MotionDiv>
           )}
 
@@ -120,7 +151,7 @@ const App: React.FC = () => {
               exit={{ opacity: 0 }}
             >
               <EventsPage onBack={() => navigateTo('home')} />
-              <Footer />
+              <Footer theme={theme} toggleTheme={toggleTheme} />
             </MotionDiv>
           )}
 
@@ -132,7 +163,7 @@ const App: React.FC = () => {
               exit={{ opacity: 0 }}
             >
               <GalleryPage onBack={() => navigateTo('home')} />
-              <Footer />
+              <Footer theme={theme} toggleTheme={toggleTheme} />
             </MotionDiv>
           )}
         </AnimatePresence>
