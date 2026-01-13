@@ -17,7 +17,7 @@ const Footer: React.FC<FooterProps> = ({ theme, toggleTheme }) => {
 
   // Icons URLs
   const whatsappIcon = "https://www.svgrepo.com/show/500461/whatsapp.svg";
-  const igIcon = "https://www.svgrepo.com/svg/512399/instagram-167";
+  const igIcon = "https://www.svgrepo.com/show/512399/instagram-167.svg";
   const tiktokIcon = "https://www.svgrepo.com/show/447151/tiktok-outline.svg";
 
   return (
