@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
-import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, AlertTriangle, ArrowRight, ChevronDown, Wand2, Instagram, MessageCircle, Info, PackageOpen, ToggleLeft, ToggleRight, User, Receipt, DollarSign, ExternalLink, FileText } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, ArrowRight, ChevronDown, Wand2, Instagram, MessageCircle, PackageOpen, ToggleLeft, ToggleRight, User, Copy, Share, ExternalLink, FileText } from 'lucide-react';
 import { orderService, PastOrder } from '../lib/orderService';
 import MenuBackground from './MenuBackground';
 import PromoCarousel from './PromoCarousel';
@@ -42,7 +42,7 @@ interface ConfirmAction {
 
 // --- Constants & Data ---
 const IG_DM_LINK = "https://ig.me/m/reeplaylounge_ogbomoso"; 
-const WHATSAPP_LINK = "https://wa.me/2349060621425";
+const WHATSAPP_PHONE = "2349060621425";
 const VAT_RATE = 0.075; 
 const PAPER_BAG_PRICE = 1000;
 const CONTAINER_PRICE = 500;
@@ -75,11 +75,11 @@ const DELIVERY_ZONES = [
 // DRINK BUILDER DATA
 const BUILDER_DATA = {
   spirits: [
-    { id: 'vodka', name: 'Vodka', price: 3000, color: 'bg-blue-500' },
-    { id: 'gin', name: 'Dry Gin', price: 3000, color: 'bg-green-500' },
-    { id: 'white_rum', name: 'White Rum', price: 3000, color: 'bg-yellow-500' },
-    { id: 'dark_rum', name: 'Dark Rum', price: 3500, color: 'bg-amber-700' },
-    { id: 'tequila', name: 'Tequila', price: 4000, color: 'bg-orange-500' },
+    { id: 'vodka', name: 'Vodka', price: 3000, color: 'bg-blue-600' },
+    { id: 'gin', name: 'Dry Gin', price: 3000, color: 'bg-green-600' },
+    { id: 'white_rum', name: 'White Rum', price: 3000, color: 'bg-yellow-600' },
+    { id: 'dark_rum', name: 'Dark Rum', price: 3500, color: 'bg-amber-800' },
+    { id: 'tequila', name: 'Tequila', price: 4000, color: 'bg-orange-600' },
     { id: 'whiskey', name: 'Whiskey', price: 4000, color: 'bg-amber-900' },
     { id: 'brandy', name: 'Brandy', price: 3500, color: 'bg-red-800' },
   ],
@@ -220,8 +220,7 @@ const MENU_ITEMS: Record<string, Array<MenuItem>> = {
 const parsePrice = (priceStr: string) => parseInt((priceStr || '0').replace(/[^0-9]/g, ''), 10);
 const formatPrice = (price: number) => "₦" + price.toLocaleString();
 
-// ... (Existing helper functions like generateWhatsAppReceipt remain unchanged) ...
-const generateWhatsAppReceipt = (order: PastOrder) => {
+const generateWhatsAppText = (order: PastOrder) => {
   const separator = "--------------------------------";
   const dateStr = new Date(order.date).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
 
@@ -276,7 +275,6 @@ const needsContainer = (itemName: string) => {
   return !NO_CONTAINER_KEYWORDS.some(keyword => itemName.toLowerCase().includes(keyword));
 };
 
-// ... (MenuItemCard Component remains same) ...
 const MenuItemCard: React.FC<{
   item: MenuItem;
   categoryId: string;
@@ -394,7 +392,6 @@ const MenuItemCard: React.FC<{
   );
 };
 
-// ... (getStatusBadge remains same) ...
 const getStatusBadge = (status: string) => {
   const s = status.toLowerCase();
   if (s === 'delivered' || s === 'completed') {
@@ -427,7 +424,6 @@ const getStatusBadge = (status: string) => {
 
 // --- Main Component ---
 const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
-  // ... (State hooks unchanged) ...
   const [activeCategory, setActiveCategory] = useState('rice');
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState<CartItemExtended[]>([]);
@@ -446,6 +442,8 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   const [selectedMealItem, setSelectedMealItem] = useState<MenuItem | null>(null);
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
 
+  // Builder States
+  const [builderStep, setBuilderStep] = useState(0); // 0: Spirit, 1: Mixers, 2: Garnish
   const [builderSpirit, setBuilderSpirit] = useState<string | null>(null);
   const [builderMixers, setBuilderMixers] = useState<string[]>([]);
   const [builderGarnishes, setBuilderGarnishes] = useState<string[]>([]);
@@ -486,7 +484,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
     }
   }, [isCartOpen]);
 
-  // ... (Helper functions) ...
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
@@ -542,12 +539,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
     else setPhoneError('');
   };
 
-  const clearHistory = () => {
-    localStorage.removeItem('reeplay_orders_v2');
-    setHistory([]);
-    setToastMessage("History cleared");
-  };
-
   const filteredItems = useMemo(() => {
     if (searchQuery.length > 0) {
       const results: MenuItemExtended[] = [];
@@ -567,7 +558,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
     return items.map(item => ({ ...item, categoryId: activeCategory }));
   }, [activeCategory, searchQuery]);
 
-  // ... (Add to Cart Logic) ...
   const addToCart = (item: MenuItem, category: string, quantity: number = 1, mods: string[] = [], customPrice?: number) => {
     if (navigator.vibrate) navigator.vibrate(50); 
     setCart(prev => {
@@ -605,6 +595,16 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
     });
   };
 
+  const updateCartItemQuantity = (index: number, delta: number) => {
+    setCart(prev => {
+      const newCart = [...prev];
+      if (newCart[index]) {
+          newCart[index].quantity = Math.max(1, newCart[index].quantity + delta);
+      }
+      return newCart;
+    });
+  };
+
   const calculateBuilderTotal = () => {
     let total = 0;
     if (builderSpirit) {
@@ -637,6 +637,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
     setBuilderSpirit(null);
     setBuilderMixers([]);
     setBuilderGarnishes([]);
+    setBuilderStep(0);
     setActiveCategory('rice');
   };
 
@@ -732,7 +733,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   }, [customerName, customerPhone, nameError, phoneError, orderType, deliveryZoneId, address, pickupTime, pickupError]);
 
   const handleConfirmOrder = () => {
-    // ... (Existing Logic) ...
     if (!canCheckout) return;
     setIsSubmitting(true);
     setTimeout(() => {
@@ -814,6 +814,23 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
     }, 1500);
   };
 
+  const sendToWhatsApp = () => {
+    if (!lastOrder) return;
+    const text = generateWhatsAppText(lastOrder);
+    window.open(`https://wa.me/${WHATSAPP_PHONE}?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const copyReceipt = () => {
+    if (!lastOrder) return;
+    const text = generateWhatsAppText(lastOrder);
+    navigator.clipboard.writeText(text);
+    showToast("Receipt copied!");
+  };
+
+  const openInstagram = () => {
+    window.open(IG_DM_LINK, '_blank');
+  };
+
   return (
     <MotionDiv 
       initial={{ opacity: 0, y: 50 }} 
@@ -824,7 +841,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
       <MenuBackground theme={theme} />
 
       <div className="min-h-screen pb-32 px-4 md:px-8 max-w-7xl mx-auto pt-4 relative z-10">
-        {/* ... (Header, Banner, User, Search, Categories, Grid...) ... */}
         <div className={`flex justify-between items-center sticky top-0 z-50 py-4 -mx-4 px-4 md:mx-0 md:px-0 backdrop-blur-xl transition-colors duration-300 border-b ${isDark ? 'bg-black/80 border-white/5' : 'bg-white/80 border-gray-100'}`}>
           <div className="flex items-center gap-4">
             <button onClick={onBack} className={`p-2 rounded-full transition-colors ${isDark ? 'bg-white/10 hover:bg-purple-600' : 'bg-gray-200 hover:bg-purple-600 hover:text-white'}`}>
@@ -872,7 +888,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
             )}
         </AnimatePresence>
         
-        {/* ... (Search, Carousel, etc. - Rest of the file unchanged) ... */}
         <div className="pt-2 pb-2">
             <div className="relative max-w-md mx-auto mb-6">
               <input 
@@ -916,59 +931,146 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
             </div>
         )}
 
-        {/* ... (Builder and Menu Grid content) ... */}
+        {/* --- DRINK LAB BUILDER --- */}
         {activeCategory === 'builder' ? (
-          // ... (Builder Content) ...
           <div className="max-w-3xl mx-auto space-y-8 pb-24">
-             {/* ... */}
              <div className="flex items-center gap-4 mb-4">
-                 <button onClick={() => setActiveCategory('rice')} className="p-2 rounded-full bg-white/10 hover:bg-white/20">
+                 <button onClick={() => { setActiveCategory('rice'); setBuilderStep(0); setBuilderSpirit(null); }} className="p-2 rounded-full bg-white/10 hover:bg-white/20">
                      <ArrowLeft className="w-5 h-5 text-white" />
                  </button>
                  <h2 className="text-xl font-bold text-white">Back to Food</h2>
              </div>
-             {/* ... Builder Steps ... */}
-             <div className={`p-6 rounded-3xl text-center border ${isDark ? 'bg-black/50 backdrop-blur-md border-white/10 shadow-[0_0_20px_rgba(168,85,247,0.2)]' : 'bg-white/80 border-white'}`}>
-                {/* ... */}
-                <h2 className={`text-3xl font-black mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>The Drink Lab</h2>
-                <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Mix and match to create your perfect poison.</p>
+             
+             {/* Progress Bar */}
+             <div className="flex justify-between items-center mb-6 relative">
+               <div className="absolute left-0 right-0 top-1/2 h-0.5 bg-gray-700 -z-10" />
+               {['Base Spirit', 'Mixers', 'Garnish'].map((step, idx) => (
+                 <div key={idx} className={`flex flex-col items-center gap-2 ${builderStep >= idx ? 'opacity-100' : 'opacity-40'}`}>
+                   <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${builderStep >= idx ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400'}`}>
+                     {idx + 1}
+                   </div>
+                   <span className="text-xs font-bold uppercase">{step}</span>
+                 </div>
+               ))}
              </div>
-             {/* ... Spirit/Mixer Grids (Assume existing code is here) ... */}
-             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {BUILDER_DATA.spirits.map(spirit => (
-                  <button
-                    key={spirit.id}
-                    onClick={() => setBuilderSpirit(spirit.id)}
-                    className={`p-4 rounded-xl border text-left transition-all relative overflow-hidden group
-                      ${builderSpirit === spirit.id 
-                        ? `${spirit.color} border-transparent text-white shadow-lg scale-[1.02]` 
-                        : isDark ? 'bg-black/40 border-white/10 hover:border-purple-500 text-gray-300' : 'bg-white border-gray-200 hover:border-purple-500 text-gray-700'}
-                    `}
-                  >
-                    <div className="font-bold">{spirit.name}</div>
-                    <div className={`text-xs mt-1 ${builderSpirit === spirit.id ? 'text-white/80' : 'text-yellow-500 font-mono'}`}>
-                      {formatPrice(spirit.price)}
+
+             <div className={`p-6 rounded-3xl text-center border transition-all ${isDark ? 'bg-black/50 backdrop-blur-md border-white/10 shadow-[0_0_20px_rgba(168,85,247,0.2)]' : 'bg-white/80 border-white'}`}>
+                <h2 className={`text-3xl font-black mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                   {builderStep === 0 && "Choose Your Poison"}
+                   {builderStep === 1 && "Add Some Splash"}
+                   {builderStep === 2 && "The Finishing Touch"}
+                </h2>
+                <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+                   {builderStep === 0 && "Start with a solid foundation."}
+                   {builderStep === 1 && "Select up to 2 mixers."}
+                   {builderStep === 2 && "Garnishes make it perfect."}
+                </p>
+             </div>
+
+             {/* Step 1: Spirits */}
+             {builderStep === 0 && (
+                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {BUILDER_DATA.spirits.map(spirit => (
+                      <button
+                        key={spirit.id}
+                        onClick={() => { setBuilderSpirit(spirit.id); setBuilderStep(1); }}
+                        className={`p-4 rounded-xl border text-left transition-all relative overflow-hidden group h-32 flex flex-col justify-between
+                          ${builderSpirit === spirit.id 
+                            ? `${spirit.color} border-transparent text-white shadow-lg scale-[1.02]` 
+                            : isDark ? 'bg-black/40 border-white/10 hover:border-purple-500 text-gray-300 hover:bg-white/5' : 'bg-white border-gray-200 hover:border-purple-500 text-gray-700'}
+                        `}
+                      >
+                        <div className="font-bold text-lg">{spirit.name}</div>
+                        <div className={`text-sm ${builderSpirit === spirit.id ? 'text-white/80' : 'text-yellow-500 font-mono'}`}>
+                          {formatPrice(spirit.price)}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+             )}
+
+             {/* Step 2: Mixers */}
+             {builderStep === 1 && (
+                 <>
+                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {BUILDER_DATA.mixers.map(mixer => (
+                        <button
+                          key={mixer.id}
+                          onClick={() => toggleBuilderItem(builderMixers, setBuilderMixers, mixer.id)}
+                          className={`p-4 rounded-xl border text-left transition-all relative overflow-hidden group
+                            ${builderMixers.includes(mixer.id)
+                              ? `bg-blue-600 border-transparent text-white shadow-lg` 
+                              : isDark ? 'bg-black/40 border-white/10 hover:border-blue-500 text-gray-300' : 'bg-white border-gray-200 hover:border-blue-500 text-gray-700'}
+                          `}
+                        >
+                           <div className="flex justify-between items-center">
+                              <span className="font-bold">{mixer.name}</span>
+                              {builderMixers.includes(mixer.id) && <CheckCircle className="w-5 h-5"/>}
+                           </div>
+                           <span className="text-xs text-yellow-500 font-mono block mt-1">+{formatPrice(mixer.price)}</span>
+                        </button>
+                      ))}
                     </div>
-                    {builderSpirit === spirit.id && <CheckCircle className="absolute top-2 right-2 w-5 h-5 text-white" />}
-                  </button>
-                ))}
-              </div>
-              {/* ... Mixers/Garnishes ... */}
-              <div className={`fixed bottom-0 left-0 right-0 p-4 border-t z-50 backdrop-blur-xl ${isDark ? 'bg-black/80 border-white/10' : 'bg-white/80 border-gray-200'}`}>
-                <div className="max-w-3xl mx-auto flex items-center gap-4">
-                  <button
-                    disabled={!builderSpirit}
-                    onClick={handleAddBuiltDrink}
-                    className={`flex-[2] py-4 rounded-xl font-bold text-lg shadow-lg transition-all flex items-center justify-center gap-2
-                      ${builderSpirit 
-                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white' 
-                        : isDark ? 'bg-white/10 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}
-                    `}
-                  >
-                    {builderSpirit ? 'Add to Order' : 'Select a Spirit'}
-                  </button>
-                </div>
-            </div>
+                    <div className="flex justify-between pt-6">
+                        <button onClick={() => setBuilderStep(0)} className="px-6 py-3 rounded-xl border border-white/10 text-gray-400 hover:bg-white/5">Back</button>
+                        <button onClick={() => setBuilderStep(2)} className="px-8 py-3 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-500 shadow-lg">Next Step</button>
+                    </div>
+                 </>
+             )}
+
+             {/* Step 3: Garnishes */}
+             {builderStep === 2 && (
+                 <>
+                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {BUILDER_DATA.garnishes.map(garnish => (
+                        <button
+                          key={garnish.id}
+                          onClick={() => toggleBuilderItem(builderGarnishes, setBuilderGarnishes, garnish.id)}
+                          className={`p-4 rounded-xl border text-left transition-all relative overflow-hidden group
+                            ${builderGarnishes.includes(garnish.id)
+                              ? `bg-pink-600 border-transparent text-white shadow-lg` 
+                              : isDark ? 'bg-black/40 border-white/10 hover:border-pink-500 text-gray-300' : 'bg-white border-gray-200 hover:border-pink-500 text-gray-700'}
+                          `}
+                        >
+                           <div className="flex justify-between items-center">
+                              <span className="font-bold">{garnish.name}</span>
+                              {builderGarnishes.includes(garnish.id) && <CheckCircle className="w-5 h-5"/>}
+                           </div>
+                           <span className="text-xs text-yellow-500 font-mono block mt-1">
+                             {garnish.price > 0 ? `+${formatPrice(garnish.price)}` : 'Free'}
+                           </span>
+                        </button>
+                      ))}
+                    </div>
+                    
+                    <div className={`mt-8 p-6 rounded-2xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-100 border-gray-200'}`}>
+                        <h3 className="text-lg font-bold mb-4">Your Mix Summary</h3>
+                        <div className="flex justify-between mb-2">
+                           <span className="text-gray-400">Base Spirit</span>
+                           <span className="font-bold">{BUILDER_DATA.spirits.find(s => s.id === builderSpirit)?.name}</span>
+                        </div>
+                         <div className="flex justify-between mb-2">
+                           <span className="text-gray-400">Mixers</span>
+                           <span className="text-right">{builderMixers.length > 0 ? builderMixers.map(m => BUILDER_DATA.mixers.find(x => x.id === m)?.name).join(', ') : 'None'}</span>
+                        </div>
+                         <div className="flex justify-between mb-4 border-b border-white/10 pb-4">
+                           <span className="text-gray-400">Garnish</span>
+                           <span className="text-right">{builderGarnishes.length > 0 ? builderGarnishes.map(g => BUILDER_DATA.garnishes.find(x => x.id === g)?.name).join(', ') : 'None'}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-xl font-bold">Total Price</span>
+                            <span className="text-2xl font-black text-yellow-500 font-mono">{formatPrice(calculateBuilderTotal())}</span>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-between pt-6">
+                        <button onClick={() => setBuilderStep(1)} className="px-6 py-3 rounded-xl border border-white/10 text-gray-400 hover:bg-white/5">Back</button>
+                        <button onClick={handleAddBuiltDrink} className="flex-1 ml-4 px-8 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold hover:shadow-lg hover:shadow-purple-500/30 transition-all flex items-center justify-center gap-2">
+                            <Wand2 className="w-5 h-5" /> Add to Order
+                        </button>
+                    </div>
+                 </>
+             )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-20">
@@ -1013,7 +1115,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
         )}
       </AnimatePresence>
 
-      {/* Floating Buttons */}
       {activeCategory !== 'builder' && (
         <MotionButton
             initial={{ scale: 0 }}
@@ -1042,11 +1143,9 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
         </MotionButton>
       )}
 
-      {/* ... (Confirmation & Meal Modals same) ... */}
       <AnimatePresence>
         {confirmAction && (
           <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-             {/* ... */}
              <MotionDiv className={`p-6 rounded-xl border max-w-xs w-full text-center shadow-2xl ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
                 <h3 className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>Are you sure?</h3>
                 <div className="flex gap-3 mt-4">
@@ -1060,7 +1159,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
 
       <AnimatePresence>
         {isMealModalOpen && selectedMealItem && (
-          // ... (Meal Modal) ...
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
              <MotionDiv
                initial={{ opacity: 0 }}
@@ -1071,48 +1169,173 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
              />
              <MotionDiv className="relative w-full max-w-md bg-[#18181b] border border-white/10 rounded-2xl p-6">
                 <h3 className="text-xl font-bold text-white mb-2">{selectedMealItem.name}</h3>
-                {/* ... Options ... */}
+                <div className="space-y-4 max-h-[50vh] overflow-y-auto custom-scrollbar">
+                    {KITCHEN_ADDONS.map(addon => (
+                         <div key={addon.id} onClick={() => toggleAddOn(addon.id)} className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer ${selectedAddOns.includes(addon.id) ? 'bg-purple-900/30 border-purple-500' : 'border-white/10 hover:bg-white/5'}`}>
+                             <div className="flex items-center gap-3">
+                                 <div className={`w-5 h-5 rounded flex items-center justify-center border ${selectedAddOns.includes(addon.id) ? 'bg-purple-500 border-purple-500' : 'border-gray-500'}`}>
+                                     {selectedAddOns.includes(addon.id) && <CheckCheck className="w-3.5 h-3.5 text-white" />}
+                                 </div>
+                                 <span className="text-white">{addon.name}</span>
+                             </div>
+                             <span className="text-yellow-500 font-mono">+{addon.price}</span>
+                         </div>
+                    ))}
+                </div>
                 <button onClick={handleCustomizationSubmit} className="w-full py-3 bg-purple-600 text-white rounded-xl mt-4">Add to Order</button>
              </MotionDiv>
           </div>
         )}
       </AnimatePresence>
 
-      {/* --- HISTORY & RECEIPT --- (Same) */}
+      {/* --- HISTORY MODAL --- */}
       <AnimatePresence>
         {isHistoryOpen && (
-            // ...
-            <MotionDiv className={`fixed inset-0 bg-black/90 z-[110] flex items-center justify-center p-4`}>
-                <MotionDiv className="w-full max-w-md bg-[#18181b] border border-white/10 rounded-2xl h-[80vh] flex flex-col">
-                    <div className="p-4 border-b border-white/10 flex justify-between">
-                        <h3 className="text-white font-bold">History</h3>
-                        <button onClick={() => setIsHistoryOpen(false)}><X className="text-white"/></button>
+            <MotionDiv 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }}
+                className={`fixed inset-0 bg-black/90 z-[110] flex items-center justify-center p-4 backdrop-blur-sm`}
+            >
+                <MotionDiv 
+                    initial={{ scale: 0.95 }} 
+                    animate={{ scale: 1 }}
+                    className="w-full max-w-lg bg-[#18181b] border border-white/10 rounded-2xl h-[80vh] flex flex-col shadow-2xl"
+                >
+                    <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5 rounded-t-2xl">
+                        <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                           <History className="w-5 h-5 text-purple-500" /> Order History
+                        </h3>
+                        <button onClick={() => setIsHistoryOpen(false)} className="p-2 hover:bg-white/10 rounded-full text-white"><X /></button>
                     </div>
-                    <div className="flex-1 overflow-y-auto p-4">
-                        {history.map((order, i) => (
-                            <div key={i} onClick={() => { setLastOrder(order); setIsReceiptOpen(true); }} className="p-3 border border-white/10 rounded-lg mb-2">
-                                <p className="text-white">{order.id}</p>
+                    
+                    <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-3">
+                        {history.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-full text-gray-500 gap-4">
+                                <History className="w-16 h-16 opacity-20" />
+                                <p>No past orders found.</p>
                             </div>
-                        ))}
+                        ) : (
+                            history.map((order, i) => (
+                                <div 
+                                    key={i} 
+                                    onClick={() => { setLastOrder(order); setIsReceiptOpen(true); }} 
+                                    className="p-4 border border-white/10 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer group"
+                                >
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div>
+                                            <span className="text-xs font-mono text-gray-500">#{order.id}</span>
+                                            <p className="text-white font-bold text-sm mt-1">
+                                                {new Date(order.date).toLocaleDateString()} • {new Date(order.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                            </p>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="block text-yellow-500 font-mono font-bold">{formatPrice(order.total)}</span>
+                                            {getStatusBadge(order.status)}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs text-gray-400 border-t border-white/5 pt-2 mt-2">
+                                        <span className="truncate flex-1">
+                                            {order.items.length} items: {order.items.map(i => i.name).join(', ')}
+                                        </span>
+                                        <ChevronRight className="w-4 h-4 text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </MotionDiv>
             </MotionDiv>
         )}
       </AnimatePresence>
 
+      {/* --- RECEIPT MODAL --- */}
       <AnimatePresence>
         {isReceiptOpen && lastOrder && (
-            // ... Receipt Modal ...
-            <MotionDiv className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80">
-                <div className="bg-white text-black p-6 w-full max-w-sm rounded-lg">
-                    {/* ... */}
-                    <button onClick={() => setIsReceiptOpen(false)} className="w-full bg-gray-200 py-2 rounded mt-4">Close</button>
-                </div>
+            <MotionDiv className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+                <MotionDiv 
+                    initial={{ y: 50, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    className="bg-white text-black w-full max-w-sm rounded-none shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+                >
+                    {/* Header */}
+                    <div className="bg-[#111] text-white p-4 flex justify-between items-center">
+                        <h2 className="font-bold flex items-center gap-2"><CheckCircle className="text-green-500" /> Order Ready</h2>
+                        <button onClick={() => setIsReceiptOpen(false)}><X className="w-5 h-5"/></button>
+                    </div>
+
+                    {/* Receipt Paper */}
+                    <div className="bg-white p-6 overflow-y-auto custom-scrollbar relative flex-1">
+                        <div className="text-center mb-6">
+                            <h2 className="text-2xl font-black uppercase tracking-tight">Reeplay Lounge</h2>
+                            <p className="text-xs text-gray-500 uppercase tracking-widest">Ogbomoso</p>
+                        </div>
+                        
+                        <div className="space-y-4 font-mono text-sm border-b-2 border-dashed border-gray-300 pb-6 mb-6">
+                            <div className="flex justify-between">
+                                <span className="text-gray-500">Order ID</span>
+                                <span className="font-bold">{lastOrder.id}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-500">Date</span>
+                                <span>{new Date(lastOrder.date).toLocaleDateString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-500">Customer</span>
+                                <span className="capitalize">{lastOrder.customerName}</span>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3 font-mono text-sm mb-6">
+                            {lastOrder.items.map((item, i) => (
+                                <div key={i} className="flex justify-between items-start">
+                                    <div className="flex-1 pr-4">
+                                        <span className="font-bold">{item.quantity}x</span> {item.name}
+                                    </div>
+                                    <span>{formatPrice(item.priceRaw * item.quantity)}</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="border-t-2 border-black pt-4 space-y-2 font-mono">
+                            <div className="flex justify-between text-xl font-black">
+                                <span>TOTAL</span>
+                                <span>{formatPrice(lastOrder.total)}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Receipt Footer Actions */}
+                    <div className="p-4 bg-gray-100 space-y-3 relative z-20 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
+                        <div className="receipt-jagged-edge absolute -top-4 left-0 w-full transform rotate-180"></div>
+                        
+                        <button 
+                            onClick={sendToWhatsApp}
+                            className="w-full py-3 bg-[#25D366] hover:bg-[#128C7E] text-white font-bold rounded-lg flex items-center justify-center gap-2 shadow-lg transition-all"
+                        >
+                            <MessageCircle className="w-5 h-5" /> Send to WhatsApp
+                        </button>
+                        
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={openInstagram}
+                                className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-lg flex items-center justify-center gap-2 shadow-lg"
+                            >
+                                <Instagram className="w-5 h-5" /> Instagram
+                            </button>
+                            <button 
+                                onClick={copyReceipt}
+                                className="px-4 py-3 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg shadow-sm"
+                            >
+                                <Copy className="w-5 h-5" />
+                            </button>
+                        </div>
+                    </div>
+                </MotionDiv>
             </MotionDiv>
         )}
       </AnimatePresence>
 
-      {/* --- CART DRAWER --- */}
       <AnimatePresence>
         {isCartOpen && (
           <>
@@ -1126,7 +1349,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
               initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
               className={`fixed top-0 right-0 h-full w-full max-w-md z-[101] flex flex-col shadow-2xl border-l ${isDark ? 'bg-[#121212] border-white/10' : 'bg-white border-gray-200'}`}
             >
-                 {/* ... Header ... */}
                  <div className={`flex-none p-6 border-b flex justify-between items-center ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
                     <div className="flex items-center gap-3">
                         {cartView === 'checkout' && (
@@ -1138,21 +1360,63 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                             {cartView === 'items' ? 'Your Order' : 'Checkout'}
                         </h2>
                     </div>
-                    {/* ... Clear Button ... */}
                     <button onClick={() => setIsCartOpen(false)}><ChevronDown /></button>
                 </div>
 
                 {cartView === 'items' && (
-                    // ... Cart Items List ...
                     <div className="flex-1 overflow-y-auto p-6">
-                        {cart.map((item, idx) => (
-                            <div key={idx} className="mb-4">
-                                <p className={isDark ? 'text-white' : 'text-black'}>{item.name}</p>
+                        {cart.length === 0 ? (
+                            <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
+                                <ShoppingBag className="w-16 h-16 mb-4" />
+                                <p>Your cart is empty.</p>
                             </div>
-                        ))}
+                        ) : (
+                            cart.map((item, idx) => (
+                                <div key={`${item.name}-${idx}`} className={`mb-4 p-4 rounded-xl border flex flex-col gap-3 ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-100'}`}>
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <h4 className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{item.name}</h4>
+                                            {item.modifiers && item.modifiers.length > 0 && (
+                                                <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                                    {item.modifiers.join(', ')}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <p className={`font-mono font-bold ${isDark ? 'text-yellow-500' : 'text-purple-600'}`}>
+                                            {formatPrice(item.priceRaw * item.quantity)}
+                                        </p>
+                                    </div>
+                                    
+                                    <div className="flex justify-between items-center">
+                                        <button 
+                                            onClick={() => setConfirmAction({ type: 'remove', itemIndex: idx })}
+                                            className="text-xs text-red-500 hover:text-red-400 font-bold flex items-center gap-1"
+                                        >
+                                            <Trash2 className="w-3 h-3" /> Remove
+                                        </button>
+                                        
+                                        <div className="flex items-center gap-3 bg-black/20 rounded-lg p-1">
+                                            <button 
+                                                onClick={() => updateCartItemQuantity(idx, -1)}
+                                                className={`w-7 h-7 flex items-center justify-center rounded-md ${isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-white hover:bg-gray-100 shadow-sm'}`}
+                                            >
+                                                <Minus className="w-3 h-3" />
+                                            </button>
+                                            <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
+                                            <button 
+                                                onClick={() => updateCartItemQuantity(idx, 1)}
+                                                className="w-7 h-7 flex items-center justify-center rounded-md bg-purple-600 hover:bg-purple-500 text-white"
+                                            >
+                                                <Plus className="w-3 h-3" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
                         {cart.length > 0 && (
                             <div className="mt-4">
-                                <button onClick={() => setCartView('checkout')} className="w-full bg-purple-600 text-white py-4 rounded-xl">Checkout</button>
+                                <button onClick={() => setCartView('checkout')} className="w-full bg-purple-600 text-white py-4 rounded-xl font-bold shadow-lg">Proceed to Checkout</button>
                             </div>
                         )}
                     </div>
@@ -1160,11 +1424,35 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
 
                  {cartView === 'checkout' && (
                     <div className="flex-1 flex flex-col h-full overflow-hidden">
-                        <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-20">
-                            {/* ... Packaging Toggle ... */}
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-20 custom-scrollbar">
                              {(containerRequiredCount > 0 || bagCount > 0) && (
                                 <div className={`p-4 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-blue-50 border-blue-100'}`}>
-                                    {/* ... */}
+                                    <div className="flex items-start gap-3">
+                                        <PackageOpen className={`w-5 h-5 mt-0.5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+                                        <div className="flex-1">
+                                            <h4 className={`text-sm font-bold ${isDark ? 'text-blue-100' : 'text-blue-900'}`}>Packaging Added</h4>
+                                            <div className={`mt-2 space-y-1 text-xs ${isDark ? 'text-blue-200' : 'text-blue-700'}`}>
+                                                {containerRequiredCount > 0 && (
+                                                    <div className="flex justify-between">
+                                                        <span>{containerRequiredCount}x Takeout Containers</span>
+                                                        <span>{formatPrice(containerCost)}</span>
+                                                    </div>
+                                                )}
+                                                {bagCount > 0 && (
+                                                    <div className="flex justify-between">
+                                                        <span>{bagCount}x Paper Bags</span>
+                                                        <span>{formatPrice(bagFee)}</span>
+                                                    </div>
+                                                )}
+                                                <div className="pt-2 mt-2 border-t border-blue-500/20 flex items-center justify-between">
+                                                    <span>Need a paper bag?</span>
+                                                    <button onClick={() => setNeedsBag(!needsBag)} className="text-lg">
+                                                        {needsBag ? <ToggleRight className="w-8 h-8 text-blue-500" /> : <ToggleLeft className="w-8 h-8 opacity-50" />}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                              )}
 
@@ -1180,7 +1468,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                                 <div className="space-y-2">
                                     <label className={`text-xs uppercase font-bold flex items-center gap-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}><Clock className="w-3 h-3"/> Pickup Time</label>
                                     <input type="time" min="15:00" max="22:30" value={pickupTime} onChange={handleTimeChange} className={`w-full border p-3 rounded-xl outline-none focus:border-purple-500 ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'} ${pickupError ? 'border-red-500' : ''}`} />
-                                    {/* Added Helper Text Here */}
                                     <p className="text-[10px] text-gray-500">Service begins at 3:00 PM (15:00).</p>
                                     {pickupError && <p className="text-red-500 text-xs mt-1">{pickupError}</p>}
                                 </div>
@@ -1196,7 +1483,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                                 </div>
                             )}
 
-                             {/* ... Name/Phone inputs ... */}
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <div className="space-y-2">
                                     <label className={`text-xs uppercase font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Your Name</label>
@@ -1212,7 +1498,6 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
                                 <textarea placeholder="E.g., No onions, extra spicy, separate sauce..." value={specialRequests} onChange={e => setSpecialRequests(e.target.value)} className={`w-full border p-3 rounded-xl outline-none focus:border-purple-500 resize-none h-20 text-sm ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-black'}`}/>
                             </div>
                         </div>
-                        {/* ... Checkout Footer ... */}
                         <div className={`flex-none p-6 border-t ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
                             <button onClick={handleConfirmOrder} disabled={!canCheckout || isSubmitting} className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${canCheckout ? 'bg-green-600 hover:bg-green-500 text-white shadow-lg' : isDark ? 'bg-white/10 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
                                 {isSubmitting ? <Loader2 className="animate-spin w-5 h-5"/> : (

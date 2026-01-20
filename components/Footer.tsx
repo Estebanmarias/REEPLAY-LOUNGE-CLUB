@@ -1,10 +1,58 @@
 import React from 'react';
 import { MapPin, ArrowUpRight, Moon, Sun } from 'lucide-react';
+import { motion } from 'framer-motion';
+
+const MotionA = motion.a as any;
 
 interface FooterProps {
   theme: 'dark' | 'light';
   toggleTheme: () => void;
 }
+
+const SocialButton: React.FC<{ 
+  href: string; 
+  iconSrc: string; 
+  label: string; 
+  isDark: boolean 
+}> = ({ href, iconSrc, label, isDark }) => {
+  return (
+    <MotionA
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={label}
+      whileHover={{ scale: 1.1 }}
+      whileTap={{ scale: 0.95 }}
+      className={`relative group flex items-center justify-center p-0.5 rounded-full overflow-hidden w-14 h-14 transition-all shadow-lg
+        ${isDark ? 'shadow-purple-500/20' : 'shadow-purple-500/10'}
+      `}
+    >
+      {/* Animated Rotating Gradient Background */}
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+        className={`absolute inset-[-100%] z-0
+          ${isDark 
+            ? 'bg-[conic-gradient(from_0deg,transparent_0deg,#a855f7_180deg,transparent_360deg)] opacity-100' 
+            : 'bg-[conic-gradient(from_0deg,transparent_0deg,#d97706_180deg,transparent_360deg)] opacity-100'} 
+        `}
+      />
+
+      {/* Inner Circle (The Button Surface) */}
+      <div className={`relative z-10 w-full h-full rounded-full flex items-center justify-center transition-colors
+        ${isDark ? 'bg-black group-hover:bg-[#111]' : 'bg-white group-hover:bg-gray-50'}
+      `}>
+        <img 
+          src={iconSrc} 
+          alt={label} 
+          className={`w-6 h-6 object-contain transition-transform group-hover:scale-110 
+            ${isDark ? 'invert brightness-200' : ''}
+          `} 
+        />
+      </div>
+    </MotionA>
+  );
+};
 
 const Footer: React.FC<FooterProps> = ({ theme, toggleTheme }) => {
   const isDark = theme === 'dark';
@@ -41,17 +89,24 @@ const Footer: React.FC<FooterProps> = ({ theme, toggleTheme }) => {
           </div>
 
           <div className="mt-8 flex gap-6">
-            <a href={igLink} target="_blank" rel="noopener noreferrer" className={`p-3 rounded-full transition-colors flex items-center justify-center ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-white hover:bg-purple-50 shadow-sm'}`} aria-label="Instagram">
-              <img src={igIcon} alt="Instagram" className={`w-5 h-5 ${isDark ? 'invert' : ''}`} />
-            </a>
-            
-            <a href={tiktokLink} target="_blank" rel="noopener noreferrer" className={`p-3 rounded-full transition-colors flex items-center justify-center ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-white hover:bg-purple-50 shadow-sm'}`} aria-label="TikTok">
-              <img src={tiktokIcon} alt="TikTok" className={`w-5 h-5 ${isDark ? 'invert' : ''}`} />
-            </a>
-            
-            <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className={`p-3 rounded-full transition-colors flex items-center justify-center ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-white hover:bg-purple-50 shadow-sm'}`} aria-label="WhatsApp">
-               <img src={whatsappIcon} alt="WhatsApp" className={`w-5 h-5 ${isDark ? 'invert' : ''}`} />
-            </a>
+            <SocialButton 
+              href={igLink} 
+              iconSrc={igIcon} 
+              label="Instagram" 
+              isDark={isDark} 
+            />
+            <SocialButton 
+              href={tiktokLink} 
+              iconSrc={tiktokIcon} 
+              label="TikTok" 
+              isDark={isDark} 
+            />
+            <SocialButton 
+              href={whatsappLink} 
+              iconSrc={whatsappIcon} 
+              label="WhatsApp" 
+              isDark={isDark} 
+            />
           </div>
         </div>
 
