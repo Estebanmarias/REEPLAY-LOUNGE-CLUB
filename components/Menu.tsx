@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, ArrowRight, ChevronDown, Wand2, Instagram, MessageCircle, PackageOpen, ToggleLeft, ToggleRight, User, Copy, Share, ExternalLink, FileText } from 'lucide-react';
-import { orderService, PastOrder } from '../lib/orderService';
+import { orderService, PastOrder, CartItem } from '../lib/orderService';
 import MenuBackground from './MenuBackground';
 import PromoCarousel from './PromoCarousel';
 import NoticeBanner from './NoticeBanner';
@@ -468,7 +468,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
 
   useEffect(() => {
     const profile = orderService.getUserProfile();
-    setHistory(orderService.getHistory());
+    
     if (profile.name) {
       setReturningUser(profile.name);
       setCustomerName(profile.name);
@@ -476,7 +476,25 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
     if (profile.phone) {
       setCustomerPhone(profile.phone);
     }
+    
+    // Initial fetch of history
+    const loadHistory = async () => {
+      try {
+        const data = await orderService.getHistory();
+        setHistory(data);
+      } catch (e) {
+        console.error("Failed to load history", e);
+      }
+    };
+    loadHistory();
   }, []);
+  
+  // Refresh history when opening the modal to get latest status updates
+  useEffect(() => {
+    if (isHistoryOpen) {
+       orderService.getHistory().then(data => setHistory(data));
+    }
+  }, [isHistoryOpen]);
 
   useEffect(() => {
     if (!isCartOpen) {
@@ -732,17 +750,19 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
     }
   }, [customerName, customerPhone, nameError, phoneError, orderType, deliveryZoneId, address, pickupTime, pickupError]);
 
-  const handleConfirmOrder = () => {
+  const handleConfirmOrder = async () => {
     if (!canCheckout) return;
     setIsSubmitting(true);
-    setTimeout(() => {
-      const id = '#' + Math.floor(1000 + Math.random() * 9000);
-      setOrderId(id);
-      const pin = orderType === 'delivery' ? Math.floor(100000 + Math.random() * 899999).toString() : null;
-      setGeneratedDeliveryPin(pin);
+    
+    // Generate Order ID & Pin
+    const id = '#' + Math.floor(1000 + Math.random() * 9000);
+    setOrderId(id);
+    const pin = orderType === 'delivery' ? Math.floor(100000 + Math.random() * 899999).toString() : null;
+    setGeneratedDeliveryPin(pin);
 
-      const finalItems = [...cart];
-      if (containerRequiredCount > 0) {
+    // Prepare items for DB
+    const finalItems = [...cart];
+    if (containerRequiredCount > 0) {
         finalItems.push({
             name: EXTRAS.container.name,
             desc: EXTRAS.container.desc,
@@ -751,8 +771,8 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
             quantity: containerRequiredCount,
             categoryId: 'packaging'
         } as any);
-      }
-      if (bagCount > 0) {
+    }
+    if (bagCount > 0) {
         finalItems.push({
              name: EXTRAS.bag.name,
              desc: `${EXTRAS.bag.desc} (Fits ~2 Meals)`,
@@ -761,8 +781,8 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
              quantity: bagCount,
              categoryId: 'packaging'
         } as any);
-      }
-      if (orderType === 'delivery' && deliveryFee > 0) {
+    }
+    if (orderType === 'delivery' && deliveryFee > 0) {
         finalItems.push({
              name: 'Delivery Fee',
              desc: DELIVERY_ZONES.find(z => z.id === deliveryZoneId)?.label || 'Delivery',
@@ -771,8 +791,8 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
              quantity: 1,
              categoryId: 'service'
         } as any);
-      }
-      if (vatAmount > 0) {
+    }
+    if (vatAmount > 0) {
         finalItems.push({
             name: 'VAT (7.5%)',
             desc: 'Tax',
@@ -781,9 +801,9 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
             quantity: 1,
             categoryId: 'tax'
         } as any);
-      }
+    }
 
-      const newOrder: PastOrder = {
+    const newOrder: PastOrder = {
         id,
         date: new Date().toISOString(),
         items: finalItems.map(i => ({ 
@@ -799,19 +819,27 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
         status: 'Pending', 
         deliveryPin: pin || undefined,
         specialRequests: specialRequests || undefined
-      };
+    };
 
-      orderService.saveOrder(newOrder);
-      orderService.updateProfile(customerName, customerPhone);
-      
-      setHistory(orderService.getHistory());
-      setLastOrder(newOrder);
-      
-      setIsSubmitting(false);
-      setIsCartOpen(false);
-      setIsReceiptOpen(true);
-      setCart([]);
-    }, 1500);
+    try {
+        // Save to Firebase
+        await orderService.saveOrder(newOrder);
+        orderService.updateProfile(customerName, customerPhone);
+        
+        // Refresh local history with the new data from Firestore
+        const updatedHistory = await orderService.getHistory();
+        setHistory(updatedHistory);
+        setLastOrder(newOrder);
+        
+        setIsSubmitting(false);
+        setIsCartOpen(false);
+        setIsReceiptOpen(true);
+        setCart([]);
+    } catch (e) {
+        console.error(e);
+        showToast("Error placing order. Please check your connection.");
+        setIsSubmitting(false);
+    }
   };
 
   const sendToWhatsApp = () => {

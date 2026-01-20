@@ -1,11 +1,16 @@
+import { db } from './firebase';
+import { collection, addDoc, query, where, getDocs, orderBy, limit } from "firebase/firestore";
+
 export interface CartItem {
   name: string;
   quantity: number;
   priceRaw: number;
+  modifiers?: string[];
+  categoryId?: string;
 }
 
 export interface PastOrder {
-  id: string;
+  id: string; // Visual ID (e.g. #1234)
   guestId?: string; // Link order to a unique user profile
   date: string;
   items: CartItem[];
@@ -26,7 +31,6 @@ export interface UserProfile {
   createdAt: string;
 }
 
-const ORDER_STORAGE_KEY = 'reeplay_orders_v2';
 const PROFILE_STORAGE_KEY = 'reeplay_user_profile';
 
 const generateId = () => {
@@ -34,7 +38,7 @@ const generateId = () => {
 };
 
 export const orderService = {
-  // --- Profile Management ---
+  // --- Profile Management (Keep local for device identification) ---
   getUserProfile: (): UserProfile => {
     const stored = localStorage.getItem(PROFILE_STORAGE_KEY);
     if (stored) {
@@ -58,45 +62,59 @@ export const orderService = {
     return updated;
   },
 
-  // --- Order Management ---
-  saveOrder: (order: PastOrder) => {
-    const history = orderService.getAllOrdersRaw();
-    // Attach current user ID to the order
-    const profile = orderService.getUserProfile();
-    const orderWithUser = { ...order, guestId: profile.id };
-    
-    const newHistory = [orderWithUser, ...history].slice(0, 50); // Keep last 50
-    localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(newHistory));
-    return orderWithUser;
-  },
-
-  // Internal use: get everything
-  getAllOrdersRaw: (): PastOrder[] => {
-    const data = localStorage.getItem(ORDER_STORAGE_KEY);
-    if (!data) return [];
+  // --- Order Management (Now Async with Firebase) ---
+  
+  saveOrder: async (order: PastOrder) => {
     try {
-      return JSON.parse(data);
+      const profile = orderService.getUserProfile();
+      const orderWithUser = { 
+        ...order, 
+        guestId: profile.id,
+        createdAt: new Date() // Firestore timestamp for sorting
+      };
+      
+      // Save to 'orders' collection in Firestore
+      const docRef = await addDoc(collection(db, "orders"), orderWithUser);
+      console.log("Document written with ID: ", docRef.id);
+      
+      return orderWithUser;
     } catch (e) {
-      return [];
+      console.error("Error adding document: ", e);
+      // Fallback or re-throw depending on desired behavior
+      throw e;
     }
   },
 
-  // Public use: Get history relevant to the current user
-  getHistory: (): PastOrder[] => {
-    const allOrders = orderService.getAllOrdersRaw();
-    const profile = orderService.getUserProfile();
-    
-    return allOrders.filter(order => {
-      // 1. Match by Unique ID (Best)
-      if (order.guestId === profile.id) return true;
+  getHistory: async (): Promise<PastOrder[]> => {
+    try {
+      const profile = orderService.getUserProfile();
+      const ordersRef = collection(db, "orders");
       
-      // 2. Fallback: Match by Phone if ID is missing (Legacy support)
-      // Only check if profile has a phone number saved
-      if (!order.guestId && profile.phone && order.customerPhone) {
-        return order.customerPhone.replace(/\D/g, '') === profile.phone.replace(/\D/g, '');
-      }
+      // Query orders where guestId matches current user
+      const q = query(
+        ordersRef, 
+        where("guestId", "==", profile.id),
+        orderBy("createdAt", "desc"),
+        limit(20)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const orders: PastOrder[] = [];
       
-      return false;
-    });
+      querySnapshot.forEach((doc) => {
+        // We cast the data to PastOrder (ignoring the Firestore specific fields like createdAt for the UI)
+        const data = doc.data() as any;
+        orders.push({
+            ...data,
+            // Ensure date strings remain strings if Firestore converted them to Timestamp objects
+            date: data.date || new Date().toISOString()
+        } as PastOrder);
+      });
+
+      return orders;
+    } catch (e) {
+      console.error("Error fetching history: ", e);
+      return [];
+    }
   }
 };
