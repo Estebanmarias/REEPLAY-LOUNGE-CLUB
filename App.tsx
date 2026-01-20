@@ -13,7 +13,7 @@ import ReservationModal from './components/ReservationModal';
 import ContactUs from './components/ContactUs';
 import DJLineup from './components/DJLineup';
 import OpeningHours from './components/OpeningHours';
-import CursorTrail from './components/CursorTrail'; // Imported new component
+import CursorTrail from './components/CursorTrail'; 
 import { AnimatePresence, motion } from 'framer-motion';
 
 const MotionDiv = motion.div as any;

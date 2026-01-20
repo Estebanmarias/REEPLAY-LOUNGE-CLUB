@@ -12,8 +12,8 @@ interface ReservationModalProps {
 const OCCASIONS = [
   { id: 'birthday', label: 'Birthday', icon: PartyPopper, color: 'text-pink-500', bg: 'bg-pink-500/10', border: 'border-pink-500/50' },
   { id: 'date', label: 'Date / Proposal', icon: Heart, color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/50' },
-  { id: 'corporate', label: 'Corporate', icon: Briefcase, color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/50' },
   { id: 'vip', label: 'VIP Table', icon: Star, color: 'text-yellow-500', bg: 'bg-yellow-500/10', border: 'border-yellow-500/50' },
+  { id: 'corporate', label: 'Corporate', icon: Briefcase, color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/50' },
   { id: 'casual', label: 'Casual / Other', icon: Users, color: 'text-purple-500', bg: 'bg-purple-500/10', border: 'border-purple-500/50' },
 ];
 

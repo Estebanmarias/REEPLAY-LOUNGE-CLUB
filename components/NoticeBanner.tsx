@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, X } from 'lucide-react';
+import { Clock, X } from 'lucide-react';
 
 const MotionDiv = motion.div as any;
 
@@ -20,19 +20,19 @@ const NoticeBanner: React.FC<{ theme: 'dark' | 'light' }> = ({ theme }) => {
       >
         <div className={`px-4 py-3 flex items-start justify-between gap-3 border-b
           ${isDark 
-            ? 'bg-gradient-to-r from-purple-900/40 to-black border-purple-500/20' 
-            : 'bg-gradient-to-r from-purple-100 to-white border-purple-200'}
+            ? 'bg-gradient-to-r from-blue-900/40 to-black border-blue-500/20' 
+            : 'bg-gradient-to-r from-blue-100 to-white border-blue-200'}
         `}>
           <div className="flex gap-3">
-            <div className={`p-1.5 rounded-full mt-0.5 ${isDark ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-600'}`}>
-              <Bell className="w-4 h-4 animate-bounce" />
+            <div className={`p-1.5 rounded-full mt-0.5 ${isDark ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
+              <Clock className="w-4 h-4 animate-pulse" />
             </div>
             <div>
               <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Kitchen Pre-Orders Open
+                Pre-orders are Open
               </p>
               <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                Orders start going out at 12:00 PM. Book your meal now to beat the rush!
+                Kitchen & Delivery service begins daily at <strong>3:00 PM</strong>. Secure your slot now!
               </p>
             </div>
           </div>
