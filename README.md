@@ -37,10 +37,12 @@ This project was built in distinct phases to ensure both visual impact and funct
 *   **Goal:** Allow users to track orders and see history without a login/signup wall.
 *   **Solution:** Implemented `orderService.ts`. It generates a unique `usr_` hash in LocalStorage. Orders are tagged with this ID, allowing the browser to "remember" the user.
 
-### Phase 5: UI/UX Polish
-*   **Dark Mode:** "Nightlife" aesthetic (Black/Purple/Neon).
-*   **Light Mode:** "Daytime Luxury" aesthetic (Alabaster/Gold/Frosted Glass).
-*   **Receipts:** A hyper-realistic thermal receipt modal using CSS clip-paths and Monospace fonts.
+### Phase 5: UI/UX Polish & Operations
+*   **Dark/Light Mode:** "Nightlife" aesthetic (Black/Purple/Neon) vs "Daytime Luxury" (Alabaster/Gold).
+*   **Receipts:** A hyper-realistic thermal receipt modal using CSS clip-paths.
+*   **Immersive Details:** Added a custom glowing cursor trail and animated gradient borders for high-value cards.
+*   **Navigation:** Implemented URL hash routing for direct section linking and deep-linking support.
+*   **Operational Logic:** Smart banners to communicate kitchen/delivery start times (3:00 PM).
 
 ---
 
