@@ -32,6 +32,7 @@ export interface UserProfile {
 }
 
 const PROFILE_STORAGE_KEY = 'reeplay_user_profile';
+const OFFLINE_ORDERS_KEY = 'reeplay_offline_orders';
 
 const generateId = () => {
   return 'usr_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
@@ -62,35 +63,59 @@ export const orderService = {
     return updated;
   },
 
-  // --- Order Management (Now Async with Firebase) ---
+  // --- Order Management ---
   
   saveOrder: async (order: PastOrder) => {
+    const profile = orderService.getUserProfile();
+    const orderWithUser = { 
+      ...order, 
+      guestId: profile.id,
+      createdAt: new Date().toISOString()
+    };
+
+    // 1. Attempt Firestore Save
     try {
-      const profile = orderService.getUserProfile();
-      const orderWithUser = { 
-        ...order, 
-        guestId: profile.id,
-        createdAt: new Date() // Firestore timestamp for sorting
-      };
-      
-      // Save to 'orders' collection in Firestore
-      const docRef = await addDoc(collection(db, "orders"), orderWithUser);
-      console.log("Document written with ID: ", docRef.id);
-      
-      return orderWithUser;
+      // Use standard Date object for Firestore compatibility if connection works
+      await addDoc(collection(db, "orders"), {
+        ...orderWithUser,
+        createdAt: new Date() 
+      });
+      console.log("Order saved to Firestore");
     } catch (e) {
-      console.error("Error adding document: ", e);
-      // Fallback or re-throw depending on desired behavior
-      throw e;
+      console.warn("Firestore save failed (network/permission), falling back to local storage.", e);
+      
+      // 2. Fallback to LocalStorage so user is not blocked
+      try {
+        const existingStr = localStorage.getItem(OFFLINE_ORDERS_KEY);
+        const existing = existingStr ? JSON.parse(existingStr) : [];
+        existing.push(orderWithUser);
+        localStorage.setItem(OFFLINE_ORDERS_KEY, JSON.stringify(existing));
+      } catch (localErr) {
+        console.error("Local storage save failed", localErr);
+        throw new Error("Could not save order to device or cloud.");
+      }
     }
+    
+    return orderWithUser;
   },
 
   getHistory: async (): Promise<PastOrder[]> => {
+    const profile = orderService.getUserProfile();
+    let allOrders: PastOrder[] = [];
+
+    // 1. Fetch Local/Offline Orders first
     try {
-      const profile = orderService.getUserProfile();
+        const localStr = localStorage.getItem(OFFLINE_ORDERS_KEY);
+        if (localStr) {
+            const localOrders = JSON.parse(localStr);
+            const userLocalOrders = localOrders.filter((o: any) => o.guestId === profile.id);
+            allOrders = [...allOrders, ...userLocalOrders];
+        }
+    } catch (e) { console.error("Error reading local history", e); }
+
+    // 2. Fetch Firestore Orders
+    try {
       const ordersRef = collection(db, "orders");
-      
-      // Query orders where guestId matches current user
       const q = query(
         ordersRef, 
         where("guestId", "==", profile.id),
@@ -99,22 +124,22 @@ export const orderService = {
       );
 
       const querySnapshot = await getDocs(q);
-      const orders: PastOrder[] = [];
-      
       querySnapshot.forEach((doc) => {
-        // We cast the data to PastOrder (ignoring the Firestore specific fields like createdAt for the UI)
         const data = doc.data() as any;
-        orders.push({
-            ...data,
-            // Ensure date strings remain strings if Firestore converted them to Timestamp objects
-            date: data.date || new Date().toISOString()
-        } as PastOrder);
+        // Avoid duplicates if ID exists in local storage list (unlikely but safe)
+        if (!allOrders.find(o => o.id === data.id)) {
+             allOrders.push({
+                ...data,
+                // Ensure date strings remain strings
+                date: data.date || new Date().toISOString()
+            } as PastOrder);
+        }
       });
-
-      return orders;
     } catch (e) {
-      console.error("Error fetching history: ", e);
-      return [];
+      console.warn("Could not fetch from Firestore, showing local history only.", e);
     }
+    
+    // Sort combined list descending by date
+    return allOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }
 };
