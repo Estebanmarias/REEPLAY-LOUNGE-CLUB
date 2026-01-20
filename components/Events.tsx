@@ -22,8 +22,9 @@ const Events: React.FC<EventsProps> = ({ theme = 'dark' }) => {
     // Dark mode colors
     if (isDark) {
       if (styleIdx === 0) return {
-        borderColor: 'border-pink-500/30',
-        hoverBorder: 'group-hover:border-pink-500',
+        // Updated to use gradient border class
+        gradientFrom: 'from-pink-600',
+        gradientTo: 'to-purple-600',
         tagColor: 'text-pink-400',
         tagBg: 'bg-pink-500/10',
         iconColor: 'text-pink-500',
@@ -32,8 +33,8 @@ const Events: React.FC<EventsProps> = ({ theme = 'dark' }) => {
         Icon: Music2
       };
       if (styleIdx === 1) return {
-        borderColor: 'border-yellow-500/30',
-        hoverBorder: 'group-hover:border-yellow-500',
+        gradientFrom: 'from-yellow-600',
+        gradientTo: 'to-orange-600',
         tagColor: 'text-yellow-400',
         tagBg: 'bg-yellow-500/10',
         iconColor: 'text-yellow-500',
@@ -42,8 +43,8 @@ const Events: React.FC<EventsProps> = ({ theme = 'dark' }) => {
         Icon: Moon
       };
       return {
-        borderColor: 'border-purple-500/30',
-        hoverBorder: 'group-hover:border-purple-500',
+        gradientFrom: 'from-purple-600',
+        gradientTo: 'to-blue-600',
         tagColor: 'text-purple-400',
         tagBg: 'bg-purple-500/10',
         iconColor: 'text-purple-500',
@@ -55,8 +56,8 @@ const Events: React.FC<EventsProps> = ({ theme = 'dark' }) => {
     // Light mode colors
     else {
        if (styleIdx === 0) return {
-        borderColor: 'border-pink-200',
-        hoverBorder: 'group-hover:border-pink-400',
+        gradientFrom: 'from-pink-300',
+        gradientTo: 'to-purple-300',
         tagColor: 'text-pink-600',
         tagBg: 'bg-pink-100',
         iconColor: 'text-pink-600',
@@ -65,8 +66,8 @@ const Events: React.FC<EventsProps> = ({ theme = 'dark' }) => {
         Icon: Music2
       };
       if (styleIdx === 1) return {
-        borderColor: 'border-yellow-200',
-        hoverBorder: 'group-hover:border-yellow-400',
+        gradientFrom: 'from-yellow-300',
+        gradientTo: 'to-orange-300',
         tagColor: 'text-yellow-700',
         tagBg: 'bg-yellow-100',
         iconColor: 'text-yellow-600',
@@ -75,8 +76,8 @@ const Events: React.FC<EventsProps> = ({ theme = 'dark' }) => {
         Icon: Moon
       };
       return {
-        borderColor: 'border-purple-200',
-        hoverBorder: 'group-hover:border-purple-400',
+        gradientFrom: 'from-purple-300',
+        gradientTo: 'to-blue-300',
         tagColor: 'text-purple-700',
         tagBg: 'bg-purple-100',
         iconColor: 'text-purple-600',
@@ -125,25 +126,25 @@ const Events: React.FC<EventsProps> = ({ theme = 'dark' }) => {
               onHoverStart={() => setHoveredIdx(idx)}
               onHoverEnd={() => setHoveredIdx(null)}
               transition={{ duration: 0.4 }}
-              className={`
-                group relative overflow-hidden rounded-3xl cursor-pointer
-                backdrop-blur-md border shadow-lg transition-all duration-300
-                ${isDark 
-                  ? 'bg-black/40 border-white/10 shadow-[0_0_20px_rgba(0,0,0,0.3)]' 
-                  : 'bg-white/85 backdrop-blur-xl border-white/60 shadow-xl shadow-purple-500/10 hover:bg-white/95'}
-                ${style.hoverBorder}
-              `}
+              className="relative group rounded-3xl cursor-pointer"
             >
+              {/* Animated Gradient Border Background */}
+              <div className={`absolute inset-0 rounded-3xl bg-gradient-to-r ${style.gradientFrom} ${style.gradientTo} opacity-0 group-hover:opacity-100 animate-gradient-border blur transition-opacity duration-500`} />
               
-              <div className="relative p-8 md:p-10 flex flex-col h-full z-10">
+              <div className={`
+                relative h-full p-8 md:p-10 flex flex-col z-10 rounded-3xl overflow-hidden backdrop-blur-md border transition-all duration-300
+                ${isDark 
+                  ? 'bg-black/80 border-white/10' 
+                  : 'bg-white/90 border-white/60 shadow-xl'}
+              `}>
                 <div className="flex justify-between items-start mb-6">
                   <span className={`
-                    px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest border
-                    ${style.borderColor} ${style.tagColor} ${style.tagBg}
+                    px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest border border-transparent
+                    ${style.tagColor} ${style.tagBg}
                   `}>
                     {event.day}
                   </span>
-                  <div className={`p-2 rounded-full border ${isDark ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100'} ${style.borderColor}`}>
+                  <div className={`p-2 rounded-full border ${isDark ? 'bg-white/5 border-white/5' : 'bg-white border-gray-100'}`}>
                     <Icon className={`${style.iconColor} w-6 h-6`} />
                   </div>
                 </div>
@@ -177,9 +178,9 @@ const Events: React.FC<EventsProps> = ({ theme = 'dark' }) => {
                 </div>
               </div>
               
-              {/* Dynamic Glow Effect */}
-              <div className={`absolute -bottom-24 -right-24 w-64 h-64 rounded-full blur-[80px] transition-opacity duration-500 
-                ${isDark ? 'opacity-20 group-hover:opacity-40' : 'opacity-30 group-hover:opacity-60'} 
+              {/* Dynamic Glow Effect (Behind) */}
+              <div className={`absolute -bottom-10 -right-10 w-48 h-48 rounded-full blur-[60px] transition-opacity duration-500 z-0 pointer-events-none
+                ${isDark ? 'opacity-0 group-hover:opacity-30' : 'opacity-0 group-hover:opacity-40'} 
                 ${style.glowColor}`} 
               />
             </MotionDiv>
