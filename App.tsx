@@ -13,7 +13,6 @@ import ReservationModal from './components/ReservationModal';
 import ContactUs from './components/ContactUs';
 import DJLineup from './components/DJLineup';
 import OpeningHours from './components/OpeningHours';
-import CursorTrail from './components/CursorTrail'; 
 import { AnimatePresence, motion } from 'framer-motion';
 
 const MotionDiv = motion.div as any;
@@ -107,9 +106,6 @@ const App: React.FC = () => {
         : 'text-[#2D2438] bg-gradient-to-br from-[#FDFBF7] to-[#EAE5D9]'
       }`}
     >
-      {/* Global Cursor Trail */}
-      <CursorTrail />
-
       {/* Fixed Background - Only visible in dark mode or Home view mostly */}
       <div className={`fixed inset-0 z-0 transition-opacity duration-1000 ${theme === 'dark' ? 'opacity-100' : 'opacity-0'}`}>
         <BackgroundSlider />

@@ -9,14 +9,6 @@ body {
   font-family: 'Inter', sans-serif;
   background-color: #000;
   color: #fff;
-  cursor: none; /* Hide default cursor for custom trail */
-}
-
-/* Restore cursor on touch devices */
-@media (pointer: coarse) {
-  body {
-    cursor: auto;
-  }
 }
 
 h1, h2, h3, h4, h5, h6 {
