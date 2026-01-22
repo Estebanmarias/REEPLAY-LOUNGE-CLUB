@@ -74,12 +74,12 @@ const OpeningHours: React.FC<OpeningHoursProps> = ({ theme }) => {
                  <span className="text-xs text-gray-500 mt-1">0906 062 1425</span>
               </a>
 
-              <a href="mailto:reeplaylounge@gmail.com" className={`flex flex-col items-center justify-center p-6 rounded-2xl border transition-all group
+              <a href="mailto:reeplayclub@gmail.com" className={`flex flex-col items-center justify-center p-6 rounded-2xl border transition-all group
                   ${isDark ? 'bg-white/5 border-white/5 hover:bg-white/10' : 'bg-gray-50 border-gray-100 hover:bg-gray-100'}
               `}>
                  <Mail className="w-8 h-8 mb-3 text-blue-500 group-hover:scale-110 transition-transform" />
                  <span className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Email Us</span>
-                 <span className="text-xs text-gray-500 mt-1">reeplaylounge@gmail.com</span>
+                 <span className="text-xs text-gray-500 mt-1">reeplayclub@gmail.com</span>
               </a>
            </div>
 

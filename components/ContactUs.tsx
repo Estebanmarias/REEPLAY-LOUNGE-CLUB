@@ -16,12 +16,21 @@ const ContactUs: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setStatus('submitting');
-    // Simulate network request
+    
+    // Construct the mailto link to open user's email client
+    const subject = encodeURIComponent(`Contact Form: ${formState.subject}`);
+    const body = encodeURIComponent(
+      `Name: ${formState.name}\nEmail: ${formState.email}\n\nMessage:\n${formState.message}`
+    );
+    
+    // Small delay to show "Sending..." state before opening mail client
     setTimeout(() => {
+      window.location.href = `mailto:reeplayclub@gmail.com?subject=${subject}&body=${body}`;
+      
       setStatus('success');
       setFormState({ name: '', email: '', subject: '', message: '' });
       setTimeout(() => setStatus('idle'), 3000);
-    }, 1500);
+    }, 1000);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -49,35 +58,46 @@ const ContactUs: React.FC = () => {
           >
             <h3 className="text-2xl font-bold text-white mb-6">Contact Info</h3>
             <div className="space-y-6">
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-purple-500/20 border border-purple-500/30 rounded-full text-purple-400">
+              <a 
+                href="https://www.google.com/maps/dir/?api=1&destination=Triple+SK+World+Under+G+Ogbomoso" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-start gap-4 group hover:bg-white/5 p-2 -ml-2 rounded-xl transition-all"
+              >
+                <div className="p-3 bg-purple-500/20 border border-purple-500/30 rounded-full text-purple-400 group-hover:scale-110 transition-transform">
                   <MapPin className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-white">Visit Us</h4>
+                  <h4 className="font-bold text-white group-hover:text-purple-400 transition-colors">Visit Us</h4>
                   <p className="text-gray-400">Triple SK World, Under G Rd,<br/>Ogbomosho, Nigeria</p>
                 </div>
-              </div>
+              </a>
               
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-full text-yellow-400">
+              <a 
+                href="tel:09060621425"
+                className="flex items-start gap-4 group hover:bg-white/5 p-2 -ml-2 rounded-xl transition-all"
+              >
+                <div className="p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-full text-yellow-400 group-hover:scale-110 transition-transform">
                   <Phone className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-white">Call Us</h4>
+                  <h4 className="font-bold text-white group-hover:text-yellow-400 transition-colors">Call Us</h4>
                   <p className="text-gray-400">0906 062 1425</p>
                 </div>
-              </div>
+              </a>
 
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-pink-500/20 border border-pink-500/30 rounded-full text-pink-400">
+              <a 
+                href="mailto:reeplayclub@gmail.com"
+                className="flex items-start gap-4 group hover:bg-white/5 p-2 -ml-2 rounded-xl transition-all"
+              >
+                <div className="p-3 bg-pink-500/20 border border-pink-500/30 rounded-full text-pink-400 group-hover:scale-110 transition-transform">
                   <Mail className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-white">Email Us</h4>
-                  <p className="text-gray-400">reeplaylounge@gmail.com</p>
+                  <h4 className="font-bold text-white group-hover:text-pink-400 transition-colors">Email Us</h4>
+                  <p className="text-gray-400">reeplayclub@gmail.com</p>
                 </div>
-              </div>
+              </a>
             </div>
           </MotionDiv>
         </div>
@@ -98,8 +118,8 @@ const ContactUs: React.FC = () => {
               >
                 <CheckCircle className="w-10 h-10" />
               </MotionDiv>
-              <h3 className="text-2xl font-bold text-white mb-2">Message Sent!</h3>
-              <p className="text-gray-400">We'll get back to you as soon as possible.</p>
+              <h3 className="text-2xl font-bold text-white mb-2">Opening Mail Client...</h3>
+              <p className="text-gray-400">Please complete the send action in your email app.</p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -162,7 +182,7 @@ const ContactUs: React.FC = () => {
                 className="w-full py-4 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-all flex items-center justify-center gap-2 disabled:opacity-70 shadow-[0_0_20px_rgba(255,255,255,0.2)]"
               >
                 {status === 'submitting' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                {status === 'submitting' ? 'Sending...' : 'Send Message'}
+                {status === 'submitting' ? 'Preparing Email...' : 'Send Message'}
               </button>
             </form>
           )}
