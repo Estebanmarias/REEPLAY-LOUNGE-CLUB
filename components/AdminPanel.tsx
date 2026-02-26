@@ -109,6 +109,11 @@ const AdminPanel: React.FC = () => {
 
   const handleMenuChange = (id: string, field: keyof MenuItemRow, value: any) => {
     setMenuItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
+    if (field === 'is_sold_out') {
+      supabase.from('menu_items').update({ is_sold_out: value }).eq('id', id).then(({ error }) => {
+        if (!error) showToast(value ? 'Marked as Sold Out!' : 'Item Available Again!');
+      });
+    }
   };
 
   // --- EVENTS ---
