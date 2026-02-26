@@ -438,6 +438,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   const [returningUser, setReturningUser] = useState<string | null>(null);
   
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartView, setCartView] = useState<CartView>('items');
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
@@ -549,6 +550,9 @@ useEffect(() => {
         },
        (payload) => {
     console.log('Real-time payload:', payload.new);
+    console.log('Payload keys:', Object.keys(payload.new));
+    console.log('Payload id:', payload.new.id);
+    console.log('Payload visual_id:', payload.new.visual_id);
     setHistory(prev => prev.map(order => 
     order.id === payload.new.visual_id || order.id === payload.new.id
       ? { ...order, status: payload.new.status }
@@ -556,7 +560,9 @@ useEffect(() => {
   ));
 }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Subscription status:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -569,8 +575,9 @@ useEffect(() => {
     }
   }, [isCartOpen]);
 
-  const showToast = (msg: string) => {
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToastMessage(msg);
+    setToastType(type);
     setTimeout(() => setToastMessage(null), 3000);
   };
 
@@ -1203,7 +1210,9 @@ useEffect(() => {
              initial={{ opacity: 0, y: -50 }}
              animate={{ opacity: 1, y: 0 }}
              exit={{ opacity: 0, y: -20 }}
-             className="fixed top-24 left-1/2 -translate-x-1/2 z-[90] bg-green-600 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-2 font-bold whitespace-nowrap pointer-events-none"
+             className={`fixed top-24 left-1/2 -translate-x-1/2 z-[90] text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-2 font-bold whitespace-nowrap pointer-events-none ${
+               toastType === 'success' ? 'bg-green-600' : 'bg-red-600'
+             }`}
           >
             <CheckCircle className="w-5 h-5" /> {toastMessage}
           </MotionDiv>
