@@ -1,7 +1,7 @@
-import { supabase } from '../lib/supabase';
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, ArrowRight, ChevronDown, Wand2, Instagram, MessageCircle, PackageOpen, ToggleLeft, ToggleRight, User, Copy, Share, ExternalLink, FileText } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import { orderService, PastOrder, CartItem } from '../lib/orderService';
 import MenuBackground from './MenuBackground';
 import PromoCarousel from './PromoCarousel';
@@ -15,6 +15,7 @@ interface MenuItem {
   name: string;
   desc: string;
   price: string;
+  isSoldOut?: boolean;
 }
 
 interface MenuItemExtended extends MenuItem {
@@ -346,48 +347,52 @@ const MenuItemCard: React.FC<{
             )}
          </AnimatePresence>
 
-        {hasQuantity && !CUSTOMIZABLE_CATEGORIES.includes(categoryId) ? (
-            <MotionDiv 
-                initial={{ opacity: 0, scale: 0.8 }} 
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center gap-3 bg-purple-900/40 border border-purple-500/50 rounded-lg p-1"
-            >
-                <button 
-                    onClick={() => onUpdateQuantity(item, -1, categoryId)} 
-                    className="w-8 h-8 flex items-center justify-center rounded-md bg-white/10 hover:bg-white/20 text-white transition-colors"
-                >
-                    <Minus className="w-4 h-4" />
-                </button>
-                <span className="font-bold text-white w-4 text-center">{quantityInCart}</span>
-                <button 
-                    onClick={() => onUpdateQuantity(item, 1, categoryId)} 
-                    className="w-8 h-8 flex items-center justify-center rounded-md bg-purple-600 hover:bg-purple-500 text-white transition-colors"
-                >
-                    <Plus className="w-4 h-4" />
-                </button>
-            </MotionDiv>
-        ) : (
-            <MotionButton
-                whileTap={!isProcessing ? { scale: 0.95 } : {}}
-                onClick={handleAddClick}
-                disabled={isProcessing}
-                className={`
-                    relative z-0 flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all duration-300
-                    ${isDark ? 'bg-white/10 hover:bg-purple-600 text-white' : 'bg-gray-200 hover:bg-purple-600 hover:text-white text-gray-800'}
-                    ${isProcessing ? 'opacity-80 cursor-wait' : ''}
-                `}
-            >
-                {isProcessing ? (
-                    <div className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                    </div>
-                ) : (
-                    CUSTOMIZABLE_CATEGORIES.includes(categoryId) ? (
-                        <>Customize <ChevronRight className="w-4 h-4" /></>
-                    ) : "Add to Order"
-                )}
-            </MotionButton>
-        )}
+        {item.isSoldOut ? (
+  <div className="px-5 py-2 rounded-lg text-sm font-bold bg-red-500/20 text-red-400 border border-red-500/30">
+    Sold Out
+  </div>
+) : hasQuantity && !CUSTOMIZABLE_CATEGORIES.includes(categoryId) ? (
+  <MotionDiv 
+    initial={{ opacity: 0, scale: 0.8 }} 
+    animate={{ opacity: 1, scale: 1 }}
+    className="flex items-center gap-3 bg-purple-900/40 border border-purple-500/50 rounded-lg p-1"
+  >
+    <button 
+      onClick={() => onUpdateQuantity(item, -1, categoryId)} 
+      className="w-8 h-8 flex items-center justify-center rounded-md bg-white/10 hover:bg-white/20 text-white transition-colors"
+    >
+      <Minus className="w-4 h-4" />
+    </button>
+    <span className="font-bold text-white w-4 text-center">{quantityInCart}</span>
+    <button 
+      onClick={() => onUpdateQuantity(item, 1, categoryId)} 
+      className="w-8 h-8 flex items-center justify-center rounded-md bg-purple-600 hover:bg-purple-500 text-white transition-colors"
+    >
+      <Plus className="w-4 h-4" />
+    </button>
+  </MotionDiv>
+) : (
+  <MotionButton
+    whileTap={!isProcessing ? { scale: 0.95 } : {}}
+    onClick={handleAddClick}
+    disabled={isProcessing || !!item.isSoldOut}
+    className={`
+      relative z-0 flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all duration-300
+      ${isDark ? 'bg-white/10 hover:bg-purple-600 text-white' : 'bg-gray-200 hover:bg-purple-600 hover:text-white text-gray-800'}
+      ${isProcessing ? 'opacity-80 cursor-wait' : ''}
+    `}
+  >
+    {isProcessing ? (
+      <div className="flex items-center gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" />
+      </div>
+    ) : (
+      CUSTOMIZABLE_CATEGORIES.includes(categoryId) ? (
+        <>Customize <ChevronRight className="w-4 h-4" /></>
+      ) : "Add to Order"
+    )}
+  </MotionButton>
+)}
       </div>
     </MotionDiv>
   );
