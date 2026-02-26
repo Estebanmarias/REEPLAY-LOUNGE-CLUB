@@ -60,8 +60,8 @@ const Footer: React.FC<FooterProps> = ({ theme, toggleTheme }) => {
   // Updated to 'dir' (directions) to immediately start navigation/route planning
   const mapLink = "https://www.google.com/maps/dir/?api=1&destination=Triple+SK+World+Under+G+Ogbomoso";
   const whatsappLink = "https://wa.me/2349060621425";
-  const tiktokLink = "https://www.tiktok.com/@reeplaylounge"; 
-  const igLink = "https://instagram.com/reeplaylounge_ogbomoso";
+  const tiktokLink = "https://www.tiktok.com/@reeplayclub?_r=1&_t=ZS-94EHfZ2m200"; 
+  const igLink = "https://www.instagram.com/reeplay_lounge?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==";
 
   // Icons URLs
   const whatsappIcon = "https://www.svgrepo.com/show/500461/whatsapp.svg";

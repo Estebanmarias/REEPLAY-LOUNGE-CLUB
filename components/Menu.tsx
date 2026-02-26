@@ -278,7 +278,7 @@ const needsContainer = (itemName: string) => {
 };
 
 const MenuItemCard: React.FC<{
-  item: MenuItem;
+  item: MenuItem & { isSoldOut?: boolean };
   categoryId: string;
   quantityInCart: number;
   onAdd: (item: MenuItem, categoryId: string) => void;
@@ -290,6 +290,7 @@ const MenuItemCard: React.FC<{
   const [isProcessing, setIsProcessing] = useState(false);
   
   const handleAddClick = () => {
+    if (item.isSoldOut) return;
     setIsProcessing(true);
     setTimeout(() => {
         setIsProcessing(false);
@@ -470,7 +471,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   
   const [needsBag, setNeedsBag] = useState(true);
 
-  const [menuItems, setMenuItems] = useState<Record<string, Array<MenuItem & { isSoldOut?: boolean }>>>(MENU_ITEMS);
+  const [menuItems, setMenuItems] = useState<Record<string, Array<MenuItem & { isSoldOut?: boolean }>>>({});
 
 useEffect(() => {
   const fetchMenu = async () => {
@@ -479,9 +480,13 @@ useEffect(() => {
       .select('*')
       .order('name');
 
-    if (error || !data) return;
+    if (error || !data) {
+      console.error('Error fetching menu:', error);
+      return;
+    }
 
-    console.log('Fetched menu data:', data.find((r: any) => r.is_sold_out));
+    console.log('Fetched menu data count:', data.length);
+    console.log('Sold out item sample:', data.find((r: any) => r.is_sold_out));
 
     const grouped: Record<string, Array<MenuItem & { isSoldOut?: boolean }>> = {};
     data.forEach((row: any) => {
