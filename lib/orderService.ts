@@ -1,5 +1,4 @@
-import { db } from './firebase';
-import { collection, addDoc, query, where, getDocs, orderBy, limit } from "firebase/firestore";
+import { supabase } from './supabase';
 
 export interface CartItem {
   name: string;
@@ -10,8 +9,8 @@ export interface CartItem {
 }
 
 export interface PastOrder {
-  id: string; // Visual ID (e.g. #1234)
-  guestId?: string; // Link order to a unique user profile
+  id: string;
+  guestId?: string;
   date: string;
   items: CartItem[];
   total: number;
@@ -32,20 +31,15 @@ export interface UserProfile {
 }
 
 const PROFILE_STORAGE_KEY = 'reeplay_user_profile';
-const OFFLINE_ORDERS_KEY = 'reeplay_offline_orders';
 
 const generateId = () => {
   return 'usr_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
 };
 
 export const orderService = {
-  // --- Profile Management (Keep local for device identification) ---
   getUserProfile: (): UserProfile => {
     const stored = localStorage.getItem(PROFILE_STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-    // Create new profile if none exists
+    if (stored) return JSON.parse(stored);
     const newProfile: UserProfile = {
       id: generateId(),
       name: '',
@@ -63,83 +57,59 @@ export const orderService = {
     return updated;
   },
 
-  // --- Order Management ---
-  
   saveOrder: async (order: PastOrder) => {
     const profile = orderService.getUserProfile();
-    const orderWithUser = { 
-      ...order, 
-      guestId: profile.id,
-      createdAt: new Date().toISOString()
-    };
+    const { error } = await supabase.from('orders').insert({
+      visual_id: order.id,
+      guest_id: profile.id,
+      date: order.date,
+      items: order.items,
+      total: order.total,
+      type: order.type,
+      details: order.details,
+      customer_name: order.customerName,
+      customer_phone: order.customerPhone,
+      status: order.status,
+      delivery_pin: order.deliveryPin || null,
+      special_requests: order.specialRequests || null,
+    });
 
-    // 1. Attempt Firestore Save
-    try {
-      // Use standard Date object for Firestore compatibility if connection works
-      await addDoc(collection(db, "orders"), {
-        ...orderWithUser,
-        createdAt: new Date() 
-      });
-      console.log("Order saved to Firestore");
-    } catch (e) {
-      console.warn("Firestore save failed (network/permission), falling back to local storage.", e);
-      
-      // 2. Fallback to LocalStorage so user is not blocked
-      try {
-        const existingStr = localStorage.getItem(OFFLINE_ORDERS_KEY);
-        const existing = existingStr ? JSON.parse(existingStr) : [];
-        existing.push(orderWithUser);
-        localStorage.setItem(OFFLINE_ORDERS_KEY, JSON.stringify(existing));
-      } catch (localErr) {
-        console.error("Local storage save failed", localErr);
-        throw new Error("Could not save order to device or cloud.");
-      }
+    if (error) {
+      console.error('Supabase save error:', error);
+      throw new Error('Could not save order.');
     }
-    
-    return orderWithUser;
+
+    return { ...order, guestId: profile.id };
   },
 
   getHistory: async (): Promise<PastOrder[]> => {
     const profile = orderService.getUserProfile();
-    let allOrders: PastOrder[] = [];
 
-    // 1. Fetch Local/Offline Orders first
-    try {
-        const localStr = localStorage.getItem(OFFLINE_ORDERS_KEY);
-        if (localStr) {
-            const localOrders = JSON.parse(localStr);
-            const userLocalOrders = localOrders.filter((o: any) => o.guestId === profile.id);
-            allOrders = [...allOrders, ...userLocalOrders];
-        }
-    } catch (e) { console.error("Error reading local history", e); }
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('guest_id', profile.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
 
-    // 2. Fetch Firestore Orders
-    try {
-      const ordersRef = collection(db, "orders");
-      const q = query(
-        ordersRef, 
-        where("guestId", "==", profile.id),
-        orderBy("createdAt", "desc"),
-        limit(20)
-      );
-
-      const querySnapshot = await getDocs(q);
-      querySnapshot.forEach((doc) => {
-        const data = doc.data() as any;
-        // Avoid duplicates if ID exists in local storage list (unlikely but safe)
-        if (!allOrders.find(o => o.id === data.id)) {
-             allOrders.push({
-                ...data,
-                // Ensure date strings remain strings
-                date: data.date || new Date().toISOString()
-            } as PastOrder);
-        }
-      });
-    } catch (e) {
-      console.warn("Could not fetch from Firestore, showing local history only.", e);
+    if (error) {
+      console.error('Supabase fetch error:', error);
+      return [];
     }
-    
-    // Sort combined list descending by date
-    return allOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    return (data || []).map((row: any) => ({
+      id: row.visual_id,
+      guestId: row.guest_id,
+      date: row.date,
+      items: row.items,
+      total: row.total,
+      type: row.type,
+      details: row.details,
+      customerName: row.customer_name,
+      customerPhone: row.customer_phone,
+      status: row.status,
+      deliveryPin: row.delivery_pin,
+      specialRequests: row.special_requests,
+    }));
   }
 };
