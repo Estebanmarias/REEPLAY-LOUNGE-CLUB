@@ -481,6 +481,8 @@ useEffect(() => {
 
     if (error || !data) return;
 
+    console.log('Fetched menu data:', data.find((r: any) => r.is_sold_out));
+
     const grouped: Record<string, Array<MenuItem & { isSoldOut?: boolean }>> = {};
     data.forEach((row: any) => {
       if (!grouped[row.category_id]) grouped[row.category_id] = [];
