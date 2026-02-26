@@ -528,11 +528,39 @@ useEffect(() => {
     loadHistory();
   }, []);
   
-  // Refresh history when opening the modal to get latest status updates
+  // Refresh history when opening the modal to get latest status updates + Real-time subscription
   useEffect(() => {
-    if (isHistoryOpen) {
-       orderService.getHistory().then(data => setHistory(data));
-    }
+    if (!isHistoryOpen) return;
+
+    const profile = orderService.getUserProfile();
+    
+    // Initial fetch
+    orderService.getHistory().then(data => setHistory(data));
+
+    // Real-time subscription
+    const channel = supabase
+      .channel('orders-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `guest_id=eq.${profile.id}`
+        },
+        (payload) => {
+          setHistory(prev => prev.map(order => 
+            order.id === payload.new.visual_id 
+              ? { ...order, status: payload.new.status }
+              : order
+          ));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [isHistoryOpen]);
 
   useEffect(() => {
