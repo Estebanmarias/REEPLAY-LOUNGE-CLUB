@@ -549,6 +549,7 @@ useEffect(() => {
           filter: `guest_id=eq.${profile.id}`
         },
        (payload) => {
+    console.log('Real-time payload:', payload.new);
     setHistory(prev => prev.map(order => 
     order.id === payload.new.visual_id || order.id === payload.new.id
       ? { ...order, status: payload.new.status }
