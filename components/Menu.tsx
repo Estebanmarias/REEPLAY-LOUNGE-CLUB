@@ -546,7 +546,6 @@ useEffect(() => {
           event: 'UPDATE',
           schema: 'public',
           table: 'orders',
-          filter: `guest_id=eq.${profile.id}`
         },
        (payload) => {
     console.log('Real-time payload:', payload.new);
