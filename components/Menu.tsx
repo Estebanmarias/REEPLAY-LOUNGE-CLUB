@@ -606,7 +606,7 @@ useEffect(() => {
     }
     const items = menuItems[activeCategory] || [];
     return items.map(item => ({ ...item, categoryId: activeCategory }));
-  }, [activeCategory, searchQuery]);
+   }, [activeCategory, searchQuery, menuItems]);
 
   const addToCart = (item: MenuItem, category: string, quantity: number = 1, mods: string[] = [], customPrice?: number) => {
     if (navigator.vibrate) navigator.vibrate(50); 
