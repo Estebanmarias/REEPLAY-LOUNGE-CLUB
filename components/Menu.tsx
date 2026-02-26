@@ -548,13 +548,13 @@ useEffect(() => {
           table: 'orders',
           filter: `guest_id=eq.${profile.id}`
         },
-        (payload) => {
-          setHistory(prev => prev.map(order => 
-            order.id === payload.new.visual_id 
-              ? { ...order, status: payload.new.status }
-              : order
-          ));
-        }
+       (payload) => {
+    setHistory(prev => prev.map(order => 
+    order.id === payload.new.visual_id || order.id === payload.new.id
+      ? { ...order, status: payload.new.status }
+      : order
+  ));
+}
       )
       .subscribe();
 
