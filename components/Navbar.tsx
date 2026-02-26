@@ -7,7 +7,7 @@ const MotionButton = motion.button as any;
 
 interface NavbarProps {
   onNavigate: (view: 'home' | 'menu' | 'events' | 'gallery') => void;
-  currentView: 'home' | 'menu' | 'events' | 'gallery';
+  currentView: 'home' | 'menu' | 'events' | 'gallery' | 'admin';
   onOpenReservation: () => void;
   theme: 'dark' | 'light';
   toggleTheme: () => void;
