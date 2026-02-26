@@ -1,3 +1,4 @@
+import { supabase } from '../lib/supabase';
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, ArrowRight, ChevronDown, Wand2, Instagram, MessageCircle, PackageOpen, ToggleLeft, ToggleRight, User, Copy, Share, ExternalLink, FileText } from 'lucide-react';
@@ -464,6 +465,32 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   
   const [needsBag, setNeedsBag] = useState(true);
 
+  const [menuItems, setMenuItems] = useState<Record<string, Array<MenuItem & { isSoldOut?: boolean }>>>(MENU_ITEMS);
+
+useEffect(() => {
+  const fetchMenu = async () => {
+    const { data, error } = await supabase
+      .from('menu_items')
+      .select('*')
+      .order('name');
+
+    if (error || !data) return;
+
+    const grouped: Record<string, Array<MenuItem & { isSoldOut?: boolean }>> = {};
+    data.forEach((row: any) => {
+      if (!grouped[row.category_id]) grouped[row.category_id] = [];
+      grouped[row.category_id].push({
+        name: row.name,
+        desc: row.description,
+        price: '₦' + Number(row.price).toLocaleString(),
+        isSoldOut: row.is_sold_out,
+      });
+    });
+    setMenuItems(grouped);
+  };
+  fetchMenu();
+}, []);
+
   const isDark = theme === 'dark';
 
   useEffect(() => {
@@ -560,7 +587,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   const filteredItems = useMemo(() => {
     if (searchQuery.length > 0) {
       const results: MenuItemExtended[] = [];
-      Object.entries(MENU_ITEMS).forEach(([catId, items]) => {
+      Object.entries(menuItems).forEach(([catId, items]) => {
         items.forEach(item => {
           if (
             item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -572,7 +599,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
       });
       return results;
     }
-    const items = MENU_ITEMS[activeCategory] || [];
+    const items = menuItems[activeCategory] || [];
     return items.map(item => ({ ...item, categoryId: activeCategory }));
   }, [activeCategory, searchQuery]);
 
