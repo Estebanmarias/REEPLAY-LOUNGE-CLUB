@@ -145,15 +145,24 @@ const AdminPanel: React.FC = () => {
   // --- ORDERS ---
   const fetchOrders = async () => {
     setOrdersLoading(true);
-    const { data } = await supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(50);
+    const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(50);
+    if (error) {
+      console.error('Error fetching orders:', error);
+      showToast('Failed to fetch orders', 'error');
+    }
     if (data) setOrders(data);
     setOrdersLoading(false);
   };
 
   const updateOrderStatus = async (id: string, status: string) => {
-    await supabase.from('orders').update({ status }).eq('id', id);
+    const { error } = await supabase.from('orders').update({ status }).eq('id', id);
+    if (error) {
+      console.error('Error updating order:', error);
+      showToast(`Error updating status: ${error.message}`, 'error');
+      return;
+    }
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
-    showToast('Status updated!');
+    showToast(`Status updated to ${status}!`, 'success');
   };
 
   // --- GALLERY ---
@@ -194,7 +203,36 @@ const AdminPanel: React.FC = () => {
     if (!isLoggedIn) return;
     if (activeView === 'menu') fetchMenu();
     if (activeView === 'events') fetchEvents();
-    if (activeView === 'orders') fetchOrders();
+    if (activeView === 'orders') {
+      fetchOrders();
+      
+      // Real-time subscription for order updates
+      const channel = supabase
+        .channel('admin-orders-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'orders',
+          },
+          (payload) => {
+            console.log('Order update received:', payload);
+            if (payload.eventType === 'UPDATE') {
+              setOrders(prev => prev.map(o => o.id === payload.new.id ? payload.new : o));
+            } else if (payload.eventType === 'INSERT') {
+              setOrders(prev => [payload.new, ...prev]);
+            }
+          }
+        )
+        .subscribe((status) => {
+          console.log('Admin orders subscription status:', status);
+        });
+      
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
     if (activeView === 'gallery') fetchGallery();
   }, [activeView, isLoggedIn]);
 
