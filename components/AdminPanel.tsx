@@ -51,7 +51,7 @@ const AdminPanel: React.FC = () => {
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [activeView, setActiveView] = useState<AdminView>('orders');
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // Menu state
   const [menuItems, setMenuItems] = useState<MenuItemRow[]>([]);
@@ -74,8 +74,8 @@ const AdminPanel: React.FC = () => {
   const [galleryLoading, setGalleryLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  const showToast = (msg: string) => {
-    setToast(msg);
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message: msg, type });
     setTimeout(() => setToast(null), 3000);
   };
 
@@ -180,7 +180,7 @@ const AdminPanel: React.FC = () => {
     const fileName = `${Date.now()}-${file.name}`;
     const { data, error } = await supabase.storage.from('gallery').upload(fileName, file);
     if (error) {
-      showToast('Upload failed: ' + error.message);
+      showToast('Upload failed: ' + error.message, 'error');
       setUploading(false);
       return;
     }
@@ -219,9 +219,11 @@ const AdminPanel: React.FC = () => {
           (payload) => {
             console.log('Order update received:', payload);
             if (payload.eventType === 'UPDATE') {
-              setOrders(prev => prev.map(o => o.id === payload.new.id ? payload.new : o));
+              const updatedOrder = payload.new as OrderRow;
+              setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
             } else if (payload.eventType === 'INSERT') {
-              setOrders(prev => [payload.new, ...prev]);
+              const newOrder = payload.new as OrderRow;
+              setOrders(prev => [newOrder, ...prev]);
             }
           }
         )
@@ -273,8 +275,10 @@ const AdminPanel: React.FC = () => {
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       {/* Toast */}
       {toast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-2 font-bold">
-          <CheckCircle className="w-4 h-4" /> {toast}
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-2 font-bold ${
+          toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+        }`}>
+          <CheckCircle className="w-4 h-4" /> {toast.message}
         </div>
       )}
 
