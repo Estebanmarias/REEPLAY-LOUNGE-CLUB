@@ -13,6 +13,7 @@ import ReservationModal from './components/ReservationModal';
 import ContactUs from './components/ContactUs';
 import DJLineup from './components/DJLineup';
 import OpeningHours from './components/OpeningHours';
+import AdminPanel from './components/AdminPanel';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const MotionDiv = motion.div as any;
@@ -39,7 +40,7 @@ const AboutSection: React.FC<{ theme: 'dark' | 'light' }> = ({ theme }) => {
   );
 };
 
-type ViewState = 'home' | 'menu' | 'events' | 'gallery';
+type ViewState = 'home' | 'menu' | 'events' | 'gallery' | 'admin';
 type Theme = 'dark' | 'light';
 
 const App: React.FC = () => {
@@ -67,7 +68,7 @@ const App: React.FC = () => {
       const hash = window.location.hash.replace('#', '');
       
       // Main Views
-      if (['home', 'menu', 'events', 'gallery'].includes(hash)) {
+      if (['home', 'menu', 'events', 'gallery', 'admin'].includes(hash)) {
         setView(hash as ViewState);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } 
@@ -185,6 +186,17 @@ const App: React.FC = () => {
             >
               <GalleryPage onBack={() => navigateTo('home')} />
               <Footer theme={theme} toggleTheme={toggleTheme} />
+            </MotionDiv>
+          )}
+
+          {view === 'admin' && (
+            <MotionDiv
+              key="admin"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <AdminPanel />
             </MotionDiv>
           )}
         </AnimatePresence>
