@@ -535,7 +535,11 @@ useEffect(() => {
     orderService.getHistory().then(data => setHistory(data));
 
     const interval = setInterval(() => {
-      orderService.getHistory().then(data => setHistory(data));
+      console.log('Polling orders...');
+      orderService.getHistory().then(data => {
+        console.log('Orders fetched:', data.map(o => ({ id: o.id, status: o.status })));
+        setHistory(data);
+      });
     }, 5000);
 
     return () => clearInterval(interval);
