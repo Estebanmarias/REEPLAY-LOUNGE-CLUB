@@ -532,8 +532,6 @@ useEffect(() => {
   useEffect(() => {
     if (!isHistoryOpen) return;
 
-    orderService.getHistory().then(data => setHistory(data));
-
     const interval = setInterval(() => {
       console.log('Polling orders...');
       orderService.getHistory().then(data => {
