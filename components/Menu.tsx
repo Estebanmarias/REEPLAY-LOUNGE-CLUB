@@ -529,44 +529,16 @@ useEffect(() => {
     loadHistory();
   }, []);
   
-  // Refresh history when opening the modal to get latest status updates + Real-time subscription
   useEffect(() => {
     if (!isHistoryOpen) return;
 
-    const profile = orderService.getUserProfile();
-    
-    // Initial fetch
     orderService.getHistory().then(data => setHistory(data));
 
-    // Real-time subscription
-    const channel = supabase
-      .channel('orders-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'orders',
-        },
-       (payload) => {
-    console.log('Real-time payload:', payload.new);
-    console.log('Payload keys:', Object.keys(payload.new));
-    console.log('Payload id:', payload.new.id);
-    console.log('Payload visual_id:', payload.new.visual_id);
-    setHistory(prev => prev.map(order => 
-    order.id === payload.new.visual_id || order.id === payload.new.id
-      ? { ...order, status: payload.new.status }
-      : order
-  ));
-}
-      )
-      .subscribe((status) => {
-        console.log('Subscription status:', status);
-      });
+    const interval = setInterval(() => {
+      orderService.getHistory().then(data => setHistory(data));
+    }, 5000);
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => clearInterval(interval);
   }, [isHistoryOpen]);
 
   useEffect(() => {
