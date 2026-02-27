@@ -396,7 +396,10 @@ const AdminPanel: React.FC = () => {
                       />
                     </div>
                     <button
-                      onClick={() => handleMenuChange(item.id, 'is_sold_out', !item.is_sold_out)}
+                      onClick={() => {
+                        console.log('Toggle clicked for:', item.name, 'current:', item.is_sold_out);
+                        handleMenuChange(item.id, 'is_sold_out', !item.is_sold_out);
+                      }}
                       className="shrink-0"
                     >
                       {item.is_sold_out
