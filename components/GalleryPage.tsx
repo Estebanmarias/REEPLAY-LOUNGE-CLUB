@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, RefreshCw, ZoomIn, X, Camera, ImageOff } from 'lucide-react';
-import { galleryImages } from '../staticData';
+import { ArrowLeft, RefreshCw, ZoomIn, X, Camera } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 const MotionDiv = motion.div as any;
 const MotionImg = motion.img as any;
@@ -20,6 +20,7 @@ interface GalleryItem {
 const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const processImages = (urls: string[]) => {
     return urls.map((url, i) => {
@@ -30,8 +31,24 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
     });
   };
 
+  const fetchGallery = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('gallery')
+      .select('image_url')
+      .order('created_at', { ascending: false });
+
+    if (error || !data || data.length === 0) {
+      setLoading(false);
+      return;
+    }
+
+    setItems(processImages(data.map((row: any) => row.image_url)));
+    setLoading(false);
+  };
+
   useEffect(() => {
-    setItems(processImages(galleryImages));
+    fetchGallery();
   }, []);
 
   const shuffleImages = () => {
@@ -65,23 +82,28 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
             GALLERY <Camera className="w-8 h-8 text-purple-500" />
           </h1>
         </div>
-        
         <button onClick={shuffleImages} className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-purple-600 rounded-full text-sm font-bold transition-all border border-white/10 shadow-lg">
           <RefreshCw className="w-4 h-4" /> Shuffle Vibes
         </button>
       </div>
 
-      <MotionDiv layout className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 auto-rows-[200px]">
-        <AnimatePresence>
-          {items.map((item) => (
-            <GalleryItemCard 
-                key={item.id} 
-                item={item} 
-                onClick={() => setSelectedImage(item.url)} 
-            />
-          ))}
-        </AnimatePresence>
-      </MotionDiv>
+      {loading ? (
+        <div className="flex items-center justify-center h-64 text-gray-500">Loading gallery...</div>
+      ) : items.length === 0 ? (
+        <div className="flex items-center justify-center h-64 text-gray-500">No images yet.</div>
+      ) : (
+        <MotionDiv layout className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 auto-rows-[200px]">
+          <AnimatePresence>
+            {items.map((item) => (
+              <GalleryItemCard
+                key={item.id}
+                item={item}
+                onClick={() => setSelectedImage(item.url)}
+              />
+            ))}
+          </AnimatePresence>
+        </MotionDiv>
+      )}
 
       <AnimatePresence>
         {selectedImage && (
@@ -111,33 +133,32 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
   );
 };
 
-const GalleryItemCard: React.FC<{ item: GalleryItem, onClick: () => void }> = ({ item, onClick }) => {
-    const [hasError, setHasError] = useState(false);
+const GalleryItemCard: React.FC<{ item: GalleryItem; onClick: () => void }> = ({ item, onClick }) => {
+  const [hasError, setHasError] = useState(false);
+  if (hasError) return null;
 
-    if (hasError) return null;
-
-    return (
-        <MotionDiv
-            layout
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1, rotate: item.rotation }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            style={{ rotate: item.rotation }}
-            className={`relative group rounded-xl overflow-hidden cursor-pointer bg-[#111] shadow-[0_0_15px_rgba(0,0,0,0.5)] border border-white/10 ${item.spanClass} hover:z-10 hover:scale-[1.05] hover:border-purple-500/50 hover:rotate-0 transition-all duration-300`}
-            onClick={onClick}
-        >
-            <img 
-                src={item.url} 
-                alt="Gallery" 
-                className="w-full h-full object-cover" 
-                loading="lazy" 
-                onError={() => setHasError(true)}
-            />
-            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                <ZoomIn className="w-8 h-8 text-white drop-shadow-lg" />
-            </div>
-        </MotionDiv>
-    );
-}
+  return (
+    <MotionDiv
+      layout
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1, rotate: item.rotation }}
+      exit={{ opacity: 0, scale: 0.8 }}
+      style={{ rotate: item.rotation }}
+      className={`relative group rounded-xl overflow-hidden cursor-pointer bg-[#111] shadow-[0_0_15px_rgba(0,0,0,0.5)] border border-white/10 ${item.spanClass} hover:z-10 hover:scale-[1.05] hover:border-purple-500/50 hover:rotate-0 transition-all duration-300`}
+      onClick={onClick}
+    >
+      <img
+        src={item.url}
+        alt="Gallery"
+        className="w-full h-full object-cover"
+        loading="lazy"
+        onError={() => setHasError(true)}
+      />
+      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+        <ZoomIn className="w-8 h-8 text-white drop-shadow-lg" />
+      </div>
+    </MotionDiv>
+  );
+};
 
 export default GalleryPage;
