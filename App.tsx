@@ -48,6 +48,11 @@ const App: React.FC = () => {
   const [isReservationOpen, setIsReservationOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>('dark');
 
+  // Render admin panel completely standalone
+  if (window.location.hash === '#admin') {
+    return <AdminPanel />;
+  }
+
   // Handle Theme Persistence
   useEffect(() => {
     const storedTheme = localStorage.getItem('reeplay_theme') as Theme | null;
