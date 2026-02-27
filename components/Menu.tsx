@@ -532,13 +532,24 @@ useEffect(() => {
   useEffect(() => {
     if (!isHistoryOpen) return;
 
-    const interval = setInterval(() => {
-      console.log('Polling orders...');
-      orderService.getHistory().then(data => {
+    console.log('History modal opened, starting polling...');
+
+    const pollOrders = async () => {
+      try {
+        console.log('Polling orders...');
+        const data = await orderService.getHistory();
         console.log('Orders fetched:', data.map(o => ({ id: o.id, status: o.status })));
         setHistory(data);
-      });
-    }, 5000);
+      } catch (e) {
+        console.error('Error polling orders:', e);
+      }
+    };
+
+    // Poll immediately on open
+    pollOrders();
+
+    // Then poll every 5 seconds
+    const interval = setInterval(pollOrders, 5000);
 
     return () => clearInterval(interval);
   }, [isHistoryOpen]);
