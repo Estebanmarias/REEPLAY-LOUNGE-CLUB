@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { LogOut, Menu, Calendar, ShoppingBag, Image, Save, ToggleLeft, ToggleRight, Loader2, CheckCircle, Trash2, Plus, X } from 'lucide-react';
 
-const ADMIN_USERNAME = 'reeplaylounge';
 const ADMIN_PASSWORD = 'reeplay2026';
 
 type AdminView = 'menu' | 'events' | 'orders' | 'gallery';
@@ -47,11 +46,10 @@ const STATUSES = ['Pending', 'Confirmed', 'Out for Delivery', 'Completed'];
 
 const AdminPanel: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [activeView, setActiveView] = useState<AdminView>('orders');
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
   // Menu state
   const [menuItems, setMenuItems] = useState<MenuItemRow[]>([]);
@@ -74,17 +72,17 @@ const AdminPanel: React.FC = () => {
   const [galleryLoading, setGalleryLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
-    setToast({ message: msg, type });
+  const showToast = (msg: string) => {
+    setToast(msg);
     setTimeout(() => setToast(null), 3000);
   };
 
   const handleLogin = () => {
-    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+    if (password === ADMIN_PASSWORD) {
       setIsLoggedIn(true);
       setPasswordError('');
     } else {
-      setPasswordError('Incorrect username or password.');
+      setPasswordError('Incorrect password.');
     }
   };
 
@@ -109,16 +107,6 @@ const AdminPanel: React.FC = () => {
 
   const handleMenuChange = (id: string, field: keyof MenuItemRow, value: any) => {
     setMenuItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
-    if (field === 'is_sold_out') {
-      supabase.from('menu_items').update({ is_sold_out: value }).eq('id', id).then(({ error }) => {
-        if (error) {
-          console.error('Sold out update error:', error);
-          showToast('Error: ' + error.message, 'error');
-        } else {
-          showToast(value ? 'Marked as Sold Out!' : 'Item Available Again!');
-        }
-      });
-    }
   };
 
   // --- EVENTS ---
@@ -155,24 +143,15 @@ const AdminPanel: React.FC = () => {
   // --- ORDERS ---
   const fetchOrders = async () => {
     setOrdersLoading(true);
-    const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(50);
-    if (error) {
-      console.error('Error fetching orders:', error);
-      showToast('Failed to fetch orders', 'error');
-    }
+    const { data } = await supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(50);
     if (data) setOrders(data);
     setOrdersLoading(false);
   };
 
   const updateOrderStatus = async (id: string, status: string) => {
-    const { error } = await supabase.from('orders').update({ status }).eq('id', id);
-    if (error) {
-      console.error('Error updating order:', error);
-      showToast(`Error updating status: ${error.message}`, 'error');
-      return;
-    }
+    await supabase.from('orders').update({ status }).eq('id', id);
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
-    showToast(`Status updated to ${status}!`, 'success');
+    showToast('Status updated!');
   };
 
   // --- GALLERY ---
@@ -190,7 +169,7 @@ const AdminPanel: React.FC = () => {
     const fileName = `${Date.now()}-${file.name}`;
     const { data, error } = await supabase.storage.from('gallery').upload(fileName, file);
     if (error) {
-      showToast('Upload failed: ' + error.message, 'error');
+      showToast('Upload failed: ' + error.message);
       setUploading(false);
       return;
     }
@@ -213,38 +192,7 @@ const AdminPanel: React.FC = () => {
     if (!isLoggedIn) return;
     if (activeView === 'menu') fetchMenu();
     if (activeView === 'events') fetchEvents();
-    if (activeView === 'orders') {
-      fetchOrders();
-      
-      // Real-time subscription for order updates
-      const channel = supabase
-        .channel('admin-orders-changes')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'orders',
-          },
-          (payload) => {
-            console.log('Order update received:', payload);
-            if (payload.eventType === 'UPDATE') {
-              const updatedOrder = payload.new as OrderRow;
-              setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
-            } else if (payload.eventType === 'INSERT') {
-              const newOrder = payload.new as OrderRow;
-              setOrders(prev => [newOrder, ...prev]);
-            }
-          }
-        )
-        .subscribe((status) => {
-          console.log('Admin orders subscription status:', status);
-        });
-      
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
+    if (activeView === 'orders') fetchOrders();
     if (activeView === 'gallery') fetchGallery();
   }, [activeView, isLoggedIn]);
 
@@ -255,14 +203,6 @@ const AdminPanel: React.FC = () => {
         <div className="w-full max-w-sm bg-[#18181b] border border-white/10 rounded-2xl p-8">
           <h1 className="text-2xl font-black text-white mb-2">Admin Panel</h1>
           <p className="text-gray-500 text-sm mb-6">Reeplay Lounge & Club</p>
-          <input
-            type="text"
-            placeholder="Username"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleLogin()}
-            className="w-full bg-white/5 border border-white/10 text-white rounded-xl p-3 outline-none focus:border-purple-500 mb-3"
-          />
           <input
             type="password"
             placeholder="Enter password"
@@ -285,10 +225,8 @@ const AdminPanel: React.FC = () => {
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-2 font-bold ${
-          toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
-        }`}>
-          <CheckCircle className="w-4 h-4" /> {toast.message}
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-2 font-bold">
+          <CheckCircle className="w-4 h-4" /> {toast}
         </div>
       )}
 
@@ -396,10 +334,7 @@ const AdminPanel: React.FC = () => {
                       />
                     </div>
                     <button
-                      onClick={() => {
-                        console.log('Toggle clicked for:', item.name, 'current:', item.is_sold_out);
-                        handleMenuChange(item.id, 'is_sold_out', !item.is_sold_out);
-                      }}
+                      onClick={() => handleMenuChange(item.id, 'is_sold_out', !item.is_sold_out)}
                       className="shrink-0"
                     >
                       {item.is_sold_out
