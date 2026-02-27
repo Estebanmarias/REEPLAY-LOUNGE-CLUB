@@ -934,7 +934,10 @@ useEffect(() => {
               <ArrowLeft />
             </button>
             <button 
-              onClick={() => setIsHistoryOpen(true)}
+              onClick={() => {
+                console.log('History button clicked, current isHistoryOpen:', isHistoryOpen);
+                setIsHistoryOpen(true);
+              }}
               className={`p-2 rounded-full transition-colors flex items-center gap-2 px-4 ${isDark ? 'bg-white/10 hover:bg-yellow-600' : 'bg-gray-200 hover:bg-yellow-500 hover:text-white'}`}
             >
               <History className="w-5 h-5" />
