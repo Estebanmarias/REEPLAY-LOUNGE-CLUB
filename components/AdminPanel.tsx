@@ -110,21 +110,14 @@ const AdminPanel: React.FC = () => {
   const handleMenuChange = (id: string, field: keyof MenuItemRow, value: any) => {
     setMenuItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
     if (field === 'is_sold_out') {
-      (async () => {
-        try {
-          const { data, error } = await supabase.from('menu_items').update({ is_sold_out: value }).eq('id', id);
-          console.log('Sold out update response:', { data, error, id, value });
-          if (error) {
-            console.error('Failed to update sold out status:', error);
-            showToast('Failed to save: ' + error.message, 'error');
-          } else {
-            showToast(value ? 'Marked as Sold Out!' : 'Item Available Again!');
-          }
-        } catch (err: any) {
-          console.error('Caught error in sold out update:', err);
-          showToast('Error updating item: ' + err.message, 'error');
+      supabase.from('menu_items').update({ is_sold_out: value }).eq('id', id).then(({ error }) => {
+        if (error) {
+          console.error('Sold out update error:', error);
+          showToast('Error: ' + error.message, 'error');
+        } else {
+          showToast(value ? 'Marked as Sold Out!' : 'Item Available Again!');
         }
-      })();
+      });
     }
   };
 
