@@ -146,6 +146,7 @@ const GalleryItemCard: React.FC<{ item: GalleryItem; onClick: () => void }> = ({
       exit={{ opacity: 0, scale: 0.8 }}
       style={{ rotate: item.rotation }}
       className={`relative group rounded-xl overflow-hidden cursor-pointer bg-[#111] shadow-[0_0_15px_rgba(0,0,0,0.5)] border border-white/10 ${item.spanClass} hover:z-10 hover:scale-[1.05] hover:border-purple-500/50 hover:rotate-0 transition-all duration-300`}
+       style={{ minHeight: '200px' }}
       onClick={onClick}
     >
       <img
