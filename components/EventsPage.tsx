@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { ArrowLeft, Calendar, Clock, MapPin, Music, Ticket, Share2, Check } from 'lucide-react';
 import RsvpModal from './RsvpModal';
-import { upcomingSpecialEvents } from '../staticData';
+import { supabase } from '../lib/supabase';
 
 const MotionDiv = motion.div as any;
 const MotionImg = motion.img as any;
@@ -17,9 +17,10 @@ interface SpecialEvent {
   date: string;
   time: string;
   category: string;
-  image: string;
+  image: string;       // mapped from image_url
   description: string;
   price: string;
+  is_active: boolean;
 }
 
 const EventCard: React.FC<{ 
@@ -35,7 +36,6 @@ const EventCard: React.FC<{
     offset: ["start end", "end start"]
   });
 
-  // Smooth parallax effect: Image moves slower than the container
   const y = useTransform(scrollYProgress, [0, 1], ["-10%", "10%"]);
 
   const handleShare = async () => {
@@ -105,7 +105,7 @@ const EventCard: React.FC<{
             <MapPin className="w-5 h-5 mr-3 text-red-500" />
             <span>Reeplay Lounge, Ogbomosho</span>
           </div>
-           <div className="flex items-center text-gray-300">
+          <div className="flex items-center text-gray-300">
             <Ticket className="w-5 h-5 mr-3 text-green-500" />
             <span className="uppercase text-sm font-bold tracking-wider">{event.price}</span>
           </div>
@@ -129,12 +129,15 @@ const EventCard: React.FC<{
 const EventsPage: React.FC<EventsPageProps> = ({ onBack }) => {
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState("");
+  const [events, setEvents] = useState<SpecialEvent[]>([]);
+  const [loading, setLoading] = useState(true);
 
+  // Countdown timer
   useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date();
       const target = new Date();
-      target.setHours(22, 0, 0, 0); // Next 10 PM
+      target.setHours(22, 0, 0, 0);
       if (now > target) target.setDate(target.getDate() + 1);
       const diff = target.getTime() - now.getTime();
       const h = Math.floor(diff / (1000 * 60 * 60));
@@ -143,6 +146,26 @@ const EventsPage: React.FC<EventsPageProps> = ({ onBack }) => {
       setTimeLeft(`${h}h ${m}m ${s}s`);
     }, 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Fetch events from Supabase
+  useEffect(() => {
+    const fetchEvents = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        // Map image_url → image to match the EventCard interface
+        setEvents(data.map((e: any) => ({ ...e, image: e.image_url })));
+      }
+      setLoading(false);
+    };
+
+    fetchEvents();
   }, []);
 
   return (
@@ -166,7 +189,7 @@ const EventsPage: React.FC<EventsPageProps> = ({ onBack }) => {
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div>
-           <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
+          <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
             SPECIALS
           </h1>
           <p className="text-gray-400 text-sm mt-1">Upcoming Exclusive Nights</p>
@@ -183,16 +206,22 @@ const EventsPage: React.FC<EventsPageProps> = ({ onBack }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {upcomingSpecialEvents.map((event, index) => (
-          <EventCard 
-            key={event.id} 
-            event={event} 
-            index={index}
-            onReserve={(title) => setSelectedEvent(title)} 
-          />
-        ))}
-      </div>
+      {loading ? (
+        <div className="flex items-center justify-center h-64 text-gray-500">Loading events...</div>
+      ) : events.length === 0 ? (
+        <div className="flex items-center justify-center h-64 text-gray-500">No upcoming events.</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {events.map((event, index) => (
+            <EventCard 
+              key={event.id} 
+              event={event} 
+              index={index}
+              onReserve={(title) => setSelectedEvent(title)} 
+            />
+          ))}
+        </div>
+      )}
     </MotionDiv>
   );
 };
