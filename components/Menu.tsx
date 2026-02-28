@@ -595,30 +595,31 @@ useEffect(() => {
     return () => clearInterval(interval);
   }, [isHistoryOpen]);
 useEffect(() => {
-    if (!isReceiptOpen || !lastOrder) return;
-    setLiveStatus(lastOrder.status);
-    const channel = supabase
-      .channel(`order-status-${lastOrder.id}`)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'orders',
-        filter: `visual_id=eq.${lastOrder.id}`,
-      }, (payload) => {
-        const newStatus = payload.new.status;
-        setLiveStatus(newStatus);
-        setHistory(prev =>
-          prev.map(o => o.id === lastOrder.id ? { ...o, status: newStatus } : o)
-        );
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [isReceiptOpen, lastOrder?.id]);
-  useEffect(() => {
-    if (!isCartOpen) {
-      setCartView('items');
-    }
-  }, [isCartOpen]);
+  if (!isReceiptOpen || !lastOrder) return;
+  setLiveStatus(lastOrder.status);
+
+  console.log('Subscribing to order:', lastOrder.id);
+
+  const channel = supabase
+    .channel(`order-status-${lastOrder.id}`)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'orders',
+      filter: `visual_id=eq.${lastOrder.id}`,
+    }, (payload) => {
+      console.log('Realtime payload received:', payload);
+      const newStatus = payload.new.status;
+      setLiveStatus(newStatus);
+      setHistory(prev =>
+        prev.map(o => o.id === lastOrder.id ? { ...o, status: newStatus } : o)
+      );
+    })
+    .subscribe((status) => {
+      console.log('Channel status:', status);
+    });
+  return () => { supabase.removeChannel(channel); };
+}, [isReceiptOpen, lastOrder?.id]);
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToastMessage(msg);
