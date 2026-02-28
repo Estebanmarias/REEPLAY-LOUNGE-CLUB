@@ -92,8 +92,12 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
       ) : items.length === 0 ? (
         <div className="flex items-center justify-center h-64 text-gray-500">No images yet.</div>
       ) : (
-        <MotionDiv layout className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
-          style={{ gridAutoRows: '200px' }}>
+        // FIX: removed `layout` from grid wrapper — it conflicts with spanning grid items
+        // FIX: switched to inline style gridAutoRows so tracks are explicit
+        <div
+          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+          style={{ gridAutoRows: '200px' }}
+        >
           <AnimatePresence>
             {items.map((item) => (
               <GalleryItemCard
@@ -103,7 +107,7 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
               />
             ))}
           </AnimatePresence>
-        </MotionDiv>
+        </div>
       )}
 
       <AnimatePresence>
@@ -142,17 +146,17 @@ const GalleryItemCard: React.FC<{ item: GalleryItem; onClick: () => void }> = ({
     <MotionDiv
       layout
       initial={{ opacity: 0, scale: 0.8 }}
-      animate={{ opacity: 1, scale: 1, rotate: item.rotation }}
+      animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.8 }}
-      style={{ rotate: item.rotation }}
-      className={`relative group rounded-xl overflow-hidden cursor-pointer bg-[#111] shadow-[0_0_15px_rgba(0,0,0,0.5)] border border-white/10 ${item.spanClass} hover:z-10 hover:scale-[1.05] hover:border-purple-500/50 hover:rotate-0 transition-all duration-300`}
-       style={{ minHeight: '200px' }}
+      // FIX: merged both styles into one object — two style props was silently dropping minHeight
+      style={{ rotate: item.rotation, minHeight: '200px' }}
+      className={`relative group rounded-xl overflow-hidden cursor-pointer bg-[#111] shadow-[0_0_15px_rgba(0,0,0,0.5)] border border-white/10 ${item.spanClass} hover:z-10 hover:scale-[1.05] hover:border-purple-500/50 transition-all duration-300`}
       onClick={onClick}
     >
       <img
         src={item.url}
         alt="Gallery"
-        className="w-full h-full object-cover"
+        className="absolute inset-0 w-full h-full object-cover"
         loading="lazy"
         onError={() => setHasError(true)}
       />
