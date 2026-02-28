@@ -92,7 +92,8 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
       ) : items.length === 0 ? (
         <div className="flex items-center justify-center h-64 text-gray-500">No images yet.</div>
       ) : (
-        <MotionDiv layout className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 auto-rows-[200px]">
+        <MotionDiv layout className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+          style={{ gridAutoRows: '200px' }}>
           <AnimatePresence>
             {items.map((item) => (
               <GalleryItemCard
