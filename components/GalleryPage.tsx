@@ -31,24 +31,24 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
     });
   };
 
- const fetchGallery = async () => {
-  setLoading(true);
-  const { data, error } = await supabase
-    .from('gallery')
-    .select('image_url')
-    .order('created_at', { ascending: false });
+  const fetchGallery = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('gallery')
+      .select('image_url')
+      .order('created_at', { ascending: false });
 
-  console.log('Gallery data:', data);
-  console.log('Gallery error:', error);
+    console.log('Gallery data:', data);
+    console.log('Gallery error:', error);
 
-  if (error || !data || data.length === 0) {
+    if (error || !data || data.length === 0) {
+      setLoading(false);
+      return;
+    }
+
+    setItems(processImages(data.map((row: any) => row.image_url)));
     setLoading(false);
-    return;
-  }
-
-  setItems(processImages(data.map((row: any) => row.image_url)));
-  setLoading(false);
-};
+  };
 
   useEffect(() => {
     fetchGallery();
@@ -95,8 +95,6 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
       ) : items.length === 0 ? (
         <div className="flex items-center justify-center h-64 text-gray-500">No images yet.</div>
       ) : (
-        // FIX: removed `layout` from grid wrapper — it conflicts with spanning grid items
-        // FIX: switched to inline style gridAutoRows so tracks are explicit
         <div
           className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
           style={{ gridAutoRows: '200px' }}
@@ -151,7 +149,6 @@ const GalleryItemCard: React.FC<{ item: GalleryItem; onClick: () => void }> = ({
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.8 }}
-      // FIX: merged both styles into one object — two style props was silently dropping minHeight
       style={{ rotate: item.rotation, minHeight: '200px' }}
       className={`relative group rounded-xl overflow-hidden cursor-pointer bg-[#111] shadow-[0_0_15px_rgba(0,0,0,0.5)] border border-white/10 ${item.spanClass} hover:z-10 hover:scale-[1.05] hover:border-purple-500/50 transition-all duration-300`}
       onClick={onClick}
