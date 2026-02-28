@@ -31,21 +31,24 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ onBack }) => {
     });
   };
 
-  const fetchGallery = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('gallery')
-      .select('image_url')
-      .order('created_at', { ascending: false });
+ const fetchGallery = async () => {
+  setLoading(true);
+  const { data, error } = await supabase
+    .from('gallery')
+    .select('image_url')
+    .order('created_at', { ascending: false });
 
-    if (error || !data || data.length === 0) {
-      setLoading(false);
-      return;
-    }
+  console.log('Gallery data:', data);
+  console.log('Gallery error:', error);
 
-    setItems(processImages(data.map((row: any) => row.image_url)));
+  if (error || !data || data.length === 0) {
     setLoading(false);
-  };
+    return;
+  }
+
+  setItems(processImages(data.map((row: any) => row.image_url)));
+  setLoading(false);
+};
 
   useEffect(() => {
     fetchGallery();
