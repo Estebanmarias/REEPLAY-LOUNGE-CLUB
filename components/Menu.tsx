@@ -430,6 +430,47 @@ const getStatusBadge = (status: string) => {
 };
 
 // --- Main Component ---
+const STATUS_STEPS = ['Pending', 'Confirmed', 'Out for Delivery', 'Completed'];
+
+const StatusTracker: React.FC<{ status: string }> = ({ status }) => {
+  const currentIndex = STATUS_STEPS.findIndex(
+    s => s.toLowerCase() === status.toLowerCase()
+  );
+  const stepIcons = [Clock, ChefHat, Bike, CheckCheck];
+  return (
+    <div className="bg-[#111] px-4 py-4 border-b border-white/10">
+      <p className="text-xs text-gray-400 uppercase tracking-widest mb-3 text-center font-bold">
+        Order Status
+      </p>
+      <div className="flex items-center justify-between relative">
+        <div className="absolute top-4 left-0 right-0 h-0.5 bg-white/10 z-0" />
+        <div
+          className="absolute top-4 left-0 h-0.5 bg-purple-500 z-0 transition-all duration-700"
+          style={{ width: `${(currentIndex / (STATUS_STEPS.length - 1)) * 100}%` }}
+        />
+        {STATUS_STEPS.map((step, i) => {
+          const Icon = stepIcons[i];
+          const isActive = i === currentIndex;
+          const isDone = i < currentIndex;
+          return (
+            <div key={step} className="flex flex-col items-center gap-1 z-10 flex-1">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500
+                ${isDone ? 'bg-purple-600 text-white' :
+                  isActive ? 'bg-purple-500 text-white ring-2 ring-purple-300 ring-offset-1 ring-offset-[#111]' :
+                  'bg-white/10 text-gray-600'}`}>
+                <Icon className={`w-4 h-4 ${isActive ? 'animate-pulse' : ''}`} />
+              </div>
+              <span className={`text-[9px] font-bold uppercase tracking-wider text-center leading-tight
+                ${isActive ? 'text-purple-400' : isDone ? 'text-gray-400' : 'text-gray-600'}`}>
+                {step}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   const [activeCategory, setActiveCategory] = useState('rice');
   const [searchQuery, setSearchQuery] = useState('');
@@ -471,6 +512,7 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   const [generatedDeliveryPin, setGeneratedDeliveryPin] = useState<string | null>(null);
   
   const [needsBag, setNeedsBag] = useState(true);
+  const [liveStatus, setLiveStatus] = useState<string>('Pending');
 
   const [menuItems, setMenuItems] = useState<Record<string, Array<MenuItem & { isSoldOut?: boolean }>>>({});
 
@@ -531,6 +573,29 @@ useEffect(() => {
   
   useEffect(() => {
     if (!isHistoryOpen) return;
+    useEffect(() => {
+  if (!isReceiptOpen || !lastOrder) {
+    setLiveStatus(lastOrder?.status || 'Pending');
+    return;
+  }
+  setLiveStatus(lastOrder.status);
+  const channel = supabase
+    .channel(`order-status-${lastOrder.id}`)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'orders',
+      filter: `visual_id=eq.${lastOrder.id}`,
+    }, (payload) => {
+      const newStatus = payload.new.status;
+      setLiveStatus(newStatus);
+      setHistory(prev =>
+        prev.map(o => o.id === lastOrder.id ? { ...o, status: newStatus } : o)
+      );
+    })
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}, [isReceiptOpen, lastOrder?.id]);
 
     console.log('History modal opened, starting polling...');
 
@@ -1355,6 +1420,7 @@ useEffect(() => {
                         <h2 className="font-bold flex items-center gap-2"><CheckCircle className="text-green-500" /> Order Ready</h2>
                         <button onClick={() => setIsReceiptOpen(false)}><X className="w-5 h-5"/></button>
                     </div>
+                    <StatusTracker status={liveStatus} />
 
                     {/* Receipt Paper */}
                     <div className="bg-white p-6 overflow-y-auto custom-scrollbar relative flex-1">
