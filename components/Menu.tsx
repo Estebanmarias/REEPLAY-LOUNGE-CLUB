@@ -428,8 +428,6 @@ const getStatusBadge = (status: string) => {
     </span>
   );
 };
-
-// --- Main Component ---
 const STATUS_STEPS = ['Pending', 'Confirmed', 'Out for Delivery', 'Completed'];
 
 const StatusTracker: React.FC<{ status: string }> = ({ status }) => {
@@ -471,6 +469,7 @@ const StatusTracker: React.FC<{ status: string }> = ({ status }) => {
     </div>
   );
 };
+// --- Main Component ---
 const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   const [activeCategory, setActiveCategory] = useState('rice');
   const [searchQuery, setSearchQuery] = useState('');
@@ -573,29 +572,6 @@ useEffect(() => {
   
   useEffect(() => {
     if (!isHistoryOpen) return;
-    useEffect(() => {
-  if (!isReceiptOpen || !lastOrder) {
-    setLiveStatus(lastOrder?.status || 'Pending');
-    return;
-  }
-  setLiveStatus(lastOrder.status);
-  const channel = supabase
-    .channel(`order-status-${lastOrder.id}`)
-    .on('postgres_changes', {
-      event: 'UPDATE',
-      schema: 'public',
-      table: 'orders',
-      filter: `visual_id=eq.${lastOrder.id}`,
-    }, (payload) => {
-      const newStatus = payload.new.status;
-      setLiveStatus(newStatus);
-      setHistory(prev =>
-        prev.map(o => o.id === lastOrder.id ? { ...o, status: newStatus } : o)
-      );
-    })
-    .subscribe();
-  return () => { supabase.removeChannel(channel); };
-}, [isReceiptOpen, lastOrder?.id]);
 
     console.log('History modal opened, starting polling...');
 
@@ -618,7 +594,26 @@ useEffect(() => {
 
     return () => clearInterval(interval);
   }, [isHistoryOpen]);
-
+useEffect(() => {
+    if (!isReceiptOpen || !lastOrder) return;
+    setLiveStatus(lastOrder.status);
+    const channel = supabase
+      .channel(`order-status-${lastOrder.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'orders',
+        filter: `visual_id=eq.${lastOrder.id}`,
+      }, (payload) => {
+        const newStatus = payload.new.status;
+        setLiveStatus(newStatus);
+        setHistory(prev =>
+          prev.map(o => o.id === lastOrder.id ? { ...o, status: newStatus } : o)
+        );
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [isReceiptOpen, lastOrder?.id]);
   useEffect(() => {
     if (!isCartOpen) {
       setCartView('items');
@@ -1420,8 +1415,7 @@ useEffect(() => {
                         <h2 className="font-bold flex items-center gap-2"><CheckCircle className="text-green-500" /> Order Ready</h2>
                         <button onClick={() => setIsReceiptOpen(false)}><X className="w-5 h-5"/></button>
                     </div>
-                    <StatusTracker status={liveStatus} />
-
+                  <StatusTracker status={liveStatus} /> 
                     {/* Receipt Paper */}
                     <div className="bg-white p-6 overflow-y-auto custom-scrollbar relative flex-1">
                         <div className="text-center mb-6">
