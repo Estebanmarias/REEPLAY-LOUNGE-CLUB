@@ -44,7 +44,7 @@ interface ConfirmAction {
 
 // --- Constants & Data ---
 const IG_DM_LINK = "https://ig.me/m/reeplaylounge_ogbomoso"; 
-const WHATSAPP_PHONE = "2349060621425";
+const WHATSAPP_PHONE = "2349061203547";
 const VAT_RATE = 0.075; 
 const PAPER_BAG_PRICE = 1000;
 const CONTAINER_PRICE = 500;

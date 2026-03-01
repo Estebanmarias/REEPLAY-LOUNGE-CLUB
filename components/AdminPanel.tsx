@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { LogOut, Menu, Calendar, ShoppingBag, Image, Save, ToggleLeft, ToggleRight, Loader2, CheckCircle, Trash2, Plus, X, BarChart2, Package, Minus } from 'lucide-react';
+import { LogOut, Menu, Calendar, ShoppingBag, Image, Save, ToggleLeft, ToggleRight, Loader2, CheckCircle, Trash2, Plus, X, BarChart2, Package, Minus, MessageCircle } from 'lucide-react';
 
 const ADMIN_PASSWORD = 'reeplay2026';
 
@@ -261,6 +261,8 @@ const fetchAnalytics = async () => {
 
   if (!thisWeek) { setAnalyticsLoading(false); return; }
 
+  
+
   // Revenue
   const thisRevenue = thisWeek.reduce((t: number, o: any) => t + (o.total || 0), 0);
   const lastRevenue = (lastWeek || []).reduce((t: number, o: any) => t + (o.total || 0), 0);
@@ -307,6 +309,56 @@ const fetchAnalytics = async () => {
 
   setAnalytics({ thisRevenue, revenueChange, thisCount, countChange, avgOrder, pickupCount, deliveryCount, topItems, dailyRevenue });
   setAnalyticsLoading(false);
+};
+
+const sendDailyReport = async () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const { data } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('payment_status', 'paid')
+    .gte('created_at', today.toISOString());
+
+  if (!data || data.length === 0) {
+    showToast('No orders today yet.');
+    return;
+  }
+
+  const totalRevenue = data.reduce((t: number, o: any) => t + (o.total || 0), 0);
+  const pickupCount = data.filter((o: any) => o.type === 'pickup').length;
+  const deliveryCount = data.filter((o: any) => o.type === 'delivery').length;
+
+  const itemMap: Record<string, number> = {};
+  data.forEach((order: any) => {
+    (order.items || []).forEach((item: any) => {
+      const name = item.name?.split(' (')[0];
+      if (!name) return;
+      const skip = ['plastic container', 'paper bag', 'delivery fee', 'vat', 'packaging', 'tax', 'service'];
+      if (skip.some(k => name.toLowerCase().includes(k))) return;
+      itemMap[name] = (itemMap[name] || 0) + item.quantity;
+    });
+  });
+  const topItems = Object.entries(itemMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  const dateStr = today.toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long' });
+  const lines = [
+    `📊 *REEPLAY DAILY REPORT*`,
+    `📅 ${dateStr}`,
+    `--------------------------------`,
+    `💰 Total Revenue: ₦${totalRevenue.toLocaleString()}`,
+    `🧾 Total Orders: ${data.length}`,
+    `🛍️ Pickup: ${pickupCount} | Delivery: ${deliveryCount}`,
+    `--------------------------------`,
+    `🏆 *Top Items Today:*`,
+    ...topItems.map(([name, qty], i) => `${i + 1}. ${name} — ${qty}x`),
+    `--------------------------------`,
+    `_Reeplay Lounge & Club_`,
+  ];
+
+  const text = lines.join('\n');
+  window.open(`https://wa.me/2349061203547?text=${encodeURIComponent(text)}`, '_blank');
 };
 
   // --- GALLERY ---
@@ -431,9 +483,17 @@ const fetchAnalytics = async () => {
         {/* --- ORDERS --- */}
         {activeView === 'orders' && (
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-bold">Incoming Orders</h2>
-              <button onClick={() => fetchOrders()} className="text-xs text-purple-400 hover:text-purple-300">Refresh</button>
+         <div className="flex justify-between items-center">
+          <h2 className="text-lg font-bold">Weekly Analytics</h2>
+          <div className="flex items-center gap-3">
+            <button onClick={fetchAnalytics} className="text-xs text-purple-400 hover:text-purple-300">Refresh</button>
+            <button
+              onClick={sendDailyReport}
+              className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-500 rounded-lg text-xs font-bold"
+            >
+              <MessageCircle className="w-3 h-3" /> Daily Report
+            </button>
+            </div>
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1">
               {['all', 'Pending', 'Confirmed', 'Out for Delivery', 'Completed'].map(f => (
