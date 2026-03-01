@@ -1603,10 +1603,14 @@ useEffect(() => {
             />
             
             <MotionDiv 
-              initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-              className={`fixed top-0 right-0 h-full w-full max-w-md z-[101] flex flex-col shadow-2xl border-l ${isDark ? 'bg-[#121212] border-white/10' : 'bg-white border-gray-200'}`}
+             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+              className={`fixed bottom-0 left-0 right-0 h-[90vh] w-full z-[101] flex flex-col shadow-2xl rounded-t-3xl border-t ${isDark ? 'bg-[#121212] border-white/10' : 'bg-white border-gray-200'}`}
             >
-                 <div className={`flex-none p-6 border-b flex justify-between items-center ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
+                 <div className={`flex-none border-b ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'} rounded-t-3xl`}>
+                 <div className="flex justify-center pt-3 pb-1">
+                 <button onClick={() => setIsCartOpen(false)} className="w-12 h-1.5 bg-gray-500 rounded-full hover:bg-gray-400 transition-colors" />
+                 </div>
+                    <div className="flex justify-between items-center px-6 pb-4"></div>
                     <div className="flex items-center gap-3">
                         {cartView === 'checkout' && (
                             <button onClick={() => setCartView('items')} className={`p-2 rounded-full -ml-2 ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-200'}`}>
@@ -1617,7 +1621,9 @@ useEffect(() => {
                             {cartView === 'items' ? 'Your Order' : 'Checkout'}
                         </h2>
                     </div>
-                    <button onClick={() => setIsCartOpen(false)}><ChevronDown /></button>
+                    <button onClick={() => setIsCartOpen(false)} className="p-2 hover:opacity-70 transition-opacity">
+                    <div className="w-10 h-1 bg-gray-500 rounded-full" />
+                    </button>
                 </div>
 
                 {cartView === 'items' && (
