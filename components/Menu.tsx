@@ -1,3 +1,4 @@
+import { usePaystackPayment } from 'react-paystack';
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, ArrowRight, ChevronDown, Wand2, Instagram, MessageCircle, PackageOpen, ToggleLeft, ToggleRight, User, Copy, Share, ExternalLink, FileText } from 'lucide-react';
@@ -891,6 +892,15 @@ useEffect(() => {
   const vatAmount = cartSubTotal * VAT_RATE;
   const deliveryFee = orderType === 'delivery' ? (DELIVERY_ZONES.find(z => z.id === deliveryZoneId)?.price || 0) : 0;
   const finalTotal = cartSubTotal + vatAmount + containerCost + bagFee + deliveryFee;
+  const paystackConfig = {
+  reference: new Date().getTime().toString(),
+  email: `${customerPhone.replace(/\D/g, '')}@reeplay.order`,
+  amount: Math.round(finalTotal * 100),
+  publicKey: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
+  channels: ['card', 'bank_transfer'] as any,
+};
+
+const initializePayment = usePaystackPayment(paystackConfig);
 
   const canCheckout = useMemo(() => {
     if (!customerName || !customerPhone || nameError || phoneError) return false;
