@@ -291,7 +291,7 @@ const AdminPanel: React.FC = () => {
                           key={s}
                           onClick={() => updateOrderStatus(order.id, s)}
                           className={`px-3 py-1 rounded-full text-xs font-bold transition-all
-                            ${order.status === s ? 'bg-purple-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+                          ${order.status?.toLowerCase() === s.toLowerCase() ? 'bg-purple-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
                         >
                           {s}
                         </button>
