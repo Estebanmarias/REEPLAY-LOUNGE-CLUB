@@ -1390,20 +1390,55 @@ useEffect(() => {
              />
              <MotionDiv className="relative w-full max-w-md bg-[#18181b] border border-white/10 rounded-2xl p-6">
                 <h3 className="text-xl font-bold text-white mb-2">{selectedMealItem.name}</h3>
-                <div className="space-y-4 max-h-[50vh] overflow-y-auto custom-scrollbar">
-                    {KITCHEN_ADDONS.map(addon => (
-                         <div key={addon.id} onClick={() => toggleAddOn(addon.id)} className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer ${selectedAddOns.includes(addon.id) ? 'bg-purple-900/30 border-purple-500' : 'border-white/10 hover:bg-white/5'}`}>
-                             <div className="flex items-center gap-3">
-                                 <div className={`w-5 h-5 rounded flex items-center justify-center border ${selectedAddOns.includes(addon.id) ? 'bg-purple-500 border-purple-500' : 'border-gray-500'}`}>
-                                     {selectedAddOns.includes(addon.id) && <CheckCheck className="w-3.5 h-3.5 text-white" />}
-                                 </div>
-                                 <span className="text-white">{addon.name}</span>
-                             </div>
-                             <span className="text-yellow-500 font-mono">+{addon.price}</span>
-                         </div>
-                    ))}
-                </div>
-                <button onClick={handleCustomizationSubmit} className="w-full py-3 bg-purple-600 text-white rounded-xl mt-4">Add to Order</button>
+                <div className="flex flex-wrap gap-2 max-h-[40vh] overflow-y-auto custom-scrollbar py-1">
+  {KITCHEN_ADDONS.map(addon => (
+    <button
+      key={addon.id}
+      onClick={() => toggleAddOn(addon.id)}
+      className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-bold transition-all
+        ${selectedAddOns.includes(addon.id)
+          ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-500/30 scale-105'
+          : 'bg-white/5 border-white/10 text-gray-300 hover:border-purple-500/50'}`}
+    >
+      {selectedAddOns.includes(addon.id) && <CheckCheck className="w-3.5 h-3.5" />}
+      {addon.name}
+      <span className={`font-mono text-xs ${selectedAddOns.includes(addon.id) ? 'text-purple-200' : 'text-yellow-500'}`}>
+        +₦{addon.price.toLocaleString()}
+      </span>
+    </button>
+  ))}
+</div>
+
+<div className="mt-4 pt-4 border-t border-white/10">
+  {selectedAddOns.length > 0 && (
+    <div className="flex justify-between items-center mb-3 text-sm">
+      <span className="text-gray-400">Base price</span>
+      <span className="text-white font-mono">{selectedMealItem?.price}</span>
+    </div>
+  )}
+  {selectedAddOns.map(id => {
+    const addon = KITCHEN_ADDONS.find(a => a.id === id);
+    if (!addon) return null;
+    return (
+      <div key={id} className="flex justify-between items-center mb-2 text-sm">
+        <span className="text-purple-300">+ {addon.name}</span>
+        <span className="text-yellow-500 font-mono">+₦{addon.price.toLocaleString()}</span>
+      </div>
+    );
+  })}
+  <button
+    onClick={handleCustomizationSubmit}
+    className="w-full py-3.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 mt-2 transition-all"
+  >
+    Add to Order
+    <span className="bg-black/20 px-2 py-0.5 rounded-lg text-sm font-mono">
+      ₦{(parsePrice(selectedMealItem?.price || '0') + selectedAddOns.reduce((t, id) => {
+        const a = KITCHEN_ADDONS.find(x => x.id === id);
+        return t + (a?.price || 0);
+      }, 0)).toLocaleString()}
+    </span>
+  </button>
+</div>
              </MotionDiv>
           </div>
         )}
