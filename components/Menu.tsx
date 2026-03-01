@@ -1499,6 +1499,12 @@ useEffect(() => {
                                 <span className="text-gray-500">Customer</span>
                                 <span className="capitalize">{lastOrder.customerName}</span>
                             </div>
+                            <div className="flex justify-between">
+                            <span className="text-gray-500">Est. Wait</span>
+                            <span className="font-bold">
+                                {lastOrder.type === 'delivery' ? '30 – 45 mins' : '15 – 20 mins'}
+                            </span>
+                        </div>
                         </div>
 
                         <div className="space-y-3 font-mono text-sm mb-6">
