@@ -230,7 +230,7 @@ const AdminPanel: React.FC = () => {
     if (activeView === 'gallery') fetchGallery();
   }, [activeView, isLoggedIn]);
     useEffect(() => {
-  if (!isLoggedIn || activeView !== 'orders') return;
+  if (!isLoggedIn) return;
   const interval = setInterval(() => fetchOrders(true), 10000);
   return () => clearInterval(interval);
 }, [isLoggedIn, activeView]);
