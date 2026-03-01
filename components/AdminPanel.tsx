@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { LogOut, Menu, Calendar, ShoppingBag, Image, Save, ToggleLeft, ToggleRight, Loader2, CheckCircle, Trash2, Plus, X, BarChart2 } from 'lucide-react';
+import { LogOut, Menu, Calendar, ShoppingBag, Image, Save, ToggleLeft, ToggleRight, Loader2, CheckCircle, Trash2, Plus, X, BarChart2, Package, Minus } from 'lucide-react';
 
 const ADMIN_PASSWORD = 'reeplay2026';
 
-type AdminView = 'menu' | 'events' | 'orders' | 'gallery' | 'analytics';
+type AdminView = 'menu' | 'events' | 'orders' | 'gallery' | 'analytics' | 'inventory';
 
 interface MenuItemRow {
   id: string;
@@ -77,6 +77,12 @@ const AdminPanel: React.FC = () => {
   // Analytics state
   const [analytics, setAnalytics] = useState<any>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
+  // Inventory state
+  const [inventory, setInventory] = useState<any[]>([]);
+  const [inventoryLoading, setInventoryLoading] = useState(false);
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemStock, setNewItemStock] = useState(0);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -192,6 +198,45 @@ const AdminPanel: React.FC = () => {
   showToast('Status updated!');
 };
 
+// --- INVENTORY ---
+  const fetchInventory = async () => {
+    setInventoryLoading(true);
+    const { data } = await supabase.from('inventory').select('*').order('item_name');
+    if (data) setInventory(data);
+    setInventoryLoading(false);
+  };
+
+  const addInventoryItem = async () => {
+    if (!newItemName || newItemStock < 0) return;
+    const { error } = await supabase.from('inventory').insert({
+      item_name: newItemName,
+      stock_count: newItemStock,
+      track_inventory: true,
+    });
+    if (!error) {
+      showToast('Item added!');
+      setNewItemName('');
+      setNewItemStock(0);
+      fetchInventory();
+    }
+  };
+
+  const updateStock = async (id: string, stock_count: number) => {
+    await supabase.from('inventory').update({ stock_count }).eq('id', id);
+    setInventory(prev => prev.map(i => i.id === id ? { ...i, stock_count } : i));
+  };
+
+  const toggleTrack = async (id: string, current: boolean) => {
+    await supabase.from('inventory').update({ track_inventory: !current }).eq('id', id);
+    setInventory(prev => prev.map(i => i.id === id ? { ...i, track_inventory: !current } : i));
+  };
+
+  const deleteInventoryItem = async (id: string) => {
+    await supabase.from('inventory').delete().eq('id', id);
+    setInventory(prev => prev.filter(i => i.id !== id));
+    showToast('Deleted!');
+  };
+
 // --- ANALYTICS ---
 const fetchAnalytics = async () => {
   setAnalyticsLoading(true);
@@ -305,6 +350,7 @@ const fetchAnalytics = async () => {
     if (activeView === 'orders') fetchOrders();
     if (activeView === 'gallery') fetchGallery();
     if (activeView === 'analytics') fetchAnalytics();
+    if (activeView === 'inventory') fetchInventory();
   }, [activeView, isLoggedIn]);
     useEffect(() => {
   if (!isLoggedIn) return;
@@ -362,6 +408,7 @@ const fetchAnalytics = async () => {
           { id: 'events', label: 'Events', icon: Calendar },
           { id: 'gallery', label: 'Gallery', icon: Image },
           { id: 'analytics', label: 'Analytics', icon: BarChart2 },
+          { id: 'inventory', label: 'Inventory', icon: Package },
         ].map(tab => (
           <button
             key={tab.id}
@@ -573,6 +620,94 @@ const fetchAnalytics = async () => {
             )}
           </div>
         )}
+
+        {/* where i stopped */}
+        {/* --- INVENTORY --- */}
+{activeView === 'inventory' && (
+  <div className="space-y-4">
+    <div className="flex justify-between items-center">
+      <h2 className="text-lg font-bold">Inventory Manager</h2>
+      <button onClick={fetchInventory} className="text-xs text-purple-400 hover:text-purple-300">Refresh</button>
+    </div>
+
+    {/* Add new item */}
+    <div className="bg-[#18181b] border border-purple-500/30 rounded-xl p-4 space-y-3">
+      <h3 className="text-sm font-bold text-purple-400">Add Item to Track</h3>
+      <div className="flex gap-2">
+        <input
+          placeholder="Item name (e.g. Heineken)"
+          value={newItemName}
+          onChange={e => setNewItemName(e.target.value)}
+          className="flex-1 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-purple-500"
+        />
+        <input
+          type="number"
+          placeholder="Stock"
+          value={newItemStock}
+          onChange={e => setNewItemStock(parseInt(e.target.value) || 0)}
+          className="w-20 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-purple-500"
+        />
+        <button
+          onClick={addInventoryItem}
+          className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-xs font-bold"
+        >
+          <Plus className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+
+    {inventoryLoading ? <Loader2 className="animate-spin mx-auto mt-8" /> : (
+      inventory.length === 0 ? (
+        <p className="text-gray-500 text-center mt-8">No items being tracked yet.</p>
+      ) : (
+        inventory.map(item => (
+          <div key={item.id} className="bg-[#18181b] border border-white/10 rounded-xl p-4">
+            <div className="flex justify-between items-center mb-3">
+              <div>
+                <p className="font-bold text-white">{item.item_name}</p>
+                <p className={`text-xs font-bold mt-0.5 ${item.stock_count === 0 ? 'text-red-400' : item.stock_count <= 3 ? 'text-yellow-400' : 'text-green-400'}`}>
+                  {item.stock_count === 0 ? 'OUT OF STOCK' : item.stock_count <= 3 ? `LOW STOCK — ${item.stock_count} left` : `${item.stock_count} in stock`}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => toggleTrack(item.id, item.track_inventory)}>
+                  {item.track_inventory
+                    ? <ToggleRight className="w-7 h-7 text-green-500" />
+                    : <ToggleLeft className="w-7 h-7 text-gray-500" />
+                  }
+                </button>
+                <button onClick={() => deleteInventoryItem(item.id)} className="p-1 hover:text-red-400 text-gray-500">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => updateStock(item.id, Math.max(0, item.stock_count - 1))}
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 text-white"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+              <input
+                type="number"
+                value={item.stock_count}
+                onChange={e => updateStock(item.id, parseInt(e.target.value) || 0)}
+                className="w-20 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white text-center outline-none focus:border-purple-500"
+              />
+              <button
+                onClick={() => updateStock(item.id, item.stock_count + 1)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-purple-600 hover:bg-purple-500 text-white"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+              <span className="text-xs text-gray-500">units</span>
+            </div>
+          </div>
+        ))
+      )
+    )}
+  </div>
+)}
 
         {/* --- ANALYTICS --- */}
         {activeView === 'analytics' && (

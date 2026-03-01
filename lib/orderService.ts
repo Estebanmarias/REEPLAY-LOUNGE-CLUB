@@ -83,6 +83,39 @@ export const orderService = {
       throw new Error('Could not save order.');
     }
 
+    // Decrement inventory on successful paid orders
+    if (order.paymentStatus === 'paid') {
+      const itemNames = order.items.map(i => i.name);
+
+      const { data: inventoryRows } = await supabase
+        .from('inventory')
+        .select('*')
+        .in('item_name', itemNames)
+        .eq('track_inventory', true);
+
+      if (inventoryRows && inventoryRows.length > 0) {
+        for (const invRow of inventoryRows) {
+          const cartItem = order.items.find(i => i.name === invRow.item_name);
+          if (!cartItem) continue;
+
+          const newStock = Math.max(0, invRow.stock_count - cartItem.quantity);
+
+          await supabase
+            .from('inventory')
+            .update({ stock_count: newStock })
+            .eq('id', invRow.id);
+
+          // Auto-mark sold out on menu when stock hits 0
+          if (newStock === 0) {
+            await supabase
+              .from('menu_items')
+              .update({ is_sold_out: true })
+              .ilike('name', invRow.item_name);
+          }
+        }
+      }
+    }
+
     return { ...order, guestId: profile.id };
   },
 
