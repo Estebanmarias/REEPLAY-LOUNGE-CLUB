@@ -9,6 +9,8 @@ export interface CartItem {
 }
 
 export interface PastOrder {
+  paymentStatus?: string;
+  paymentReference?: string;
   id: string;
   guestId?: string;
   date: string;
@@ -72,6 +74,8 @@ export const orderService = {
       status: order.status,
       delivery_pin: order.deliveryPin || null,
       special_requests: order.specialRequests || null,
+      payment_status: order.paymentStatus || 'unpaid',
+      payment_reference: order.paymentReference || null,
     });
 
     if (error) {

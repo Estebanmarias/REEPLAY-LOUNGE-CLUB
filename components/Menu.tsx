@@ -1,4 +1,3 @@
-import { usePaystackPayment } from 'react-paystack';
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Flame, Wine, Utensils, Crown, GlassWater, Plus, Minus, ShoppingBag, X, Search, ChevronRight, Loader2, Trash2, MapPin, Clock, CheckCircle, History, ChefHat, Bike, CheckCheck, ArrowRight, ChevronDown, Wand2, Instagram, MessageCircle, PackageOpen, ToggleLeft, ToggleRight, User, Copy, Share, ExternalLink, FileText } from 'lucide-react';
@@ -892,15 +891,6 @@ useEffect(() => {
   const vatAmount = cartSubTotal * VAT_RATE;
   const deliveryFee = orderType === 'delivery' ? (DELIVERY_ZONES.find(z => z.id === deliveryZoneId)?.price || 0) : 0;
   const finalTotal = cartSubTotal + vatAmount + containerCost + bagFee + deliveryFee;
-  const paystackConfig = {
-  reference: new Date().getTime().toString(),
-  email: `${customerPhone.replace(/\D/g, '')}@reeplay.order`,
-  amount: Math.round(finalTotal * 100),
-  publicKey: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
-  channels: ['card', 'bank_transfer'] as any,
-};
-
-const initializePayment = usePaystackPayment(paystackConfig);
 
   const canCheckout = useMemo(() => {
     if (!customerName || !customerPhone || nameError || phoneError) return false;
@@ -911,7 +901,7 @@ const initializePayment = usePaystackPayment(paystackConfig);
     }
   }, [customerName, customerPhone, nameError, phoneError, orderType, deliveryZoneId, address, pickupTime, pickupError]);
 
-  const handleConfirmOrder = async () => {
+  const handleConfirmOrder = async (paymentReference?: string) => {
     if (!canCheckout) return;
     setIsSubmitting(true);
 
@@ -985,7 +975,9 @@ const initializePayment = usePaystackPayment(paystackConfig);
         customerPhone: customerPhone.replace(/\D/g, ''),
         status: 'Pending', 
         deliveryPin: pin || undefined,
-        specialRequests: specialRequests || undefined
+        specialRequests: specialRequests || undefined,
+        paymentStatus: paymentReference ? 'paid' : 'unpaid',
+        paymentReference: paymentReference || undefined,
     };
 
     try {
@@ -1783,11 +1775,41 @@ const initializePayment = usePaystackPayment(paystackConfig);
                             </div>
                         </div>
                         <div className={`flex-none p-6 border-t ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
-                            <button onClick={handleConfirmOrder} disabled={!canCheckout || isSubmitting} className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${canCheckout ? 'bg-green-600 hover:bg-green-500 text-white shadow-lg' : isDark ? 'bg-white/10 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
-                                {isSubmitting ? <Loader2 className="animate-spin w-5 h-5"/> : (
-                                <>Confirm Order <span className="bg-black/20 px-2 py-0.5 rounded text-xs ml-1 font-mono">{formatPrice(finalTotal)}</span></>
-                                )}
+                            <div className={`flex-none p-6 border-t ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
+                            <button
+                              onClick={() => {
+                                if (!canCheckout || isSubmitting) return;
+                                try {
+                                  const ctx = new AudioContext();
+                                  ctx.resume();
+                                  ctx.close();
+                                } catch (e) {}
+                                const handler = (window as any).PaystackPop.setup({
+                                  key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
+                                  email: `${customerPhone.replace(/\D/g, '')}@reeplay.order`,
+                                  amount: Math.round(finalTotal * 100),
+                                  currency: 'NGN',
+                                  channels: ['card', 'bank_transfer'],
+                                  ref: new Date().getTime().toString(),
+                                  callback: (response: any) => {
+                                    handleConfirmOrder(response.reference);
+                                  },
+                                  onClose: () => {
+                                    showToast('Payment cancelled.', 'error');
+                                  },
+                                });
+                                handler.openIframe();
+                              }}
+                              disabled={!canCheckout || isSubmitting}
+                              className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all
+                                ${canCheckout ? 'bg-green-600 hover:bg-green-500 text-white shadow-lg' : isDark ? 'bg-white/10 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                            >
+                              {isSubmitting ? <Loader2 className="animate-spin w-5 h-5"/> : (
+                                <>Pay Now <span className="bg-black/20 px-2 py-0.5 rounded text-xs ml-1 font-mono">{formatPrice(finalTotal)}</span></>
+                              )}
                             </button>
+                            {!canCheckout && <p className="text-red-400 text-xs text-center mt-2">Please fix the errors above to continue.</p>}
+                          </div>
                             {!canCheckout && <p className="text-red-400 text-xs text-center mt-2">Please fix the errors above to continue.</p>}
                         </div>
                     </div>
