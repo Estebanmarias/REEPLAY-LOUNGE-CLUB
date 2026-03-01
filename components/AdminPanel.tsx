@@ -149,14 +149,20 @@ const AdminPanel: React.FC = () => {
   };
 
  const updateOrderStatus = async (id: string, status: string) => {
-    const { error } = await supabase.from('orders').update({ status }).eq('id', id);
-    if (error) {
-      showToast('Error: ' + error.message);
-      return;
-    }
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
-    showToast('Status updated!');
-  };
+  console.log('Updating order id:', id, 'to status:', status);
+  const { error, data } = await supabase
+    .from('orders')
+    .update({ status })
+    .eq('id', id)
+    .select();
+  console.log('Update result:', data, 'Error:', error);
+  if (error) {
+    showToast('Error: ' + error.message);
+    return;
+  }
+  setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
+  showToast('Status updated!');
+};
 
   // --- GALLERY ---
   const fetchGallery = async () => {
