@@ -141,21 +141,42 @@ const AdminPanel: React.FC = () => {
   };
 
   // --- ORDERS ---
-  const fetchOrders = async () => {
-    setOrdersLoading(true);
+  const fetchOrders = async (isPolling = false) => {
+    setOrdersLoading(!isPolling);
     const { data } = await supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(50);
-    if (data) setOrders(data);
+    if (data) {
+      if (isPolling) {
+        setOrders(prev => {
+          const newOrders = data.filter((d: OrderRow) => !prev.find(p => p.id === d.id));
+          if (newOrders.length > 0) {
+            // Play notification sound
+            const ctx = new AudioContext();
+            const oscillator = ctx.createOscillator();
+            const gain = ctx.createGain();
+            oscillator.connect(gain);
+            gain.connect(ctx.destination);
+            oscillator.frequency.setValueAtTime(880, ctx.currentTime);
+            oscillator.frequency.setValueAtTime(660, ctx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+            oscillator.start(ctx.currentTime);
+            oscillator.stop(ctx.currentTime + 0.4);
+          }
+          return data;
+        });
+      } else {
+        setOrders(data);
+      }
+    }
     setOrdersLoading(false);
   };
 
  const updateOrderStatus = async (id: string, status: string) => {
-  console.log('Updating order id:', id, 'to status:', status);
   const { error, data } = await supabase
     .from('orders')
     .update({ status })
     .eq('id', id)
     .select();
-  console.log('Update result:', data, 'Error:', error);
   if (error) {
     showToast('Error: ' + error.message);
     return;
@@ -205,6 +226,11 @@ const AdminPanel: React.FC = () => {
     if (activeView === 'orders') fetchOrders();
     if (activeView === 'gallery') fetchGallery();
   }, [activeView, isLoggedIn]);
+    useEffect(() => {
+  if (!isLoggedIn || activeView !== 'orders') return;
+  const interval = setInterval(() => fetchOrders(true), 10000);
+  return () => clearInterval(interval);
+}, [isLoggedIn, activeView]);
 
   // --- LOGIN SCREEN ---
   if (!isLoggedIn) {
@@ -274,7 +300,7 @@ const AdminPanel: React.FC = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-bold">Incoming Orders</h2>
-              <button onClick={fetchOrders} className="text-xs text-purple-400 hover:text-purple-300">Refresh</button>
+              <button onClick={() => fetchOrders()} className="text-xs text-purple-400 hover:text-purple-300">Refresh</button>
             </div>
             {ordersLoading ? <Loader2 className="animate-spin mx-auto mt-8" /> : (
               orders.length === 0 ? <p className="text-gray-500 text-center mt-8">No orders yet.</p> : (
