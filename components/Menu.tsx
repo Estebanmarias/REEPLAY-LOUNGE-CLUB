@@ -473,7 +473,14 @@ const StatusTracker: React.FC<{ status: string }> = ({ status }) => {
 const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   const [activeCategory, setActiveCategory] = useState('rice');
   const [searchQuery, setSearchQuery] = useState('');
-  const [cart, setCart] = useState<CartItemExtended[]>([]);
+  const [cart, setCart] = useState<CartItemExtended[]>(() => {
+  try {
+    const saved = localStorage.getItem('reeplay_cart');
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+});
   const [history, setHistory] = useState<PastOrder[]>([]);
   const [returningUser, setReturningUser] = useState<string | null>(null);
   
@@ -612,7 +619,15 @@ useEffect(() => {
   const interval = setInterval(pollStatus, 5000);
   return () => clearInterval(interval);
 }, [isReceiptOpen, lastOrder?.id]);
+useEffect(() => {
+  if (!isCartOpen) {
+    setCartView('items');
+  }
+}, [isCartOpen]);
 
+useEffect(() => {
+  localStorage.setItem('reeplay_cart', JSON.stringify(cart));
+}, [cart]);
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToastMessage(msg);
     setToastType(type);
