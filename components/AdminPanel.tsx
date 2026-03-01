@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { LogOut, Menu, Calendar, ShoppingBag, Image, Save, ToggleLeft, ToggleRight, Loader2, CheckCircle, Trash2, Plus, X } from 'lucide-react';
+import { LogOut, Menu, Calendar, ShoppingBag, Image, Save, ToggleLeft, ToggleRight, Loader2, CheckCircle, Trash2, Plus, X, BarChart2 } from 'lucide-react';
 
 const ADMIN_PASSWORD = 'reeplay2026';
 
-type AdminView = 'menu' | 'events' | 'orders' | 'gallery';
+type AdminView = 'menu' | 'events' | 'orders' | 'gallery' | 'analytics';
 
 interface MenuItemRow {
   id: string;
@@ -73,6 +73,10 @@ const AdminPanel: React.FC = () => {
   const [gallery, setGallery] = useState<{ id: string; image_url: string; caption: string }[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  // Analytics state
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -188,6 +192,76 @@ const AdminPanel: React.FC = () => {
   showToast('Status updated!');
 };
 
+// --- ANALYTICS ---
+const fetchAnalytics = async () => {
+  setAnalyticsLoading(true);
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - 7);
+  const startOfLastWeek = new Date(now);
+  startOfLastWeek.setDate(now.getDate() - 14);
+
+  const { data: thisWeek } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('payment_status', 'paid')
+    .gte('created_at', startOfWeek.toISOString());
+
+  const { data: lastWeek } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('payment_status', 'paid')
+    .gte('created_at', startOfLastWeek.toISOString())
+    .lt('created_at', startOfWeek.toISOString());
+
+  if (!thisWeek) { setAnalyticsLoading(false); return; }
+
+  // Revenue
+  const thisRevenue = thisWeek.reduce((t: number, o: any) => t + (o.total || 0), 0);
+  const lastRevenue = (lastWeek || []).reduce((t: number, o: any) => t + (o.total || 0), 0);
+  const revenueChange = lastRevenue === 0 ? 100 : Math.round(((thisRevenue - lastRevenue) / lastRevenue) * 100);
+
+  // Orders count
+  const thisCount = thisWeek.length;
+  const lastCount = (lastWeek || []).length;
+  const countChange = lastCount === 0 ? 100 : Math.round(((thisCount - lastCount) / lastCount) * 100);
+
+  // Average order value
+  const avgOrder = thisCount === 0 ? 0 : Math.round(thisRevenue / thisCount);
+
+  // Orders by type
+  const pickupCount = thisWeek.filter((o: any) => o.type === 'pickup').length;
+  const deliveryCount = thisWeek.filter((o: any) => o.type === 'delivery').length;
+
+  // Top items
+  const itemMap: Record<string, number> = {};
+  thisWeek.forEach((order: any) => {
+    (order.items || []).forEach((item: any) => {
+      const name = item.name?.split(' (')[0];
+      if (!name || ['Plastic Container', 'Paper Bag', 'Delivery Fee', 'VAT (7.5%)'].includes(name)) return;
+      itemMap[name] = (itemMap[name] || 0) + item.quantity;
+    });
+  });
+  const topItems = Object.entries(itemMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  // Daily revenue last 7 days
+  const dailyRevenue: { day: string; revenue: number }[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const day = new Date();
+    day.setDate(day.getDate() - i);
+    const dayStr = day.toLocaleDateString('en-US', { weekday: 'short' });
+    const dayRevenue = thisWeek
+      .filter((o: any) => new Date(o.created_at).toDateString() === day.toDateString())
+      .reduce((t: number, o: any) => t + (o.total || 0), 0);
+    dailyRevenue.push({ day: dayStr, revenue: dayRevenue });
+  }
+
+  setAnalytics({ thisRevenue, revenueChange, thisCount, countChange, avgOrder, pickupCount, deliveryCount, topItems, dailyRevenue });
+  setAnalyticsLoading(false);
+};
+
   // --- GALLERY ---
   const fetchGallery = async () => {
     setGalleryLoading(true);
@@ -228,6 +302,7 @@ const AdminPanel: React.FC = () => {
     if (activeView === 'events') fetchEvents();
     if (activeView === 'orders') fetchOrders();
     if (activeView === 'gallery') fetchGallery();
+    if (activeView === 'analytics') fetchAnalytics();
   }, [activeView, isLoggedIn]);
     useEffect(() => {
   if (!isLoggedIn) return;
@@ -492,6 +567,98 @@ const AdminPanel: React.FC = () => {
                   </div>
                 ))
               )
+            )}
+          </div>
+        )}
+
+        {/* --- ANALYTICS --- */}
+        {activeView === 'analytics' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-bold">Weekly Analytics</h2>
+              <button onClick={fetchAnalytics} className="text-xs text-purple-400 hover:text-purple-300">Refresh</button>
+            </div>
+
+            {analyticsLoading ? <Loader2 className="animate-spin mx-auto mt-8" /> : !analytics ? (
+              <p className="text-gray-500 text-center mt-8">No data yet.</p>
+            ) : (
+              <>
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: 'This Week Revenue', value: `₦${analytics.thisRevenue.toLocaleString()}`, change: analytics.revenueChange },
+                    { label: 'This Week Orders', value: analytics.thisCount, change: analytics.countChange },
+                    { label: 'Avg Order Value', value: `₦${analytics.avgOrder.toLocaleString()}`, change: null },
+                    { label: 'Pickup vs Delivery', value: `${analytics.pickupCount} / ${analytics.deliveryCount}`, change: null },
+                  ].map(stat => (
+                    <div key={stat.label} className="bg-[#18181b] border border-white/10 rounded-xl p-4">
+                      <p className="text-gray-400 text-xs mb-1">{stat.label}</p>
+                      <p className="text-white font-black text-xl">{stat.value}</p>
+                      {stat.change !== null && (
+                        <p className={`text-xs font-bold mt-1 ${stat.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {stat.change >= 0 ? '↑' : '↓'} {Math.abs(stat.change)}% vs last week
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Daily Revenue Chart */}
+                <div className="bg-[#18181b] border border-white/10 rounded-xl p-4">
+                  <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-4">Daily Revenue (Last 7 Days)</p>
+                  <div className="flex items-end gap-2 h-32">
+                    {analytics.dailyRevenue.map((d: any) => {
+                      const max = Math.max(...analytics.dailyRevenue.map((x: any) => x.revenue));
+                      const height = max === 0 ? 0 : Math.round((d.revenue / max) * 100);
+                      return (
+                        <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
+                          <p className="text-[9px] text-gray-500 font-mono">
+                            {d.revenue > 0 ? `₦${(d.revenue / 1000).toFixed(0)}k` : ''}
+                          </p>
+                          <div className="w-full bg-white/5 rounded-t-md relative" style={{ height: '80px' }}>
+                            <div
+                              className="absolute bottom-0 w-full bg-purple-600 rounded-t-md transition-all duration-500"
+                              style={{ height: `${height}%` }}
+                            />
+                          </div>
+                          <p className="text-[9px] text-gray-500">{d.day}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Top Items */}
+                <div className="bg-[#18181b] border border-white/10 rounded-xl p-4">
+                  <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-4">Top Items This Week</p>
+                  {analytics.topItems.length === 0 ? (
+                    <p className="text-gray-500 text-sm">No orders this week yet.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {analytics.topItems.map(([name, qty]: [string, number], i: number) => {
+                        const max = analytics.topItems[0][1];
+                        return (
+                          <div key={name} className="flex items-center gap-3">
+                            <span className="text-purple-400 font-black text-sm w-4">{i + 1}</span>
+                            <div className="flex-1">
+                              <div className="flex justify-between mb-1">
+                                <span className="text-white text-sm font-bold">{name}</span>
+                                <span className="text-gray-400 text-xs">{qty}x</span>
+                              </div>
+                              <div className="h-1.5 bg-white/5 rounded-full">
+                                <div
+                                  className="h-full bg-purple-500 rounded-full transition-all duration-500"
+                                  style={{ width: `${(qty / max) * 100}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
         )}
