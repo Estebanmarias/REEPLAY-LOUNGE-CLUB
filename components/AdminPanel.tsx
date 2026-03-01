@@ -238,7 +238,9 @@ const fetchAnalytics = async () => {
   thisWeek.forEach((order: any) => {
     (order.items || []).forEach((item: any) => {
       const name = item.name?.split(' (')[0];
-      if (!name || ['Plastic Container', 'Paper Bag', 'Delivery Fee', 'VAT (7.5%)'].includes(name)) return;
+      if (!name) return;
+      const skipKeywords = ['plastic container', 'paper bag', 'delivery fee', 'vat', 'packaging', 'tax', 'service'];
+      if (skipKeywords.some(k => name.toLowerCase().includes(k))) return;
       itemMap[name] = (itemMap[name] || 0) + item.quantity;
     });
   });
