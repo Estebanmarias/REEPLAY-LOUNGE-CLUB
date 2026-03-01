@@ -605,16 +605,32 @@ useEffect(() => {
   if (!isReceiptOpen || !lastOrder) return;
   setLiveStatus(lastOrder.status);
 
-  const pollStatus = async () => {
-    const { data } = await supabase
-      .from('orders')
-      .select('status')
-      .eq('visual_id', lastOrder.id)
-      .single();
-    if (data && data.status !== liveStatus) {
-      setLiveStatus(data.status);
-    }
-  };
+ const pollStatus = async () => {
+  const { data } = await supabase
+    .from('orders')
+    .select('status')
+    .eq('visual_id', lastOrder.id)
+    .single();
+  if (data && data.status !== liveStatus) {
+    setLiveStatus(data.status);
+    // Play chime on status change
+    try {
+      const ctx = new AudioContext();
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(523, ctx.currentTime);
+      oscillator.frequency.setValueAtTime(659, ctx.currentTime + 0.15);
+      oscillator.frequency.setValueAtTime(784, ctx.currentTime + 0.3);
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+      oscillator.start(ctx.currentTime);
+      oscillator.stop(ctx.currentTime + 0.6);
+    } catch (e) {}
+  }
+};
 
   const interval = setInterval(pollStatus, 5000);
   return () => clearInterval(interval);
