@@ -598,26 +598,19 @@ useEffect(() => {
   if (!isReceiptOpen || !lastOrder) return;
   setLiveStatus(lastOrder.status);
 
-  console.log('Subscribing to order:', lastOrder.id);
+  const pollStatus = async () => {
+    const { data } = await supabase
+      .from('orders')
+      .select('status')
+      .eq('visual_id', lastOrder.id)
+      .single();
+    if (data && data.status !== liveStatus) {
+      setLiveStatus(data.status);
+    }
+  };
 
-  const channel = supabase
-    .channel(`order-status-${lastOrder.id}`)
-    .on('postgres_changes', {
-      event: 'UPDATE',
-      schema: 'public',
-      table: 'orders',
-    }, (payload) => {
-      console.log('Realtime payload received:', payload);
-      const newStatus = payload.new.status;
-      setLiveStatus(newStatus);
-      setHistory(prev =>
-        prev.map(o => o.id === lastOrder.id ? { ...o, status: newStatus } : o)
-      );
-    })
-    .subscribe((status) => {
-      console.log('Channel status:', status);
-    });
-  return () => { supabase.removeChannel(channel); };
+  const interval = setInterval(pollStatus, 5000);
+  return () => clearInterval(interval);
 }, [isReceiptOpen, lastOrder?.id]);
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
