@@ -433,6 +433,16 @@ const getStatusBadge = (status: string) => {
     </span>
   );
 };
+const loadPaystack = (): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    if ((window as any).PaystackPop) { resolve(); return; }
+    const script = document.createElement('script');
+    script.src = 'https://js.paystack.co/v1/inline.js';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Paystack failed to load'));
+    document.head.appendChild(script);
+  });
+};
 const STATUS_STEPS = ['Pending', 'Confirmed', 'Out for Delivery', 'Completed'];
 
 const StatusTracker: React.FC<{ status: string }> = ({ status }) => {
@@ -1777,13 +1787,10 @@ useEffect(() => {
                         <div className={`flex-none p-6 border-t ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
                             <div className={`flex-none p-6 border-t ${isDark ? 'bg-[#18181b] border-white/10' : 'bg-white border-gray-200'}`}>
                             <button
-                              onClick={() => {
-                                if (!canCheckout || isSubmitting) return;
-                                try {
-                                  const ctx = new AudioContext();
-                                  ctx.resume();
-                                  ctx.close();
-                                } catch (e) {}
+                              onClick={async () => {
+                              if (!canCheckout || isSubmitting) return;
+                              try {
+                                await loadPaystack();
                                 const handler = (window as any).PaystackPop.setup({
                                   key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
                                   email: `${customerPhone.replace(/\D/g, '')}@reeplay.order`,
@@ -1799,7 +1806,10 @@ useEffect(() => {
                                   },
                                 });
                                 handler.openIframe();
-                              }}
+                              } catch (e) {
+                                showToast('Payment system failed to load. Try again.', 'error');
+                              }
+                            }}
                               disabled={!canCheckout || isSubmitting}
                               className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all
                                 ${canCheckout ? 'bg-green-600 hover:bg-green-500 text-white shadow-lg' : isDark ? 'bg-white/10 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
