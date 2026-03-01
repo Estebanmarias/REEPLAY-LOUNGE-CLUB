@@ -1591,10 +1591,39 @@ useEffect(() => {
                 {cartView === 'items' && (
                     <div className="flex-1 overflow-y-auto p-6">
                         {cart.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
-                                <ShoppingBag className="w-16 h-16 mb-4" />
-                                <p>Your cart is empty.</p>
-                            </div>
+                            <div className="h-full flex flex-col">
+                        <div className="flex flex-col items-center justify-center text-center opacity-50 py-8">
+                          <ShoppingBag className="w-12 h-12 mb-3" />
+                          <p className="text-sm">Your cart is empty.</p>
+                        </div>
+                        <div className="border-t border-white/10 pt-4">
+                          <p className={`text-xs font-bold uppercase tracking-wider mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Popular Items
+                          </p>
+                          <div className="space-y-2">
+                            {[
+                              { name: 'Jollof Rice', price: '₦4,500', categoryId: 'rice' },
+                              { name: 'Chicken Shawarma', price: '₦3,700', categoryId: 'sides' },
+                              { name: 'Long Island', price: '₦7,500', categoryId: 'cocktails' },
+                              { name: 'Pepper Chicken', price: '₦4,000', categoryId: 'sides' },
+                            ].map(item => (
+                              <div key={item.name} className={`flex justify-between items-center p-3 rounded-xl border cursor-pointer transition-all
+                                ${isDark ? 'border-white/10 bg-white/5 hover:bg-white/10' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
+                                onClick={() => {
+                                  addToCart({ name: item.name, desc: '', price: item.price }, item.categoryId);
+                                  showToast(`${item.name} added!`);
+                                }}
+                              >
+                                <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{item.name}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-yellow-500 font-mono text-sm">{item.price}</span>
+                                  <Plus className="w-4 h-4 text-purple-500" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
                         ) : (
                             cart.map((item, idx) => (
                                 <div key={`${item.name}-${idx}`} className={`mb-4 p-4 rounded-xl border flex flex-col gap-3 ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-100'}`}>
