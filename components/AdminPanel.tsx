@@ -162,6 +162,7 @@ const AdminPanel: React.FC = () => {
             gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
             oscillator.start(ctx.currentTime);
             oscillator.stop(ctx.currentTime + 0.4);
+            console.log('New orders detected:', newOrders.length, newOrders.map((o: OrderRow) => o.visual_id));
             setNewOrderCount(prev => prev + newOrders.length);
           }
           return data;
