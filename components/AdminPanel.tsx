@@ -359,6 +359,7 @@ const fetchAnalytics = async () => {
           { id: 'menu', label: 'Menu', icon: Menu },
           { id: 'events', label: 'Events', icon: Calendar },
           { id: 'gallery', label: 'Gallery', icon: Image },
+          { id: 'analytics', label: 'Analytics', icon: BarChart2 },
         ].map(tab => (
           <button
             key={tab.id}
