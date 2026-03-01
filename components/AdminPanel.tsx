@@ -66,6 +66,7 @@ const AdminPanel: React.FC = () => {
   // Orders state
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [orderFilter, setOrderFilter] = useState<string>('all');
   const [newOrderCount, setNewOrderCount] = useState(0);
 
   // Gallery state
@@ -162,7 +163,6 @@ const AdminPanel: React.FC = () => {
             gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
             oscillator.start(ctx.currentTime);
             oscillator.stop(ctx.currentTime + 0.4);
-            console.log('New orders detected:', newOrders.length, newOrders.map((o: OrderRow) => o.visual_id));
             setNewOrderCount(prev => prev + newOrders.length);
           }
           return data;
@@ -310,9 +310,21 @@ const AdminPanel: React.FC = () => {
               <h2 className="text-lg font-bold">Incoming Orders</h2>
               <button onClick={() => fetchOrders()} className="text-xs text-purple-400 hover:text-purple-300">Refresh</button>
             </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {['all', 'Pending', 'Confirmed', 'Out for Delivery', 'Completed'].map(f => (
+                <button
+                  key={f}
+                  onClick={() => setOrderFilter(f)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all
+                    ${orderFilter === f ? 'bg-purple-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+                >
+                  {f === 'all' ? 'All' : f}
+                </button>
+              ))}
+            </div>
             {ordersLoading ? <Loader2 className="animate-spin mx-auto mt-8" /> : (
               orders.length === 0 ? <p className="text-gray-500 text-center mt-8">No orders yet.</p> : (
-                orders.map(order => (
+                orders.filter(o => orderFilter === 'all' || o.status?.toLowerCase() === orderFilter.toLowerCase()).map(order => (
                   <div key={order.id} className="bg-[#18181b] border border-white/10 rounded-xl p-4 space-y-3">
                     <div className="flex justify-between items-start">
                       <div>
