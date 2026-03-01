@@ -145,7 +145,7 @@ const AdminPanel: React.FC = () => {
   // --- ORDERS ---
   const fetchOrders = async (isPolling = false) => {
     setOrdersLoading(!isPolling);
-    const { data } = await supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(50);
+    const { data } = await supabase.from('orders').select('*').eq('payment_status', 'paid').order('created_at', { ascending: false }).limit(50);
     if (data) {
       if (isPolling) {
         setOrders(prev => {
