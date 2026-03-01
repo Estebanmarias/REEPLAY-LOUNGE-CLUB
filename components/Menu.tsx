@@ -1604,7 +1604,7 @@ useEffect(() => {
             
             <MotionDiv 
               initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-              className={`fixed top-0 right-0 h-full w-full max-w-md z-[101] flex flex-col shadow-2xl border-l ${isDark ? 'bg-[#121212] border-white/10' : 'bg-white border-gray-200'}`}
+              className={`fixed top-0 right-0 h-full w-full max-w-full md:max-w-md z-[101] flex flex-col shadow-2xl border-l ${isDark ? 'bg-[#121212] border-white/10' : 'bg-white border-gray-200'}`}
             >
                  <div className={`flex-none p-6 border-b flex justify-between items-center ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
                     <div className="flex items-center gap-3">
@@ -1820,7 +1820,7 @@ useEffect(() => {
                             </button>
                             {!canCheckout && <p className="text-red-400 text-xs text-center mt-2">Please fix the errors above to continue.</p>}
                           </div>
-                            {!canCheckout && <p className="text-red-400 text-xs text-center mt-2">Please fix the errors above to continue.</p>}
+                            {/* {!canCheckout && <p className="text-red-400 text-xs text-center mt-2">Please fix the errors above to continue.</p>} */}
                         </div>
                     </div>
                  )}
