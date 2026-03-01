@@ -606,7 +606,6 @@ useEffect(() => {
       event: 'UPDATE',
       schema: 'public',
       table: 'orders',
-      filter: `visual_id=eq.${lastOrder.id}`,
     }, (payload) => {
       console.log('Realtime payload received:', payload);
       const newStatus = payload.new.status;
