@@ -950,7 +950,6 @@ useEffect(() => {
 
         setIsSubmitting(false);
         setIsCartOpen(false);
-        console.log('Opening receipt, lastOrder:', newOrder);
         setIsReceiptOpen(true);
         setCart([]);
         setIsReceiptOpen(true);
