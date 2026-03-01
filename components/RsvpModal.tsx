@@ -11,7 +11,7 @@ interface RsvpModalProps {
 }
 
 const RsvpModal: React.FC<RsvpModalProps> = ({ isOpen, onClose, eventName }) => {
-  const whatsappNumber = "2349060621425"; // Reeplay number
+  const whatsappNumber = "234906021203547"; // Reeplay number
   const instagramHandle = "reeplaylounge_ogbomoso";
 
   const handleWhatsApp = () => {

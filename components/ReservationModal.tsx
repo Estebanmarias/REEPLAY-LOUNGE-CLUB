@@ -17,7 +17,7 @@ const OCCASIONS = [
   { id: 'casual', label: 'Casual / Other', icon: Users, color: 'text-purple-500', bg: 'bg-purple-500/10', border: 'border-purple-500/50' },
 ];
 
-const WHATSAPP_LINK = "https://wa.me/2349060621425";
+const WHATSAPP_LINK = "https://wa.me/234906021203547";
 
 const ReservationModal: React.FC<ReservationModalProps> = ({ isOpen, onClose }) => {
   const [step, setStep] = useState(1); // 1: Details, 2: Success
