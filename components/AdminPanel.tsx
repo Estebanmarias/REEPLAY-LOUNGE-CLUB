@@ -66,6 +66,7 @@ const AdminPanel: React.FC = () => {
   // Orders state
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [newOrderCount, setNewOrderCount] = useState(0);
 
   // Gallery state
   const [gallery, setGallery] = useState<{ id: string; image_url: string; caption: string }[]>([]);
@@ -161,6 +162,7 @@ const AdminPanel: React.FC = () => {
             gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
             oscillator.start(ctx.currentTime);
             oscillator.stop(ctx.currentTime + 0.4);
+            setNewOrderCount(prev => prev + newOrders.length);
           }
           return data;
         });
