@@ -1409,7 +1409,11 @@ useEffect(() => {
                                 <div 
                                     key={i} 
                                     onClick={() => { setLastOrder(order); setIsReceiptOpen(true); setIsHistoryOpen(false); }}
-                                    className="p-4 border border-white/10 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer group"
+                                    className={`p-4 border rounded-xl transition-colors cursor-pointer group
+                                    ${['pending', 'confirmed', 'out for delivery'].includes(order.status?.toLowerCase())
+                                      ? 'border-purple-500/50 bg-purple-900/10 shadow-[0_0_15px_rgba(168,85,247,0.15)] animate-pulse-slow'
+                                      : 'border-white/10 bg-white/5 hover:bg-white/10'
+                                    }`}
                                 >
                                     <div className="flex justify-between items-start mb-2">
                                         <div>
