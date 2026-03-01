@@ -287,11 +287,16 @@ const AdminPanel: React.FC = () => {
         ].map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveView(tab.id as AdminView)}
+            onClick={() => { setActiveView(tab.id as AdminView); if (tab.id === 'orders') setNewOrderCount(0); }}
             className={`flex items-center gap-2 px-6 py-4 text-sm font-bold whitespace-nowrap border-b-2 transition-all
               ${activeView === tab.id ? 'border-purple-500 text-white' : 'border-transparent text-gray-500 hover:text-white'}`}
           >
             <tab.icon className="w-4 h-4" /> {tab.label}
+            {tab.id === 'orders' && newOrderCount > 0 && (
+              <span className="bg-red-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center">
+                {newOrderCount}
+              </span>
+            )}
           </button>
         ))}
       </div>
