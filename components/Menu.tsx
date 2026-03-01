@@ -521,8 +521,10 @@ const Menu: React.FC<MenuProps> = ({ onBack, theme }) => {
   const [liveStatus, setLiveStatus] = useState<string>('Pending');
 
   const [menuItems, setMenuItems] = useState<Record<string, Array<MenuItem & { isSoldOut?: boolean }>>>({});
+  const [menuLoading, setMenuLoading] = useState(true);
 
 useEffect(() => {
+  setMenuLoading(true);
   const fetchMenu = async () => {
     const { data, error } = await supabase
       .from('menu_items')
@@ -548,6 +550,7 @@ useEffect(() => {
       });
     });
     setMenuItems(grouped);
+    setMenuLoading(false);
   };
   fetchMenu();
 }, []);
@@ -1260,32 +1263,44 @@ useEffect(() => {
              )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-20">
-            {filteredItems.map((item, i) => {
-              const uniqueId = `${item.name}-`;
-              const cartItem = cart.find(c => `${c.name}-${(c.modifiers || []).sort().join('-')}` === uniqueId);
-              const qty = cartItem ? cartItem.quantity : 0;
-
-              return (
-                <MenuItemCard 
-                    key={`${item.name}-${i}`} 
-                    item={item} 
-                    categoryId={item.categoryId} 
-                    quantityInCart={qty}
-                    onAdd={addToCart} 
-                    onUpdateQuantity={updateQuantityFromCard}
-                    onOpenModal={(it) => { setSelectedMealItem(it); setIsMealModalOpen(true); }} 
-                    theme={theme}
-                />
-              )
-            })}
-            {filteredItems.length === 0 && (
-              <div className={`col-span-full text-center py-12 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                <Search className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                <p>No items found for "{searchQuery}". Try another category or term.</p>
-              </div>
-            )}
-          </div>
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-20">
+              {menuLoading ? (
+                [...Array(6)].map((_, i) => (
+                  <div key={i} className={`p-4 md:p-6 rounded-2xl animate-pulse
+                    ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-100 border border-gray-200'}`}>
+                    <div className={`h-5 rounded mb-3 w-3/4 ${isDark ? 'bg-white/10' : 'bg-gray-200'}`} />
+                    <div className={`h-3 rounded mb-2 w-full ${isDark ? 'bg-white/5' : 'bg-gray-100'}`} />
+                    <div className={`h-3 rounded mb-4 w-2/3 ${isDark ? 'bg-white/5' : 'bg-gray-100'}`} />
+                    <div className="flex justify-between items-center mt-4">
+                      <div className={`h-5 rounded w-20 ${isDark ? 'bg-white/10' : 'bg-gray-200'}`} />
+                      <div className={`h-8 rounded-lg w-24 ${isDark ? 'bg-white/10' : 'bg-gray-200'}`} />
+                    </div>
+                  </div>
+                ))
+              ) : filteredItems.map((item, i) => {
+                const uniqueId = `${item.name}-`;
+                const cartItem = cart.find(c => `${c.name}-${(c.modifiers || []).sort().join('-')}` === uniqueId);
+                const qty = cartItem ? cartItem.quantity : 0;
+                return (
+                  <MenuItemCard 
+                      key={`${item.name}-${i}`} 
+                      item={item} 
+                      categoryId={item.categoryId} 
+                      quantityInCart={qty}
+                      onAdd={addToCart} 
+                      onUpdateQuantity={updateQuantityFromCard}
+                      onOpenModal={(it) => { setSelectedMealItem(it); setIsMealModalOpen(true); }} 
+                      theme={theme}
+                  />
+                )
+              })}
+              {!menuLoading && filteredItems.length === 0 && (
+                <div className={`col-span-full text-center py-12 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                  <Search className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                  <p>No items found for "{searchQuery}". Try another category or term.</p>
+                </div>
+              )}
+         </div>
         )}
       </div>
 
