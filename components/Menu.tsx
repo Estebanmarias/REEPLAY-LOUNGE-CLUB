@@ -896,7 +896,13 @@ useEffect(() => {
   const handleConfirmOrder = async () => {
     if (!canCheckout) return;
     setIsSubmitting(true);
-    
+
+  // Unlock AudioContext on mobile with user gesture
+     try {
+      const ctx = new AudioContext();
+        await ctx.resume();
+        ctx.close();
+      } catch (e) {}
     // Generate Order ID & Pin
     const id = '#' + Math.floor(1000 + Math.random() * 9000);
     setOrderId(id);
