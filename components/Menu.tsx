@@ -325,7 +325,12 @@ const MenuItemCard: React.FC<{
     >
       <div className="flex justify-between items-start gap-4 mb-4">
         <div className="flex-1">
-          <h3 className={`text-xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>{item.name}</h3>
+          <div className="flex items-center gap-2 mb-1">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full">
+          {CATEGORIES.find(c => c.id === categoryId)?.label || categoryId}
+         </span>
+        </div>
+<h3 className={`text-xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>{item.name}</h3>
           <p className={`text-sm leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{item.desc}</p>
         </div>
         <span className="text-lg font-black text-yellow-500 font-mono">{item.price}</span>
