@@ -1793,7 +1793,7 @@ useEffect(() => {
                                 await loadPaystack();
                                 const handler = (window as any).PaystackPop.setup({
                                   key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
-                                  email: `${customerPhone.replace(/\D/g, '')}@reeplay.order`,
+                                  email: `${customerPhone.replace(/\D/g, '')}@reeplaylounge.com`,
                                   amount: Math.round(finalTotal * 100),
                                   currency: 'NGN',
                                   channels: ['card', 'bank_transfer'],
