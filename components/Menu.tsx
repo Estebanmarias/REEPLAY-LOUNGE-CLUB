@@ -1386,7 +1386,7 @@ useEffect(() => {
                             history.map((order, i) => (
                                 <div 
                                     key={i} 
-                                    onClick={() => { setLastOrder(order); setIsReceiptOpen(true); }} 
+                                    onClick={() => { setLastOrder(order); setIsReceiptOpen(true); setIsHistoryOpen(false); }}
                                     className="p-4 border border-white/10 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer group"
                                 >
                                     <div className="flex justify-between items-start mb-2">
@@ -1405,7 +1405,33 @@ useEffect(() => {
                                         <span className="truncate flex-1">
                                             {order.items.length} items: {order.items.map(i => i.name).join(', ')}
                                         </span>
-                                        <ChevronRight className="w-4 h-4 text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const reorderItems = order.items
+                                          .filter((i: any) => !['Plastic Container', 'Paper Bag', 'Delivery Fee', 'VAT (7.5%)'].includes(i.name))
+                                          .map((i: any) => ({
+                                            name: i.name,
+                                            desc: '',
+                                            price: '₦' + i.priceRaw.toLocaleString(),
+                                            priceRaw: i.priceRaw,
+                                            quantity: i.quantity,
+                                            modifiers: [],
+                                            categoryId: 'reorder',
+                                            isSoldOut: false,
+                                          }));
+                                        setCart(reorderItems);
+                                        setIsHistoryOpen(false);
+                                        setIsCartOpen(true);
+                                        showToast('Order added to cart!');
+                                      }}
+                                      className="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold rounded-full"
+                                    >
+                                      Reorder
+                                    </button>
+                                    <ChevronRight className="w-4 h-4 text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                  </div>
                                     </div>
                                 </div>
                             ))
