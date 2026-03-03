@@ -885,7 +885,7 @@ const downloadPDF = async (range: 'today' | 'week' | 'month' | 'custom', customS
                 <h3 className="font-bold text-purple-400">New Event</h3>
                 {[
                   { key: 'title', placeholder: 'Event Title *' },
-                  { key: 'date', placeholder: 'Date (e.g. This Friday)' },
+                  { key: 'date', placeholder: 'Display Date (e.g. March 20th)' },
                   { key: 'time', placeholder: 'Time (e.g. 10:00 PM)' },
                   { key: 'category', placeholder: 'Category (e.g. Themed Party)' },
                   { key: 'image_url', placeholder: 'Image URL' },
@@ -895,6 +895,18 @@ const downloadPDF = async (range: 'today' | 'week' | 'month' | 'custom', customS
                     onChange={e => setNewEvent(prev => ({ ...prev, [field.key]: e.target.value }))}
                     className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-purple-500" />
                 ))}
+
+                {/* Countdown date — separate from display date */}
+                <div>
+                  <label className="text-xs text-gray-400 uppercase tracking-wider">Countdown Date (for timer)</label>
+                  <input
+                    type="date"
+                    value={(newEvent as any).event_date || ''}
+                    onChange={e => setNewEvent(prev => ({ ...prev, event_date: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-purple-500 mt-1"
+                  />
+                </div>
+
                 <textarea placeholder="Description" value={newEvent.description || ''} onChange={e => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
                   className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-purple-500 resize-none h-20" />
                 <div className="flex gap-3">
@@ -902,7 +914,7 @@ const downloadPDF = async (range: 'today' | 'week' | 'month' | 'custom', customS
                   <button onClick={() => setShowNewEventForm(false)} className="px-4 py-2 bg-white/5 rounded-lg text-sm">Cancel</button>
                 </div>
               </div>
-            )}
+              )}
             {eventsLoading ? <Loader2 className="animate-spin mx-auto mt-8" /> : (
               events.length === 0 ? <p className="text-gray-500 text-center mt-8">No events yet.</p> : (
                 events.map(event => (

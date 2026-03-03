@@ -17,25 +17,21 @@ interface SpecialEvent {
   date: string;
   time: string;
   category: string;
-  image: string;       // mapped from image_url
+  image: string;
   description: string;
   price: string;
   is_active: boolean;
 }
 
-const EventCard: React.FC<{ 
-  event: SpecialEvent; 
+const EventCard: React.FC<{
+  event: SpecialEvent;
   onReserve: (title: string) => void;
   index: number;
 }> = ({ event, onReserve, index }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isShared, setIsShared] = useState(false);
 
-  const { scrollYProgress } = useScroll({
-    target: cardRef,
-    offset: ["start end", "end start"]
-  });
-
+  const { scrollYProgress } = useScroll({ target: cardRef, offset: ["start end", "end start"] });
   const y = useTransform(scrollYProgress, [0, 1], ["-10%", "10%"]);
 
   const handleShare = async () => {
@@ -44,11 +40,8 @@ const EventCard: React.FC<{
       text: `${event.title} happening on ${event.date} at Reeplay Lounge! ${event.description}`,
       url: window.location.href,
     };
-
     if (navigator.share) {
-      try {
-        await navigator.share(shareData);
-      } catch (err) {}
+      try { await navigator.share(shareData); } catch (err) {}
     } else {
       navigator.clipboard.writeText(`${shareData.title}\n${shareData.text}\n${shareData.url}`);
       setIsShared(true);
@@ -67,12 +60,7 @@ const EventCard: React.FC<{
     >
       <div className="h-72 overflow-hidden relative">
         <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent z-10" />
-        <MotionImg 
-          style={{ y, scale: 1.15 }}
-          src={event.image} 
-          alt={event.title}
-          className="w-full h-full object-cover"
-        />
+        <MotionImg style={{ y, scale: 1.15 }} src={event.image} alt={event.title} className="w-full h-full object-cover" />
         <div className="absolute top-4 right-4 z-20 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border border-white/10 shadow-lg">
           {event.category}
         </div>
@@ -83,11 +71,7 @@ const EventCard: React.FC<{
           <h2 className="text-3xl font-bold text-white leading-tight group-hover:text-purple-400 transition-colors">
             {event.title}
           </h2>
-          <button 
-            onClick={handleShare}
-            className="p-3 bg-white/5 rounded-full hover:bg-white/10 hover:text-white transition-all flex-shrink-0 text-gray-400"
-            title="Share Event"
-          >
+          <button onClick={handleShare} className="p-3 bg-white/5 rounded-full hover:bg-white/10 hover:text-white transition-all flex-shrink-0 text-gray-400" title="Share Event">
             {isShared ? <Check className="w-5 h-5 text-green-500" /> : <Share2 className="w-5 h-5" />}
           </button>
         </div>
@@ -111,11 +95,9 @@ const EventCard: React.FC<{
           </div>
         </div>
 
-        <p className="text-gray-400 text-sm leading-relaxed mb-6 flex-grow">
-          {event.description}
-        </p>
+        <p className="text-gray-400 text-sm leading-relaxed mb-6 flex-grow">{event.description}</p>
 
-        <button 
+        <button
           onClick={() => onReserve(event.title)}
           className="w-full py-4 bg-white/5 hover:bg-purple-600 text-white font-bold rounded-xl border border-white/10 hover:border-purple-500 transition-all flex items-center justify-center gap-2 mt-auto shadow-lg"
         >
@@ -128,27 +110,12 @@ const EventCard: React.FC<{
 
 const EventsPage: React.FC<EventsPageProps> = ({ onBack }) => {
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
-  const [timeLeft, setTimeLeft] = useState("");
+  const [timeLeft, setTimeLeft] = useState<{ days: string; hours: string; mins: string; secs: string } | null>(null);
+  const [nextEventName, setNextEventName] = useState<string>('');
   const [events, setEvents] = useState<SpecialEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Countdown timer
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const now = new Date();
-      const target = new Date();
-      target.setHours(22, 0, 0, 0);
-      if (now > target) target.setDate(target.getDate() + 1);
-      const diff = target.getTime() - now.getTime();
-      const h = Math.floor(diff / (1000 * 60 * 60));
-      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const s = Math.floor((diff % (1000 * 60)) / 1000);
-      setTimeLeft(`${h}h ${m}m ${s}s`);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Fetch events from Supabase
+  // Fetch events — sorted by date ascending so nearest is first
   useEffect(() => {
     const fetchEvents = async () => {
       setLoading(true);
@@ -156,17 +123,50 @@ const EventsPage: React.FC<EventsPageProps> = ({ onBack }) => {
         .from('events')
         .select('*')
         .eq('is_active', true)
-        .order('created_at', { ascending: false });
+        .order('date', { ascending: true });
 
       if (!error && data) {
-        // Map image_url → image to match the EventCard interface
-        setEvents(data.map((e: any) => ({ ...e, image: e.image_url })));
+        const mapped = data.map((e: any) => ({ ...e, image: e.image_url }));
+        setEvents(mapped);
+        const now = new Date();
+        const next = mapped.find((e: SpecialEvent) => {
+          const d = new Date(e.date);
+          return !isNaN(d.getTime()) && d > now;
+        });
+        if (next) setNextEventName(next.title);
       }
       setLoading(false);
     };
-
     fetchEvents();
   }, []);
+
+  // Countdown to next upcoming event
+  useEffect(() => {
+    if (!events.length) return;
+    const now = new Date();
+    const next = events.find((e: SpecialEvent) => {
+      const d = new Date(e.date);
+      return !isNaN(d.getTime()) && d > now;
+    });
+    if (!next) { setTimeLeft(null); return; }
+
+    const target = new Date(next.date);
+    const timer = setInterval(() => {
+      const diff = target.getTime() - new Date().getTime();
+      if (diff <= 0) {
+        clearInterval(timer);
+        setTimeLeft({ days: '00', hours: '00', mins: '00', secs: '00' });
+        return;
+      }
+      setTimeLeft({
+        days: String(Math.floor(diff / (1000 * 60 * 60 * 24))).padStart(2, '0'),
+        hours: String(Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))).padStart(2, '0'),
+        mins: String(Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, '0'),
+        secs: String(Math.floor((diff % (1000 * 60)) / 1000)).padStart(2, '0'),
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [events]);
 
   return (
     <MotionDiv
@@ -175,17 +175,10 @@ const EventsPage: React.FC<EventsPageProps> = ({ onBack }) => {
       exit={{ opacity: 0, y: 50 }}
       className="min-h-screen pt-24 pb-12 px-4 md:px-8 max-w-7xl mx-auto relative z-20"
     >
-      <RsvpModal 
-        isOpen={!!selectedEvent} 
-        onClose={() => setSelectedEvent(null)} 
-        eventName={selectedEvent || ''} 
-      />
+      <RsvpModal isOpen={!!selectedEvent} onClose={() => setSelectedEvent(null)} eventName={selectedEvent || ''} />
 
       <div className="flex items-center gap-4 mb-8">
-        <button 
-          onClick={onBack}
-          className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-        >
+        <button onClick={onBack} className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div>
@@ -196,14 +189,29 @@ const EventsPage: React.FC<EventsPageProps> = ({ onBack }) => {
         </div>
       </div>
 
-      <div className="mb-12 p-6 rounded-2xl bg-gradient-to-r from-purple-900/50 to-blue-900/50 border border-white/10 flex flex-col md:flex-row items-center justify-between gap-6 backdrop-blur-md shadow-2xl">
-        <div>
+      {/* Countdown */}
+      <div className="mb-12 p-6 rounded-2xl bg-gradient-to-r from-purple-900/50 to-blue-900/50 border border-white/10 backdrop-blur-md shadow-2xl">
+        <div className="mb-4">
           <h3 className="text-xl font-bold text-white mb-1">Next Event Countdown</h3>
-          <p className="text-purple-300">Don't miss the vibe check.</p>
+          <p className="text-purple-300 text-sm">{nextEventName || "Don't miss the vibe check."}</p>
         </div>
-        <div className="text-4xl md:text-5xl font-mono font-bold text-white tracking-widest tabular-nums">
-          {timeLeft}
-        </div>
+        {timeLeft ? (
+          <div className="grid grid-cols-4 gap-3">
+            {[
+              { label: 'Days', value: timeLeft.days },
+              { label: 'Hours', value: timeLeft.hours },
+              { label: 'Mins', value: timeLeft.mins },
+              { label: 'Secs', value: timeLeft.secs },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex flex-col items-center bg-black/30 rounded-xl py-4 border border-white/10">
+                <span className="text-3xl md:text-5xl font-mono font-black text-white tabular-nums">{value}</span>
+                <span className="text-[10px] uppercase tracking-widest text-purple-300 mt-1">{label}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-400 text-sm">No upcoming events scheduled yet.</p>
+        )}
       </div>
 
       {loading ? (
@@ -213,12 +221,7 @@ const EventsPage: React.FC<EventsPageProps> = ({ onBack }) => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {events.map((event, index) => (
-            <EventCard 
-              key={event.id} 
-              event={event} 
-              index={index}
-              onReserve={(title) => setSelectedEvent(title)} 
-            />
+            <EventCard key={event.id} event={event} index={index} onReserve={(title) => setSelectedEvent(title)} />
           ))}
         </div>
       )}
