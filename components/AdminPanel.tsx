@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { LogOut, Menu, Calendar, ShoppingBag, Image, Save, ToggleLeft, ToggleRight, Loader2, CheckCircle, Trash2, Plus, X, BarChart2, Package, Minus, MessageCircle, ClipboardList } from 'lucide-react';
+import { LogOut, Menu, Calendar, ShoppingBag, Image, Save, ToggleLeft, ToggleRight, Loader2, CheckCircle, Trash2, Plus, X, BarChart2, Package, Minus, MessageCircle, ClipboardList, Download } from 'lucide-react';
 
 const ADMIN_PASSWORD = 'reeplay2026';
 
@@ -364,6 +364,253 @@ const AdminPanel: React.FC = () => {
     setAnalytics({ onlineRevenue, physicalRevenue, combinedRevenue, revenueChange, onlineCount, physicalCount, countChange, avgOrder, pickupCount, deliveryCount, topItems, dailyRevenue });
     setAnalyticsLoading(false);
   };
+
+  const downloadFile = (content: string, filename: string, mimeType: string) => {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+const buildReportData = async (
+  range: 'today' | 'week' | 'month' | 'custom',
+  customStartDate?: Date,
+  customEndDate?: Date
+) => {
+  const now = new Date();
+  let start = new Date();
+  let end = new Date();
+
+  if (range === 'today') { start.setHours(0, 0, 0, 0); end = now; }
+  else if (range === 'week') { start.setDate(now.getDate() - 7); end = now; }
+  else if (range === 'month') { start.setDate(now.getDate() - 30); end = now; }
+  else if (range === 'custom' && customStartDate && customEndDate) {
+    start = customStartDate; end = customEndDate; end.setHours(23, 59, 59, 999);
+  }
+
+  const startStr = start.toISOString();
+  const endStr = end.toISOString();
+  const startDate = start.toISOString().split('T')[0];
+  const endDate = end.toISOString().split('T')[0];
+
+  const [{ data: onlineOrders }, { data: physicalSales }, { data: inventoryData }] = await Promise.all([
+    supabase.from('orders').select('*').eq('payment_status', 'paid').gte('created_at', startStr).lte('created_at', endStr).order('created_at', { ascending: false }),
+    supabase.from('physical_sales').select('*').gte('sale_date', startDate).lte('sale_date', endDate).order('sale_date', { ascending: false }),
+    supabase.from('inventory').select('*').order('item_name'),
+  ]);
+
+  const orders = onlineOrders || [];
+  const physical = physicalSales || [];
+  const inv = inventoryData || [];
+
+  const onlineRevenue = orders.reduce((t: number, o: any) => t + (o.total || 0), 0);
+  const physicalRevenue = physical.reduce((t: number, o: any) => t + (Number(o.total_amount) || 0), 0);
+  const combinedRevenue = onlineRevenue + physicalRevenue;
+
+  const skip = ['plastic container', 'paper bag', 'delivery fee', 'vat', 'packaging', 'tax', 'service'];
+  const itemMap: Record<string, number> = {};
+  orders.forEach((o: any) => {
+    (o.items || []).forEach((item: any) => {
+      const name = item.name?.split(' (')[0];
+      if (!name || skip.some(k => name.toLowerCase().includes(k))) return;
+      itemMap[name] = (itemMap[name] || 0) + item.quantity;
+    });
+  });
+  physical.forEach((log: any) => {
+    if (!log.item_name) return;
+    itemMap[log.item_name] = (itemMap[log.item_name] || 0) + log.quantity_sold;
+  });
+  const topItems = Object.entries(itemMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+  const days = range === 'today' ? 1 : range === 'week' ? 7 : range === 'month' ? 30
+    : Math.ceil((end.getTime() - start.getTime()) / 86400000) + 1;
+  const daily: { date: string; online: number; physical: number; total: number }[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(end); d.setDate(end.getDate() - i);
+    const ds = d.toISOString().split('T')[0];
+    const dayOnline = orders.filter((o: any) => o.created_at?.startsWith(ds)).reduce((t: number, o: any) => t + (o.total || 0), 0);
+    const dayPhysical = physical.filter((o: any) => o.sale_date === ds).reduce((t: number, o: any) => t + (Number(o.total_amount) || 0), 0);
+    daily.push({ date: ds, online: dayOnline, physical: dayPhysical, total: dayOnline + dayPhysical });
+  }
+
+  const rangeLabel = range === 'today' ? 'Today' : range === 'week' ? 'Last 7 Days'
+    : range === 'month' ? 'Last 30 Days' : `${startDate} to ${endDate}`;
+
+  return { orders, physical, inv, onlineRevenue, physicalRevenue, combinedRevenue, topItems, daily, rangeLabel, startDate, endDate };
+};
+
+  const downloadCSV = async (range: 'today' | 'week' | 'month' | 'custom', customStartDate?: Date, customEndDate?: Date) => {
+  showToast('Generating CSV...');
+  const d = await buildReportData(range, customStartDate, customEndDate);
+  const ts = new Date().toISOString().split('T')[0];
+
+  const toCSV = (rows: any[][]) =>
+    rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+
+  const orderRows = [
+    ['Order ID', 'Customer', 'Phone', 'Type', 'Status', 'Total (₦)', 'Items', 'Date'],
+    ...d.orders.map((o: any) => [
+      o.visual_id || o.id, o.customer_name, o.customer_phone, o.type, o.status, o.total,
+      (o.items || []).map((i: any) => `${i.quantity}x ${i.name}`).join(' | '),
+      new Date(o.created_at).toLocaleString('en-NG'),
+    ]),
+    [], ['ONLINE REVENUE', `₦${d.onlineRevenue.toLocaleString()}`],
+  ];
+
+  const physRows = [
+    ['Item', 'Qty Sold', 'Unit Price (₦)', 'Total (₦)', 'Date', 'Logged By', 'Notes'],
+    ...d.physical.map((p: any) => [
+      p.item_name, p.quantity_sold, p.unit_price, p.total_amount, p.sale_date, p.logged_by, p.notes || '',
+    ]),
+    [], ['PHYSICAL REVENUE', `₦${d.physicalRevenue.toLocaleString()}`],
+  ];
+
+  const topRows = [
+    ['Rank', 'Item', 'Total Units Sold'],
+    ...d.topItems.map(([name, qty]: [string, number], i: number) => [i + 1, name, qty]),
+  ];
+
+  const dailyRows = [
+    ['Date', 'Online (₦)', 'Physical (₦)', 'Combined (₦)'],
+    ...d.daily.map(row => [row.date, row.online, row.physical, row.total]),
+    [], ['COMBINED TOTAL', '', '', `₦${d.combinedRevenue.toLocaleString()}`],
+  ];
+
+  const invRows = [
+    ['Item', 'Stock Count', 'Tracking', 'Status'],
+    ...d.inv.map((i: any) => [
+      i.item_name, i.stock_count, i.track_inventory ? 'Yes' : 'No',
+      i.stock_count === 0 ? 'OUT OF STOCK' : i.stock_count <= 3 ? 'LOW STOCK' : 'OK',
+    ]),
+  ];
+
+  const combined = [
+    `REEPLAY LOUNGE & CLUB — REPORT (${d.rangeLabel})`,
+    `Generated: ${new Date().toLocaleString('en-NG')}`,
+    '', '=== ONLINE ORDERS ===', toCSV(orderRows),
+    '', '=== PHYSICAL SALES ===', toCSV(physRows),
+    '', '=== TOP ITEMS (COMBINED) ===', toCSV(topRows),
+    '', '=== DAILY REVENUE BREAKDOWN ===', toCSV(dailyRows),
+    '', '=== INVENTORY SNAPSHOT ===', toCSV(invRows),
+  ].join('\n');
+
+  downloadFile(combined, `reeplay-report-${d.rangeLabel.replace(/\s+/g, '-').toLowerCase()}-${ts}.csv`, 'text/csv;charset=utf-8;');
+  showToast('CSV downloaded!');
+};
+
+const downloadPDF = async (range: 'today' | 'week' | 'month' | 'custom', customStartDate?: Date, customEndDate?: Date) => {
+  showToast('Generating PDF...');
+  const d = await buildReportData(range, customStartDate, customEndDate);
+
+  const row = (cells: string[], header = false) =>
+    `<tr>${cells.map(c => `<${header ? 'th' : 'td'}>${c}</${header ? 'th' : 'td'}>`).join('')}</tr>`;
+
+  const table = (headers: string[], rows: string[][]) => `
+    <table>
+      <thead>${row(headers, true)}</thead>
+      <tbody>${rows.map(r => row(r)).join('')}</tbody>
+    </table>`;
+
+  const html = `<!DOCTYPE html>
+<html><head>
+  <meta charset="utf-8" />
+  <title>Reeplay Report — ${d.rangeLabel}</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI',Arial,sans-serif; color:#111; background:#fff; padding:32px; font-size:13px; }
+    h1 { font-size:22px; font-weight:900; color:#7c3aed; margin-bottom:2px; }
+    .sub { color:#666; font-size:11px; margin-bottom:24px; }
+    h2 { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#7c3aed; margin:24px 0 8px; border-bottom:2px solid #7c3aed22; padding-bottom:4px; }
+    table { width:100%; border-collapse:collapse; margin-bottom:8px; }
+    th { background:#7c3aed; color:#fff; text-align:left; padding:6px 8px; font-size:11px; }
+    td { padding:5px 8px; border-bottom:1px solid #eee; font-size:12px; }
+    tr:last-child td { border-bottom:none; }
+    tr:nth-child(even) td { background:#f9f9f9; }
+    .summary { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:8px; }
+    .card { border:1px solid #e5e7eb; border-radius:8px; padding:12px 16px; }
+    .card-label { font-size:10px; color:#888; text-transform:uppercase; letter-spacing:0.06em; }
+    .card-value { font-size:18px; font-weight:900; color:#7c3aed; margin-top:2px; }
+    .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:700; }
+    .ok { background:#dcfce7; color:#166534; }
+    .low { background:#fef9c3; color:#854d0e; }
+    .out { background:#fee2e2; color:#991b1b; }
+    footer { margin-top:32px; text-align:center; font-size:10px; color:#aaa; }
+    @media print { body { padding:16px; } }
+  </style>
+</head>
+<body>
+  <h1>Reeplay Lounge &amp; Club</h1>
+  <p class="sub">Report Period: ${d.rangeLabel} &nbsp;|&nbsp; Generated: ${new Date().toLocaleString('en-NG')}</p>
+
+  <h2>Summary</h2>
+  <div class="summary">
+    <div class="card"><div class="card-label">Online Revenue</div><div class="card-value">₦${d.onlineRevenue.toLocaleString()}</div></div>
+    <div class="card"><div class="card-label">Physical Revenue</div><div class="card-value">₦${d.physicalRevenue.toLocaleString()}</div></div>
+    <div class="card"><div class="card-label">Combined Total</div><div class="card-value">₦${d.combinedRevenue.toLocaleString()}</div></div>
+    <div class="card"><div class="card-label">Online Orders</div><div class="card-value">${d.orders.length}</div></div>
+    <div class="card"><div class="card-label">Physical Sales</div><div class="card-value">${d.physical.length}</div></div>
+    <div class="card"><div class="card-label">Avg Order Value</div><div class="card-value">₦${((d.orders.length + d.physical.length) === 0 ? 0 : Math.round(d.combinedRevenue / (d.orders.length + d.physical.length))).toLocaleString()}</div></div>
+  </div>
+
+  <h2>Online Orders</h2>
+  ${d.orders.length === 0 ? '<p style="color:#888">No online orders in this period.</p>' : table(
+    ['Order ID', 'Customer', 'Phone', 'Type', 'Status', 'Total (₦)', 'Date'],
+    d.orders.map((o: any) => [
+      o.visual_id || o.id, o.customer_name, o.customer_phone, o.type, o.status,
+      `₦${(o.total || 0).toLocaleString()}`,
+      new Date(o.created_at).toLocaleString('en-NG'),
+    ])
+  )}
+
+  <h2>Physical Sales Log</h2>
+  ${d.physical.length === 0 ? '<p style="color:#888">No physical sales in this period.</p>' : table(
+    ['Item', 'Qty', 'Unit Price', 'Total', 'Date', 'Logged By', 'Notes'],
+    d.physical.map((p: any) => [
+      p.item_name, p.quantity_sold,
+      `₦${Number(p.unit_price).toLocaleString()}`,
+      `₦${Number(p.total_amount).toLocaleString()}`,
+      p.sale_date, p.logged_by, p.notes || '—',
+    ])
+  )}
+
+  <h2>Top Items (Combined)</h2>
+  ${table(
+    ['Rank', 'Item', 'Total Sold'],
+    d.topItems.map(([name, qty]: [string, number], i: number) => [`${i + 1}`, name, `${qty}x`])
+  )}
+
+  <h2>Daily Revenue Breakdown</h2>
+  ${table(
+    ['Date', 'Online (₦)', 'Physical (₦)', 'Combined (₦)'],
+    d.daily.filter(r => r.total > 0).map(r => [
+      r.date, `₦${r.online.toLocaleString()}`, `₦${r.physical.toLocaleString()}`, `₦${r.total.toLocaleString()}`,
+    ])
+  )}
+
+  <h2>Inventory Snapshot</h2>
+  ${table(
+    ['Item', 'Stock Count', 'Tracking', 'Status'],
+    d.inv.map((i: any) => [
+      i.item_name, i.stock_count, i.track_inventory ? 'Yes' : 'No',
+      i.stock_count === 0 ? '<span class="badge out">Out of Stock</span>'
+        : i.stock_count <= 3 ? '<span class="badge low">Low Stock</span>'
+        : '<span class="badge ok">OK</span>',
+    ])
+  )}
+
+  <footer>Reeplay Lounge &amp; Club — Confidential Report</footer>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) { showToast('Allow popups to download PDF'); return; }
+  win.document.write(html);
+  win.document.close();
+  win.onload = () => { win.print(); };
+  showToast('PDF ready — Print → Save as PDF');
+};
 
   const sendReport = async (range: 'today' | 'week' | 'month' | 'custom', customStartDate?: Date, customEndDate?: Date) => {
     const now = new Date();
@@ -749,29 +996,79 @@ const AdminPanel: React.FC = () => {
               <div className="flex items-center gap-3">
                 <button onClick={fetchAnalytics} className="text-xs text-purple-400 hover:text-purple-300">Refresh</button>
                 <div className="relative">
-                  <button onClick={() => setShowReportOptions(!showReportOptions)}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-500 rounded-lg text-xs font-bold">
-                    <MessageCircle className="w-3 h-3" /> Report
+                  <button
+                    onClick={() => setShowReportOptions(!showReportOptions)}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-500 rounded-lg text-xs font-bold"
+                  >
+                    <Download className="w-3 h-3" /> Reports
                   </button>
+
                   {showReportOptions && (
-                    <div className="absolute right-0 top-8 bg-[#18181b] border border-white/10 rounded-xl p-3 z-50 w-52 space-y-2 shadow-2xl">
+                    <div className="absolute right-0 top-8 bg-[#18181b] border border-white/10 rounded-xl p-3 z-50 w-64 space-y-2 shadow-2xl">
+
+                      {/* WhatsApp */}
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                        <MessageCircle className="w-3 h-3" /> WhatsApp
+                      </p>
                       {(['today', 'week', 'month'] as const).map(r => (
                         <button key={r} onClick={() => { sendReport(r); setShowReportOptions(false); }}
                           className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold hover:bg-white/10 text-gray-300">
                           {r === 'today' ? 'Today' : r === 'week' ? 'Last 7 Days' : 'Last 30 Days'}
                         </button>
                       ))}
+
+                      {/* PDF */}
+                      <div className="border-t border-white/10 pt-2 space-y-1">
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                          <Download className="w-3 h-3" /> Download PDF
+                        </p>
+                        {(['today', 'week', 'month'] as const).map(r => (
+                          <button key={r} onClick={() => { downloadPDF(r); setShowReportOptions(false); }}
+                            className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold hover:bg-purple-900/40 text-purple-300">
+                            {r === 'today' ? 'Today' : r === 'week' ? 'Last 7 Days' : 'Last 30 Days'}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* CSV */}
+                      <div className="border-t border-white/10 pt-2 space-y-1">
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                          <Download className="w-3 h-3" /> Download CSV
+                        </p>
+                        {(['today', 'week', 'month'] as const).map(r => (
+                          <button key={r} onClick={() => { downloadCSV(r); setShowReportOptions(false); }}
+                            className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold hover:bg-green-900/40 text-green-300">
+                            {r === 'today' ? 'Today' : r === 'week' ? 'Last 7 Days' : 'Last 30 Days'}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Custom Range */}
                       <div className="border-t border-white/10 pt-2 space-y-2">
                         <p className="text-[10px] text-gray-500 uppercase tracking-wider">Custom Range</p>
                         <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
                           className="w-full bg-white/5 border border-white/10 rounded-lg p-1.5 text-xs text-white outline-none" />
                         <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
                           className="w-full bg-white/5 border border-white/10 rounded-lg p-1.5 text-xs text-white outline-none" />
-                        <button onClick={() => { if (!customStart || !customEnd) return; sendReport('custom', new Date(customStart), new Date(customEnd)); setShowReportOptions(false); }}
-                          className="w-full py-2 bg-green-600 hover:bg-green-500 rounded-lg text-xs font-bold">
-                          Send Custom Report
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => { if (!customStart || !customEnd) return; sendReport('custom', new Date(customStart), new Date(customEnd)); setShowReportOptions(false); }}
+                            className="flex-1 py-1.5 bg-green-700 hover:bg-green-600 rounded-lg text-xs font-bold flex items-center justify-center gap-1">
+                            <MessageCircle className="w-3 h-3" /> WA
+                          </button>
+                          <button
+                            onClick={() => { if (!customStart || !customEnd) return; downloadPDF('custom', new Date(customStart), new Date(customEnd)); setShowReportOptions(false); }}
+                            className="flex-1 py-1.5 bg-purple-700 hover:bg-purple-600 rounded-lg text-xs font-bold flex items-center justify-center gap-1">
+                            <Download className="w-3 h-3" /> PDF
+                          </button>
+                          <button
+                            onClick={() => { if (!customStart || !customEnd) return; downloadCSV('custom', new Date(customStart), new Date(customEnd)); setShowReportOptions(false); }}
+                            className="flex-1 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs font-bold flex items-center justify-center gap-1">
+                            <Download className="w-3 h-3" /> CSV
+                          </button>
+                        </div>
                       </div>
+
                     </div>
                   )}
                 </div>
