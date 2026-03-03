@@ -77,6 +77,10 @@ const AdminPanel: React.FC = () => {
   // Analytics state
   const [analytics, setAnalytics] = useState<any>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [reportRange, setReportRange] = useState<'today' | 'week' | 'month' | 'custom'>('today');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+  const [showReportOptions, setShowReportOptions] = useState(false);
 
   // Inventory state
   const [inventory, setInventory] = useState<any[]>([]);
@@ -161,7 +165,6 @@ const AdminPanel: React.FC = () => {
         setOrders(prev => {
           const newOrders = data.filter((d: OrderRow) => !prev.find(p => p.id === d.id));
           if (newOrders.length > 0) {
-            // Play notification sound
             const ctx = new AudioContext();
             const oscillator = ctx.createOscillator();
             const gain = ctx.createGain();
@@ -184,21 +187,14 @@ const AdminPanel: React.FC = () => {
     setOrdersLoading(false);
   };
 
- const updateOrderStatus = async (id: string, status: string) => {
-  const { error, data } = await supabase
-    .from('orders')
-    .update({ status })
-    .eq('id', id)
-    .select();
-  if (error) {
-    showToast('Error: ' + error.message);
-    return;
-  }
-  setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
-  showToast('Status updated!');
-};
+  const updateOrderStatus = async (id: string, status: string) => {
+    const { error } = await supabase.from('orders').update({ status }).eq('id', id).select();
+    if (error) { showToast('Error: ' + error.message); return; }
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
+    showToast('Status updated!');
+  };
 
-// --- INVENTORY ---
+  // --- INVENTORY ---
   const fetchInventory = async () => {
     setInventoryLoading(true);
     const { data } = await supabase.from('inventory').select('*').order('item_name');
@@ -237,129 +233,114 @@ const AdminPanel: React.FC = () => {
     showToast('Deleted!');
   };
 
-// --- ANALYTICS ---
-const fetchAnalytics = async () => {
-  setAnalyticsLoading(true);
-  const now = new Date();
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - 7);
-  const startOfLastWeek = new Date(now);
-  startOfLastWeek.setDate(now.getDate() - 14);
+  // --- ANALYTICS ---
+  const fetchAnalytics = async () => {
+    setAnalyticsLoading(true);
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - 7);
+    const startOfLastWeek = new Date(now);
+    startOfLastWeek.setDate(now.getDate() - 14);
 
-  const { data: thisWeek } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('payment_status', 'paid')
-    .gte('created_at', startOfWeek.toISOString());
+    const { data: thisWeek } = await supabase.from('orders').select('*').eq('payment_status', 'paid').gte('created_at', startOfWeek.toISOString());
+    const { data: lastWeek } = await supabase.from('orders').select('*').eq('payment_status', 'paid').gte('created_at', startOfLastWeek.toISOString()).lt('created_at', startOfWeek.toISOString());
 
-  const { data: lastWeek } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('payment_status', 'paid')
-    .gte('created_at', startOfLastWeek.toISOString())
-    .lt('created_at', startOfWeek.toISOString());
+    if (!thisWeek) { setAnalyticsLoading(false); return; }
 
-  if (!thisWeek) { setAnalyticsLoading(false); return; }
+    const thisRevenue = thisWeek.reduce((t: number, o: any) => t + (o.total || 0), 0);
+    const lastRevenue = (lastWeek || []).reduce((t: number, o: any) => t + (o.total || 0), 0);
+    const revenueChange = lastRevenue === 0 ? 100 : Math.round(((thisRevenue - lastRevenue) / lastRevenue) * 100);
+    const thisCount = thisWeek.length;
+    const lastCount = (lastWeek || []).length;
+    const countChange = lastCount === 0 ? 100 : Math.round(((thisCount - lastCount) / lastCount) * 100);
+    const avgOrder = thisCount === 0 ? 0 : Math.round(thisRevenue / thisCount);
+    const pickupCount = thisWeek.filter((o: any) => o.type === 'pickup').length;
+    const deliveryCount = thisWeek.filter((o: any) => o.type === 'delivery').length;
 
-  
-
-  // Revenue
-  const thisRevenue = thisWeek.reduce((t: number, o: any) => t + (o.total || 0), 0);
-  const lastRevenue = (lastWeek || []).reduce((t: number, o: any) => t + (o.total || 0), 0);
-  const revenueChange = lastRevenue === 0 ? 100 : Math.round(((thisRevenue - lastRevenue) / lastRevenue) * 100);
-
-  // Orders count
-  const thisCount = thisWeek.length;
-  const lastCount = (lastWeek || []).length;
-  const countChange = lastCount === 0 ? 100 : Math.round(((thisCount - lastCount) / lastCount) * 100);
-
-  // Average order value
-  const avgOrder = thisCount === 0 ? 0 : Math.round(thisRevenue / thisCount);
-
-  // Orders by type
-  const pickupCount = thisWeek.filter((o: any) => o.type === 'pickup').length;
-  const deliveryCount = thisWeek.filter((o: any) => o.type === 'delivery').length;
-
-  // Top items
-  const itemMap: Record<string, number> = {};
-  thisWeek.forEach((order: any) => {
-    (order.items || []).forEach((item: any) => {
-      const name = item.name?.split(' (')[0];
-      if (!name) return;
-      const skipKeywords = ['plastic container', 'paper bag', 'delivery fee', 'vat', 'packaging', 'tax', 'service'];
-      if (skipKeywords.some(k => name.toLowerCase().includes(k))) return;
-      itemMap[name] = (itemMap[name] || 0) + item.quantity;
+    const itemMap: Record<string, number> = {};
+    thisWeek.forEach((order: any) => {
+      (order.items || []).forEach((item: any) => {
+        const name = item.name?.split(' (')[0];
+        if (!name) return;
+        const skipKeywords = ['plastic container', 'paper bag', 'delivery fee', 'vat', 'packaging', 'tax', 'service'];
+        if (skipKeywords.some(k => name.toLowerCase().includes(k))) return;
+        itemMap[name] = (itemMap[name] || 0) + item.quantity;
+      });
     });
-  });
-  const topItems = Object.entries(itemMap)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
+    const topItems = Object.entries(itemMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
-  // Daily revenue last 7 days
-  const dailyRevenue: { day: string; revenue: number }[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const day = new Date();
-    day.setDate(day.getDate() - i);
-    const dayStr = day.toLocaleDateString('en-US', { weekday: 'short' });
-    const dayRevenue = thisWeek
-      .filter((o: any) => new Date(o.created_at).toDateString() === day.toDateString())
-      .reduce((t: number, o: any) => t + (o.total || 0), 0);
-    dailyRevenue.push({ day: dayStr, revenue: dayRevenue });
-  }
+    const dailyRevenue: { day: string; revenue: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const day = new Date();
+      day.setDate(day.getDate() - i);
+      const dayStr = day.toLocaleDateString('en-US', { weekday: 'short' });
+      const dayRevenue = thisWeek.filter((o: any) => new Date(o.created_at).toDateString() === day.toDateString()).reduce((t: number, o: any) => t + (o.total || 0), 0);
+      dailyRevenue.push({ day: dayStr, revenue: dayRevenue });
+    }
 
-  setAnalytics({ thisRevenue, revenueChange, thisCount, countChange, avgOrder, pickupCount, deliveryCount, topItems, dailyRevenue });
-  setAnalyticsLoading(false);
-};
+    setAnalytics({ thisRevenue, revenueChange, thisCount, countChange, avgOrder, pickupCount, deliveryCount, topItems, dailyRevenue });
+    setAnalyticsLoading(false);
+  };
 
-const sendDailyReport = async () => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const sendReport = async (range: 'today' | 'week' | 'month' | 'custom', customStartDate?: Date, customEndDate?: Date) => {
+    const now = new Date();
+    let start = new Date();
+    let end = new Date();
 
-  const { data } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('payment_status', 'paid')
-    .gte('created_at', today.toISOString());
+    if (range === 'today') {
+      start.setHours(0, 0, 0, 0);
+      end = now;
+    } else if (range === 'week') {
+      start.setDate(now.getDate() - 7);
+      end = now;
+    } else if (range === 'month') {
+      start.setDate(now.getDate() - 30);
+      end = now;
+    } else if (range === 'custom' && customStartDate && customEndDate) {
+      start = customStartDate;
+      end = customEndDate;
+      end.setHours(23, 59, 59, 999);
+    }
 
-  if (!data || data.length === 0) {
-    showToast('No orders today yet.');
-    return;
-  }
+    const { data } = await supabase.from('orders').select('*').eq('payment_status', 'paid').gte('created_at', start.toISOString()).lte('created_at', end.toISOString());
 
-  const totalRevenue = data.reduce((t: number, o: any) => t + (o.total || 0), 0);
-  const pickupCount = data.filter((o: any) => o.type === 'pickup').length;
-  const deliveryCount = data.filter((o: any) => o.type === 'delivery').length;
+    if (!data || data.length === 0) { showToast('No orders in this period.'); return; }
 
-  const itemMap: Record<string, number> = {};
-  data.forEach((order: any) => {
-    (order.items || []).forEach((item: any) => {
-      const name = item.name?.split(' (')[0];
-      if (!name) return;
-      const skip = ['plastic container', 'paper bag', 'delivery fee', 'vat', 'packaging', 'tax', 'service'];
-      if (skip.some(k => name.toLowerCase().includes(k))) return;
-      itemMap[name] = (itemMap[name] || 0) + item.quantity;
+    const totalRevenue = data.reduce((t: number, o: any) => t + (o.total || 0), 0);
+    const pickupCount = data.filter((o: any) => o.type === 'pickup').length;
+    const deliveryCount = data.filter((o: any) => o.type === 'delivery').length;
+    const avgOrder = Math.round(totalRevenue / data.length);
+
+    const itemMap: Record<string, number> = {};
+    data.forEach((order: any) => {
+      (order.items || []).forEach((item: any) => {
+        const name = item.name?.split(' (')[0];
+        if (!name) return;
+        const skip = ['plastic container', 'paper bag', 'delivery fee', 'vat', 'packaging', 'tax', 'service'];
+        if (skip.some(k => name.toLowerCase().includes(k))) return;
+        itemMap[name] = (itemMap[name] || 0) + item.quantity;
+      });
     });
-  });
-  const topItems = Object.entries(itemMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const topItems = Object.entries(itemMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
-  const dateStr = today.toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long' });
-  const lines = [
-    `📊 *REEPLAY DAILY REPORT*`,
-    `📅 ${dateStr}`,
-    `--------------------------------`,
-    `💰 Total Revenue: ₦${totalRevenue.toLocaleString()}`,
-    `🧾 Total Orders: ${data.length}`,
-    `🛍️ Pickup: ${pickupCount} | Delivery: ${deliveryCount}`,
-    `--------------------------------`,
-    `🏆 *Top Items Today:*`,
-    ...topItems.map(([name, qty], i) => `${i + 1}. ${name} — ${qty}x`),
-    `--------------------------------`,
-    `_Reeplay Lounge & Club_`,
-  ];
+    const rangeLabel = range === 'today' ? 'Today' : range === 'week' ? 'Last 7 Days' : range === 'month' ? 'Last 30 Days' : `${start.toLocaleDateString()} – ${end.toLocaleDateString()}`;
 
-  const text = lines.join('\n');
-  window.open(`https://wa.me/2349061203547?text=${encodeURIComponent(text)}`, '_blank');
-};
+    const lines = [
+      `📊 *REEPLAY REPORT — ${rangeLabel.toUpperCase()}*`,
+      `--------------------------------`,
+      `💰 Revenue: ₦${totalRevenue.toLocaleString()}`,
+      `🧾 Orders: ${data.length}`,
+      `📦 Avg Order: ₦${avgOrder.toLocaleString()}`,
+      `🛍️ Pickup: ${pickupCount} | Delivery: ${deliveryCount}`,
+      `--------------------------------`,
+      `🏆 *Top Items:*`,
+      ...topItems.map(([name, qty], i) => `${i + 1}. ${name} — ${qty}x`),
+      `--------------------------------`,
+      `_Reeplay Lounge & Club_`,
+    ];
+
+    window.open(`https://wa.me/2349061203547?text=${encodeURIComponent(lines.join('\n'))}`, '_blank');
+  };
 
   // --- GALLERY ---
   const fetchGallery = async () => {
@@ -374,12 +355,8 @@ const sendDailyReport = async () => {
     if (!file) return;
     setUploading(true);
     const fileName = `${Date.now()}-${file.name}`;
-    const { data, error } = await supabase.storage.from('gallery').upload(fileName, file);
-    if (error) {
-      showToast('Upload failed: ' + error.message);
-      setUploading(false);
-      return;
-    }
+    const { error } = await supabase.storage.from('gallery').upload(fileName, file);
+    if (error) { showToast('Upload failed: ' + error.message); setUploading(false); return; }
     const { data: urlData } = supabase.storage.from('gallery').getPublicUrl(fileName);
     await supabase.from('gallery').insert({ image_url: urlData.publicUrl, caption: file.name });
     showToast('Image uploaded!');
@@ -404,11 +381,12 @@ const sendDailyReport = async () => {
     if (activeView === 'analytics') fetchAnalytics();
     if (activeView === 'inventory') fetchInventory();
   }, [activeView, isLoggedIn]);
-    useEffect(() => {
-  if (!isLoggedIn) return;
-  const interval = setInterval(() => fetchOrders(true), 10000);
-  return () => clearInterval(interval);
-}, [isLoggedIn, activeView]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const interval = setInterval(() => fetchOrders(true), 10000);
+    return () => clearInterval(interval);
+  }, [isLoggedIn, activeView]);
 
   // --- LOGIN SCREEN ---
   if (!isLoggedIn) {
@@ -426,9 +404,7 @@ const sendDailyReport = async () => {
             className="w-full bg-white/5 border border-white/10 text-white rounded-xl p-3 outline-none focus:border-purple-500 mb-3"
           />
           {passwordError && <p className="text-red-400 text-xs mb-3">{passwordError}</p>}
-          <button onClick={handleLogin} className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-xl">
-            Login
-          </button>
+          <button onClick={handleLogin} className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-xl">Login</button>
         </div>
       </div>
     );
@@ -437,14 +413,12 @@ const sendDailyReport = async () => {
   // --- MAIN ADMIN UI ---
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
-      {/* Toast */}
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-2 font-bold">
           <CheckCircle className="w-4 h-4" /> {toast}
         </div>
       )}
 
-      {/* Header */}
       <div className="bg-[#18181b] border-b border-white/10 p-4 flex justify-between items-center">
         <h1 className="font-black text-lg">Reeplay Admin</h1>
         <button onClick={() => setIsLoggedIn(false)} className="flex items-center gap-2 text-gray-400 hover:text-white text-sm">
@@ -452,7 +426,6 @@ const sendDailyReport = async () => {
         </button>
       </div>
 
-      {/* Nav */}
       <div className="flex border-b border-white/10 overflow-x-auto">
         {[
           { id: 'orders', label: 'Orders', icon: ShoppingBag },
@@ -470,39 +443,25 @@ const sendDailyReport = async () => {
           >
             <tab.icon className="w-4 h-4" /> {tab.label}
             {tab.id === 'orders' && newOrderCount > 0 && (
-              <span className="bg-red-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center">
-                {newOrderCount}
-              </span>
+              <span className="bg-red-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center">{newOrderCount}</span>
             )}
           </button>
         ))}
       </div>
 
-      <div className="p-4 max-w-4xl mx-auto">
+      <div className="p-4 max-w-4xl mx-auto overflow-visible">
 
         {/* --- ORDERS --- */}
         {activeView === 'orders' && (
           <div className="space-y-4">
-         <div className="flex justify-between items-center">
-          <h2 className="text-lg font-bold">Weekly Analytics</h2>
-          <div className="flex items-center gap-3">
-            <button onClick={fetchAnalytics} className="text-xs text-purple-400 hover:text-purple-300">Refresh</button>
-            <button
-              onClick={sendDailyReport}
-              className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-500 rounded-lg text-xs font-bold"
-            >
-              <MessageCircle className="w-3 h-3" /> Daily Report
-            </button>
-            </div>
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-bold">Incoming Orders</h2>
+              <button onClick={() => fetchOrders()} className="text-xs text-purple-400 hover:text-purple-300">Refresh</button>
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1">
               {['all', 'Pending', 'Confirmed', 'Out for Delivery', 'Completed'].map(f => (
-                <button
-                  key={f}
-                  onClick={() => setOrderFilter(f)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all
-                    ${orderFilter === f ? 'bg-purple-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
-                >
+                <button key={f} onClick={() => setOrderFilter(f)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${orderFilter === f ? 'bg-purple-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
                   {f === 'all' ? 'All' : f}
                 </button>
               ))}
@@ -522,18 +481,12 @@ const sendDailyReport = async () => {
                       <span className="text-yellow-500 font-mono font-bold">₦{order.total?.toLocaleString()}</span>
                     </div>
                     <div className="border-t border-white/5 pt-2 text-xs text-gray-400">
-                      {order.items?.map((item: any, i: number) => (
-                        <div key={i}>{item.quantity}x {item.name}</div>
-                      ))}
+                      {order.items?.map((item: any, i: number) => <div key={i}>{item.quantity}x {item.name}</div>)}
                     </div>
                     <div className="flex gap-2 flex-wrap">
                       {STATUSES.map(s => (
-                        <button
-                          key={s}
-                          onClick={() => updateOrderStatus(order.id, s)}
-                          className={`px-3 py-1 rounded-full text-xs font-bold transition-all
-                          ${order.status?.toLowerCase() === s.toLowerCase() ? 'bg-purple-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
-                        >
+                        <button key={s} onClick={() => updateOrderStatus(order.id, s)}
+                          className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${order.status?.toLowerCase() === s.toLowerCase() ? 'bg-purple-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
                           {s}
                         </button>
                       ))}
@@ -551,12 +504,8 @@ const sendDailyReport = async () => {
             <h2 className="text-lg font-bold">Menu Manager</h2>
             <div className="flex gap-2 overflow-x-auto pb-2">
               {CATEGORIES.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap capitalize transition-all
-                    ${activeCategory === cat ? 'bg-purple-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
-                >
+                <button key={cat} onClick={() => setActiveCategory(cat)}
+                  className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap capitalize transition-all ${activeCategory === cat ? 'bg-purple-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
                   {cat}
                 </button>
               ))}
@@ -567,38 +516,20 @@ const sendDailyReport = async () => {
                   <div className="flex justify-between items-start gap-3">
                     <div className="flex-1">
                       <p className="font-bold text-white">{item.name}</p>
-                      <input
-                        type="text"
-                        value={item.description}
-                        onChange={e => handleMenuChange(item.id, 'description', e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-xs text-gray-300 mt-1 outline-none focus:border-purple-500"
-                      />
+                      <input type="text" value={item.description} onChange={e => handleMenuChange(item.id, 'description', e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-xs text-gray-300 mt-1 outline-none focus:border-purple-500" />
                     </div>
-                    <button
-                      onClick={() => handleMenuChange(item.id, 'is_sold_out', !item.is_sold_out)}
-                      className="shrink-0"
-                    >
-                      {item.is_sold_out
-                        ? <ToggleRight className="w-8 h-8 text-red-500" />
-                        : <ToggleLeft className="w-8 h-8 text-gray-500" />
-                      }
+                    <button onClick={() => handleMenuChange(item.id, 'is_sold_out', !item.is_sold_out)} className="shrink-0">
+                      {item.is_sold_out ? <ToggleRight className="w-8 h-8 text-red-500" /> : <ToggleLeft className="w-8 h-8 text-gray-500" />}
                     </button>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-gray-400 text-sm">₦</span>
-                    <input
-                      type="number"
-                      value={item.price}
-                      onChange={e => handleMenuChange(item.id, 'price', parseInt(e.target.value))}
-                      className="w-32 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-yellow-400 font-mono outline-none focus:border-purple-500"
-                    />
+                    <input type="number" value={item.price} onChange={e => handleMenuChange(item.id, 'price', parseInt(e.target.value))}
+                      className="w-32 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-yellow-400 font-mono outline-none focus:border-purple-500" />
                     {item.is_sold_out && <span className="text-xs text-red-400 font-bold">SOLD OUT</span>}
-                    <button
-                      onClick={() => updateMenuItem(item)}
-                      className="ml-auto flex items-center gap-1 px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-xs font-bold"
-                    >
-                      {savingId === item.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                      Save
+                    <button onClick={() => updateMenuItem(item)} className="ml-auto flex items-center gap-1 px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-xs font-bold">
+                      {savingId === item.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Save
                     </button>
                   </div>
                 </div>
@@ -612,14 +543,11 @@ const sendDailyReport = async () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-bold">Events Manager</h2>
-              <button
-                onClick={() => setShowNewEventForm(!showNewEventForm)}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-xs font-bold"
-              >
+              <button onClick={() => setShowNewEventForm(!showNewEventForm)}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-xs font-bold">
                 <Plus className="w-3 h-3" /> Add Event
               </button>
             </div>
-
             {showNewEventForm && (
               <div className="bg-[#18181b] border border-purple-500/30 rounded-xl p-4 space-y-3">
                 <h3 className="font-bold text-purple-400">New Event</h3>
@@ -631,27 +559,18 @@ const sendDailyReport = async () => {
                   { key: 'image_url', placeholder: 'Image URL' },
                   { key: 'price', placeholder: 'Price (e.g. Free Entry / ₦5,000)' },
                 ].map(field => (
-                  <input
-                    key={field.key}
-                    placeholder={field.placeholder}
-                    value={(newEvent as any)[field.key] || ''}
+                  <input key={field.key} placeholder={field.placeholder} value={(newEvent as any)[field.key] || ''}
                     onChange={e => setNewEvent(prev => ({ ...prev, [field.key]: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-purple-500"
-                  />
+                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-purple-500" />
                 ))}
-                <textarea
-                  placeholder="Description"
-                  value={newEvent.description || ''}
-                  onChange={e => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-purple-500 resize-none h-20"
-                />
+                <textarea placeholder="Description" value={newEvent.description || ''} onChange={e => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-purple-500 resize-none h-20" />
                 <div className="flex gap-3">
                   <button onClick={saveNewEvent} className="flex-1 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm font-bold">Save Event</button>
                   <button onClick={() => setShowNewEventForm(false)} className="px-4 py-2 bg-white/5 rounded-lg text-sm">Cancel</button>
                 </div>
               </div>
             )}
-
             {eventsLoading ? <Loader2 className="animate-spin mx-auto mt-8" /> : (
               events.length === 0 ? <p className="text-gray-500 text-center mt-8">No events yet.</p> : (
                 events.map(event => (
@@ -664,10 +583,7 @@ const sendDailyReport = async () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <button onClick={() => toggleEventActive(event.id, event.is_active)}>
-                          {event.is_active
-                            ? <ToggleRight className="w-7 h-7 text-green-500" />
-                            : <ToggleLeft className="w-7 h-7 text-gray-500" />
-                          }
+                          {event.is_active ? <ToggleRight className="w-7 h-7 text-green-500" /> : <ToggleLeft className="w-7 h-7 text-gray-500" />}
                         </button>
                         <button onClick={() => deleteEvent(event.id)} className="p-1 hover:text-red-400 text-gray-500">
                           <Trash2 className="w-4 h-4" />
@@ -681,107 +597,106 @@ const sendDailyReport = async () => {
           </div>
         )}
 
-        {/* where i stopped */}
         {/* --- INVENTORY --- */}
-{activeView === 'inventory' && (
-  <div className="space-y-4">
-    <div className="flex justify-between items-center">
-      <h2 className="text-lg font-bold">Inventory Manager</h2>
-      <button onClick={fetchInventory} className="text-xs text-purple-400 hover:text-purple-300">Refresh</button>
-    </div>
-
-    {/* Add new item */}
-    <div className="bg-[#18181b] border border-purple-500/30 rounded-xl p-4 space-y-3">
-      <h3 className="text-sm font-bold text-purple-400">Add Item to Track</h3>
-      <div className="flex gap-2">
-        <input
-          placeholder="Item name (e.g. Heineken)"
-          value={newItemName}
-          onChange={e => setNewItemName(e.target.value)}
-          className="flex-1 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-purple-500"
-        />
-        <input
-          type="number"
-          placeholder="Stock"
-          value={newItemStock}
-          onChange={e => setNewItemStock(parseInt(e.target.value) || 0)}
-          className="w-20 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-purple-500"
-        />
-        <button
-          onClick={addInventoryItem}
-          className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-xs font-bold"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
-      </div>
-    </div>
-
-    {inventoryLoading ? <Loader2 className="animate-spin mx-auto mt-8" /> : (
-      inventory.length === 0 ? (
-        <p className="text-gray-500 text-center mt-8">No items being tracked yet.</p>
-      ) : (
-        inventory.map(item => (
-          <div key={item.id} className="bg-[#18181b] border border-white/10 rounded-xl p-4">
-            <div className="flex justify-between items-center mb-3">
-              <div>
-                <p className="font-bold text-white">{item.item_name}</p>
-                <p className={`text-xs font-bold mt-0.5 ${item.stock_count === 0 ? 'text-red-400' : item.stock_count <= 3 ? 'text-yellow-400' : 'text-green-400'}`}>
-                  {item.stock_count === 0 ? 'OUT OF STOCK' : item.stock_count <= 3 ? `LOW STOCK — ${item.stock_count} left` : `${item.stock_count} in stock`}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => toggleTrack(item.id, item.track_inventory)}>
-                  {item.track_inventory
-                    ? <ToggleRight className="w-7 h-7 text-green-500" />
-                    : <ToggleLeft className="w-7 h-7 text-gray-500" />
-                  }
-                </button>
-                <button onClick={() => deleteInventoryItem(item.id)} className="p-1 hover:text-red-400 text-gray-500">
-                  <Trash2 className="w-4 h-4" />
+        {activeView === 'inventory' && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-bold">Inventory Manager</h2>
+              <button onClick={fetchInventory} className="text-xs text-purple-400 hover:text-purple-300">Refresh</button>
+            </div>
+            <div className="bg-[#18181b] border border-purple-500/30 rounded-xl p-4 space-y-3">
+              <h3 className="text-sm font-bold text-purple-400">Add Item to Track</h3>
+              <div className="flex gap-2">
+                <input placeholder="Item name (e.g. Heineken)" value={newItemName} onChange={e => setNewItemName(e.target.value)}
+                  className="flex-1 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-purple-500" />
+                <input type="number" placeholder="Stock" value={newItemStock} onChange={e => setNewItemStock(parseInt(e.target.value) || 0)}
+                  className="w-20 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-purple-500" />
+                <button onClick={addInventoryItem} className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-xs font-bold">
+                  <Plus className="w-4 h-4" />
                 </button>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => updateStock(item.id, Math.max(0, item.stock_count - 1))}
-                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 text-white"
-              >
-                <Minus className="w-4 h-4" />
-              </button>
-              <input
-                type="number"
-                value={item.stock_count}
-                onChange={e => updateStock(item.id, parseInt(e.target.value) || 0)}
-                className="w-20 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white text-center outline-none focus:border-purple-500"
-              />
-              <button
-                onClick={() => updateStock(item.id, item.stock_count + 1)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg bg-purple-600 hover:bg-purple-500 text-white"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-              <span className="text-xs text-gray-500">units</span>
-            </div>
+            {inventoryLoading ? <Loader2 className="animate-spin mx-auto mt-8" /> : (
+              inventory.length === 0 ? <p className="text-gray-500 text-center mt-8">No items being tracked yet.</p> : (
+                inventory.map(item => (
+                  <div key={item.id} className="bg-[#18181b] border border-white/10 rounded-xl p-4">
+                    <div className="flex justify-between items-center mb-3">
+                      <div>
+                        <p className="font-bold text-white">{item.item_name}</p>
+                        <p className={`text-xs font-bold mt-0.5 ${item.stock_count === 0 ? 'text-red-400' : item.stock_count <= 3 ? 'text-yellow-400' : 'text-green-400'}`}>
+                          {item.stock_count === 0 ? 'OUT OF STOCK' : item.stock_count <= 3 ? `LOW STOCK — ${item.stock_count} left` : `${item.stock_count} in stock`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => toggleTrack(item.id, item.track_inventory)}>
+                          {item.track_inventory ? <ToggleRight className="w-7 h-7 text-green-500" /> : <ToggleLeft className="w-7 h-7 text-gray-500" />}
+                        </button>
+                        <button onClick={() => deleteInventoryItem(item.id)} className="p-1 hover:text-red-400 text-gray-500">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => updateStock(item.id, Math.max(0, item.stock_count - 1))}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 text-white">
+                        <Minus className="w-4 h-4" />
+                      </button>
+                      <input type="number" value={item.stock_count} onChange={e => updateStock(item.id, parseInt(e.target.value) || 0)}
+                        className="w-20 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white text-center outline-none focus:border-purple-500" />
+                      <button onClick={() => updateStock(item.id, item.stock_count + 1)}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-purple-600 hover:bg-purple-500 text-white">
+                        <Plus className="w-4 h-4" />
+                      </button>
+                      <span className="text-xs text-gray-500">units</span>
+                    </div>
+                  </div>
+                ))
+              )
+            )}
           </div>
-        ))
-      )
-    )}
-  </div>
-)}
+        )}
 
         {/* --- ANALYTICS --- */}
         {activeView === 'analytics' && (
-          <div className="space-y-6">
+            <div className="space-y-6 overflow-visible">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-bold">Weekly Analytics</h2>
-              <button onClick={fetchAnalytics} className="text-xs text-purple-400 hover:text-purple-300">Refresh</button>
+              <div className="flex items-center gap-3">
+                <button onClick={fetchAnalytics} className="text-xs text-purple-400 hover:text-purple-300">Refresh</button>
+                <div className="relative">
+                  <button onClick={() => setShowReportOptions(!showReportOptions)}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-500 rounded-lg text-xs font-bold">
+                    <MessageCircle className="w-3 h-3" /> Report
+                  </button>
+                  {showReportOptions && (
+                    <div className="absolute right-0 top-8 bg-[#18181b] border border-white/10 rounded-xl p-3 z-50 w-52 space-y-2 shadow-2xl">
+                      {(['today', 'week', 'month'] as const).map(r => (
+                        <button key={r} onClick={() => { sendReport(r); setShowReportOptions(false); }}
+                          className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold hover:bg-white/10 text-gray-300">
+                          {r === 'today' ? 'Today' : r === 'week' ? 'Last 7 Days' : 'Last 30 Days'}
+                        </button>
+                      ))}
+                      <div className="border-t border-white/10 pt-2 space-y-2">
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wider">Custom Range</p>
+                        <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
+                          className="w-full bg-white/5 border border-white/10 rounded-lg p-1.5 text-xs text-white outline-none" />
+                        <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
+                          className="w-full bg-white/5 border border-white/10 rounded-lg p-1.5 text-xs text-white outline-none" />
+                        <button onClick={() => { if (!customStart || !customEnd) return; sendReport('custom', new Date(customStart), new Date(customEnd)); setShowReportOptions(false); }}
+                          className="w-full py-2 bg-green-600 hover:bg-green-500 rounded-lg text-xs font-bold">
+                          Send Custom Report
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {analyticsLoading ? <Loader2 className="animate-spin mx-auto mt-8" /> : !analytics ? (
               <p className="text-gray-500 text-center mt-8">No data yet.</p>
             ) : (
               <>
-                {/* Stats Grid */}
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { label: 'This Week Revenue', value: `₦${analytics.thisRevenue.toLocaleString()}`, change: analytics.revenueChange },
@@ -801,7 +716,6 @@ const sendDailyReport = async () => {
                   ))}
                 </div>
 
-                {/* Daily Revenue Chart */}
                 <div className="bg-[#18181b] border border-white/10 rounded-xl p-4">
                   <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-4">Daily Revenue (Last 7 Days)</p>
                   <div className="flex items-end gap-2 h-32">
@@ -810,14 +724,9 @@ const sendDailyReport = async () => {
                       const height = max === 0 ? 0 : Math.round((d.revenue / max) * 100);
                       return (
                         <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
-                          <p className="text-[9px] text-gray-500 font-mono">
-                            {d.revenue > 0 ? `₦${(d.revenue / 1000).toFixed(0)}k` : ''}
-                          </p>
+                          <p className="text-[9px] text-gray-500 font-mono">{d.revenue > 0 ? `₦${(d.revenue / 1000).toFixed(0)}k` : ''}</p>
                           <div className="w-full bg-white/5 rounded-t-md relative" style={{ height: '80px' }}>
-                            <div
-                              className="absolute bottom-0 w-full bg-purple-600 rounded-t-md transition-all duration-500"
-                              style={{ height: `${height}%` }}
-                            />
+                            <div className="absolute bottom-0 w-full bg-purple-600 rounded-t-md transition-all duration-500" style={{ height: `${height}%` }} />
                           </div>
                           <p className="text-[9px] text-gray-500">{d.day}</p>
                         </div>
@@ -826,12 +735,9 @@ const sendDailyReport = async () => {
                   </div>
                 </div>
 
-                {/* Top Items */}
                 <div className="bg-[#18181b] border border-white/10 rounded-xl p-4">
                   <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-4">Top Items This Week</p>
-                  {analytics.topItems.length === 0 ? (
-                    <p className="text-gray-500 text-sm">No orders this week yet.</p>
-                  ) : (
+                  {analytics.topItems.length === 0 ? <p className="text-gray-500 text-sm">No orders this week yet.</p> : (
                     <div className="space-y-3">
                       {analytics.topItems.map(([name, qty]: [string, number], i: number) => {
                         const max = analytics.topItems[0][1];
@@ -844,10 +750,7 @@ const sendDailyReport = async () => {
                                 <span className="text-gray-400 text-xs">{qty}x</span>
                               </div>
                               <div className="h-1.5 bg-white/5 rounded-full">
-                                <div
-                                  className="h-full bg-purple-500 rounded-full transition-all duration-500"
-                                  style={{ width: `${(qty / max) * 100}%` }}
-                                />
+                                <div className="h-full bg-purple-500 rounded-full transition-all duration-500" style={{ width: `${(qty / max) * 100}%` }} />
                               </div>
                             </div>
                           </div>
@@ -877,10 +780,8 @@ const sendDailyReport = async () => {
                 {gallery.map(img => (
                   <div key={img.id} className="relative group rounded-xl overflow-hidden aspect-square">
                     <img src={img.image_url} alt={img.caption} className="w-full h-full object-cover" />
-                    <button
-                      onClick={() => deleteGalleryImage(img.id, img.image_url)}
-                      className="absolute top-2 right-2 p-1.5 bg-red-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
+                    <button onClick={() => deleteGalleryImage(img.id, img.image_url)}
+                      className="absolute top-2 right-2 p-1.5 bg-red-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
                       <X className="w-3 h-3 text-white" />
                     </button>
                   </div>
