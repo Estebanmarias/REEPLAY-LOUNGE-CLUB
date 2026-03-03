@@ -21,6 +21,7 @@ interface SpecialEvent {
   description: string;
   price: string;
   is_active: boolean;
+  event_date: string;
 }
 
 const EventCard: React.FC<{
@@ -150,7 +151,7 @@ const EventsPage: React.FC<EventsPageProps> = ({ onBack }) => {
     });
     if (!next) { setTimeLeft(null); return; }
 
-    const target = new Date(next.date);
+    const target = new Date(next.event_date);
     const timer = setInterval(() => {
       const diff = target.getTime() - new Date().getTime();
       if (diff <= 0) {

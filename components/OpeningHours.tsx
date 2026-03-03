@@ -66,7 +66,7 @@ const OpeningHours: React.FC<OpeningHoursProps> = ({ theme }) => {
            <h3 className={`text-2xl font-bold mb-6 ${isDark ? 'text-white' : 'text-gray-900'}`}>For Inquiries & VIP</h3>
            
            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <a href="tel:09060621425" className={`flex flex-col items-center justify-center p-6 rounded-2xl border transition-all group
+              <a href="tel:09061203547" className={`flex flex-col items-center justify-center p-6 rounded-2xl border transition-all group
                   ${isDark ? 'bg-white/5 border-white/5 hover:bg-white/10' : 'bg-gray-50 border-gray-100 hover:bg-gray-100'}
               `}>
                  <Phone className="w-8 h-8 mb-3 text-green-500 group-hover:scale-110 transition-transform" />

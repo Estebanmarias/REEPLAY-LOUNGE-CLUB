@@ -74,7 +74,7 @@ const ContactUs: React.FC = () => {
               </a>
               
               <a 
-                href="tel:09060621425"
+                href="tel:09061203547"
                 className="flex items-start gap-4 group hover:bg-white/5 p-2 -ml-2 rounded-xl transition-all"
               >
                 <div className="p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-full text-yellow-400 group-hover:scale-110 transition-transform">
