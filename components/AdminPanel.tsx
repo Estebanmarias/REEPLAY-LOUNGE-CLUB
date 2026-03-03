@@ -709,7 +709,7 @@ const downloadPDF = async (range: 'today' | 'week' | 'month' | 'custom', customS
     if (activeView === 'orders') fetchOrders();
     if (activeView === 'gallery') fetchGallery();
     if (activeView === 'analytics') fetchAnalytics();
-    if (activeView === 'inventory') fetchInventory();
+    if (activeView === 'inventory') { fetchInventory(); fetchMenu(); }
     if (activeView === 'physicallog') { fetchPhysicalLogs(); fetchInventory(); }
   }, [activeView, isLoggedIn]);
 
@@ -951,8 +951,16 @@ const downloadPDF = async (range: 'today' | 'week' | 'month' | 'custom', customS
             <div className="bg-[#18181b] border border-purple-500/30 rounded-xl p-4 space-y-3">
               <h3 className="text-sm font-bold text-purple-400">Add Item to Track</h3>
               <div className="flex gap-2">
-                <input placeholder="Item name (e.g. Heineken)" value={newItemName} onChange={e => setNewItemName(e.target.value)}
-                  className="flex-1 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-purple-500" />
+                <input
+                  placeholder="Item name (e.g. Heineken)"
+                  value={newItemName}
+                  onChange={e => setNewItemName(e.target.value)}
+                  list="menu-items-list"
+                  className="flex-1 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-purple-500"
+                />
+                <datalist id="menu-items-list">
+                  {menuItems.map(i => <option key={i.id} value={i.name} />)}
+                </datalist>
                 <input type="number" placeholder="Stock" value={newItemStock} onChange={e => setNewItemStock(parseInt(e.target.value) || 0)}
                   className="w-20 bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-purple-500" />
                 <button onClick={addInventoryItem} className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-xs font-bold">
