@@ -144,15 +144,18 @@ const AdminPanel: React.FC = () => {
   };
 
   const saveNewEvent = async () => {
-    if (!newEvent.title) return;
-    const { error } = await supabase.from('events').insert(newEvent);
-    if (!error) {
-      showToast('Event added!');
-      setNewEvent({ is_active: true });
-      setShowNewEventForm(false);
-      fetchEvents();
-    }
-  };
+  if (!newEvent.title) return;
+  const { error } = await supabase.from('events').insert(newEvent);
+  if (error) {
+    console.error('Event insert error:', error);
+    showToast('Error: ' + error.message);
+    return;
+  }
+  showToast('Event added!');
+  setNewEvent({ is_active: true });
+  setShowNewEventForm(false);
+  fetchEvents();
+};
 
   const toggleEventActive = async (id: string, current: boolean) => {
     await supabase.from('events').update({ is_active: !current }).eq('id', id);
