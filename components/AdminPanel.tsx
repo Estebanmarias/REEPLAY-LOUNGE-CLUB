@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { LogOut, Menu, Calendar, ShoppingBag, Image, Save, ToggleLeft, ToggleRight, Loader2, CheckCircle, Trash2, Plus, X, BarChart2, Package, Minus, MessageCircle } from 'lucide-react';
+import { LogOut, Menu, Calendar, ShoppingBag, Image, Save, ToggleLeft, ToggleRight, Loader2, CheckCircle, Trash2, Plus, X, BarChart2, Package, Minus, MessageCircle, ClipboardList } from 'lucide-react';
 
 const ADMIN_PASSWORD = 'reeplay2026';
 
-type AdminView = 'menu' | 'events' | 'orders' | 'gallery' | 'analytics' | 'inventory';
+type AdminView = 'menu' | 'events' | 'orders' | 'gallery' | 'analytics' | 'inventory' | 'physicallog';
 
 interface MenuItemRow {
   id: string;
@@ -87,6 +87,16 @@ const AdminPanel: React.FC = () => {
   const [inventoryLoading, setInventoryLoading] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemStock, setNewItemStock] = useState(0);
+
+  // Physical Sales Log state
+  const [physicalLogs, setPhysicalLogs] = useState<any[]>([]);
+  const [physicalLogsLoading, setPhysicalLogsLoading] = useState(false);
+  const [logItem, setLogItem] = useState('');
+  const [logQty, setLogQty] = useState(1);
+  const [logPrice, setLogPrice] = useState(0);
+  const [loggedBy, setLoggedBy] = useState('Manager');
+  const [logNotes, setLogNotes] = useState('');
+  const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -230,6 +240,54 @@ const AdminPanel: React.FC = () => {
   const deleteInventoryItem = async (id: string) => {
     await supabase.from('inventory').delete().eq('id', id);
     setInventory(prev => prev.filter(i => i.id !== id));
+    showToast('Deleted!');
+  };
+
+  // --- PHYSICAL SALES LOG ---
+  const fetchPhysicalLogs = async () => {
+    setPhysicalLogsLoading(true);
+    const { data } = await supabase
+      .from('physical_sales')
+      .select('*')
+      .order('sale_date', { ascending: false })
+      .limit(50);
+    if (data) setPhysicalLogs(data);
+    setPhysicalLogsLoading(false);
+  };
+
+  const addPhysicalLog = async () => {
+    if (!logItem || logQty <= 0) return;
+    const { error } = await supabase.from('physical_sales').insert({
+      item_name: logItem,
+      quantity_sold: logQty,
+      unit_price: logPrice,
+      logged_by: loggedBy,
+      sale_date: logDate,
+      notes: logNotes || null,
+    });
+    if (!error) {
+      // Deduct from inventory if item is tracked
+      const invItem = inventory.find(i => i.item_name.toLowerCase() === logItem.toLowerCase());
+      if (invItem) {
+        const newStock = Math.max(0, invItem.stock_count - logQty);
+        await supabase.from('inventory').update({ stock_count: newStock }).eq('id', invItem.id);
+        if (newStock === 0) {
+          await supabase.from('menu_items').update({ is_sold_out: true }).ilike('name', invItem.item_name);
+        }
+        fetchInventory();
+      }
+      showToast('Sales log added!');
+      setLogItem('');
+      setLogQty(1);
+      setLogPrice(0);
+      setLogNotes('');
+      fetchPhysicalLogs();
+    }
+  };
+
+  const deletePhysicalLog = async (id: string) => {
+    await supabase.from('physical_sales').delete().eq('id', id);
+    setPhysicalLogs(prev => prev.filter(l => l.id !== id));
     showToast('Deleted!');
   };
 
@@ -380,6 +438,7 @@ const AdminPanel: React.FC = () => {
     if (activeView === 'gallery') fetchGallery();
     if (activeView === 'analytics') fetchAnalytics();
     if (activeView === 'inventory') fetchInventory();
+    if (activeView === 'physicallog') { fetchPhysicalLogs(); fetchInventory(); }
   }, [activeView, isLoggedIn]);
 
   useEffect(() => {
@@ -434,6 +493,7 @@ const AdminPanel: React.FC = () => {
           { id: 'gallery', label: 'Gallery', icon: Image },
           { id: 'analytics', label: 'Analytics', icon: BarChart2 },
           { id: 'inventory', label: 'Inventory', icon: Package },
+          { id: 'physicallog', label: 'Daily Log', icon: ClipboardList },
         ].map(tab => (
           <button
             key={tab.id}
@@ -760,6 +820,114 @@ const AdminPanel: React.FC = () => {
                   )}
                 </div>
               </>
+            )}
+          </div>
+        )}
+
+         {/* --- PHYSICAL SALES LOG --- */}
+        {activeView === 'physicallog' && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-bold">Daily Physical Sales Log</h2>
+              <button onClick={fetchPhysicalLogs} className="text-xs text-purple-400 hover:text-purple-300">Refresh</button>
+            </div>
+
+            {/* Add Entry Form */}
+            <div className="bg-[#18181b] border border-purple-500/30 rounded-xl p-4 space-y-3">
+              <h3 className="text-sm font-bold text-purple-400">Log Physical Sale</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="col-span-2">
+                  <label className="text-xs text-gray-400 uppercase tracking-wider">Item Name</label>
+                  <input
+                    placeholder="e.g. Heineken"
+                    value={logItem}
+                    onChange={e => setLogItem(e.target.value)}
+                    list="inventory-items"
+                    className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-purple-500 mt-1"
+                  />
+                  <datalist id="inventory-items">
+                    {inventory.map(i => <option key={i.id} value={i.item_name} />)}
+                  </datalist>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 uppercase tracking-wider">Qty Sold</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={logQty}
+                    onChange={e => setLogQty(parseInt(e.target.value) || 1)}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-purple-500 mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 uppercase tracking-wider">Unit Price (₦)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={logPrice}
+                    onChange={e => setLogPrice(parseInt(e.target.value) || 0)}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-purple-500 mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 uppercase tracking-wider">Logged By</label>
+                  <input
+                    placeholder="Manager"
+                    value={loggedBy}
+                    onChange={e => setLoggedBy(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-purple-500 mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 uppercase tracking-wider">Sale Date</label>
+                  <input
+                    type="date"
+                    value={logDate}
+                    onChange={e => setLogDate(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-purple-500 mt-1"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-xs text-gray-400 uppercase tracking-wider">Notes (Optional)</label>
+                  <input
+                    placeholder="e.g. Table 5, Cash payment"
+                    value={logNotes}
+                    onChange={e => setLogNotes(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-purple-500 mt-1"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={addPhysicalLog}
+                className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm font-bold mt-1"
+              >
+                Log Sale & Update Inventory
+              </button>
+            </div>
+
+            {/* Log Entries */}
+            {physicalLogsLoading ? <Loader2 className="animate-spin mx-auto mt-8" /> : (
+              physicalLogs.length === 0 ? (
+                <p className="text-gray-500 text-center mt-8">No physical sales logged yet.</p>
+              ) : (
+                physicalLogs.map(log => (
+                  <div key={log.id} className="bg-[#18181b] border border-white/10 rounded-xl p-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-bold text-white">{log.item_name}</p>
+                        <p className="text-gray-400 text-xs mt-0.5">
+                          {log.quantity_sold}x @ ₦{Number(log.unit_price).toLocaleString()} = <span className="text-yellow-500 font-mono font-bold">₦{Number(log.total_amount).toLocaleString()}</span>
+                        </p>
+                        <p className="text-gray-500 text-xs mt-0.5">{log.sale_date} • Logged by {log.logged_by}</p>
+                        {log.notes && <p className="text-purple-300 text-xs mt-0.5">📝 {log.notes}</p>}
+                      </div>
+                      <button onClick={() => deletePhysicalLog(log.id)} className="p-1 hover:text-red-400 text-gray-500">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )
             )}
           </div>
         )}
