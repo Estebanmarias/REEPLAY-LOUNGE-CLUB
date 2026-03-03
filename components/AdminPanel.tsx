@@ -291,8 +291,7 @@ const AdminPanel: React.FC = () => {
     showToast('Deleted!');
   };
 
-  // --- ANALYTICS ---
-  const fetchAnalytics = async () => {
+ const fetchAnalytics = async () => {
     setAnalyticsLoading(true);
     const now = new Date();
     const startOfWeek = new Date(now);
@@ -300,21 +299,39 @@ const AdminPanel: React.FC = () => {
     const startOfLastWeek = new Date(now);
     startOfLastWeek.setDate(now.getDate() - 14);
 
+    // Online orders
     const { data: thisWeek } = await supabase.from('orders').select('*').eq('payment_status', 'paid').gte('created_at', startOfWeek.toISOString());
     const { data: lastWeek } = await supabase.from('orders').select('*').eq('payment_status', 'paid').gte('created_at', startOfLastWeek.toISOString()).lt('created_at', startOfWeek.toISOString());
 
+    // Physical sales
+    const { data: thisWeekPhysical } = await supabase.from('physical_sales').select('*').gte('sale_date', startOfWeek.toISOString().split('T')[0]);
+    const { data: lastWeekPhysical } = await supabase.from('physical_sales').select('*').gte('sale_date', startOfLastWeek.toISOString().split('T')[0]).lt('sale_date', startOfWeek.toISOString().split('T')[0]);
+
     if (!thisWeek) { setAnalyticsLoading(false); return; }
 
-    const thisRevenue = thisWeek.reduce((t: number, o: any) => t + (o.total || 0), 0);
-    const lastRevenue = (lastWeek || []).reduce((t: number, o: any) => t + (o.total || 0), 0);
-    const revenueChange = lastRevenue === 0 ? 100 : Math.round(((thisRevenue - lastRevenue) / lastRevenue) * 100);
-    const thisCount = thisWeek.length;
+    // Online revenue
+    const onlineRevenue = thisWeek.reduce((t: number, o: any) => t + (o.total || 0), 0);
+    const lastOnlineRevenue = (lastWeek || []).reduce((t: number, o: any) => t + (o.total || 0), 0);
+
+    // Physical revenue
+    const physicalRevenue = (thisWeekPhysical || []).reduce((t: number, o: any) => t + (Number(o.total_amount) || 0), 0);
+    const lastPhysicalRevenue = (lastWeekPhysical || []).reduce((t: number, o: any) => t + (Number(o.total_amount) || 0), 0);
+
+    // Combined
+    const combinedRevenue = onlineRevenue + physicalRevenue;
+    const lastCombinedRevenue = lastOnlineRevenue + lastPhysicalRevenue;
+    const revenueChange = lastCombinedRevenue === 0 ? 100 : Math.round(((combinedRevenue - lastCombinedRevenue) / lastCombinedRevenue) * 100);
+
+    const onlineCount = thisWeek.length;
+    const physicalCount = (thisWeekPhysical || []).length;
     const lastCount = (lastWeek || []).length;
-    const countChange = lastCount === 0 ? 100 : Math.round(((thisCount - lastCount) / lastCount) * 100);
-    const avgOrder = thisCount === 0 ? 0 : Math.round(thisRevenue / thisCount);
+    const countChange = lastCount === 0 ? 100 : Math.round(((onlineCount - lastCount) / lastCount) * 100);
+
+    const avgOrder = (onlineCount + physicalCount) === 0 ? 0 : Math.round(combinedRevenue / (onlineCount + physicalCount));
     const pickupCount = thisWeek.filter((o: any) => o.type === 'pickup').length;
     const deliveryCount = thisWeek.filter((o: any) => o.type === 'delivery').length;
 
+    // Top items (online)
     const itemMap: Record<string, number> = {};
     thisWeek.forEach((order: any) => {
       (order.items || []).forEach((item: any) => {
@@ -325,18 +342,26 @@ const AdminPanel: React.FC = () => {
         itemMap[name] = (itemMap[name] || 0) + item.quantity;
       });
     });
+    // Top items (physical)
+    (thisWeekPhysical || []).forEach((log: any) => {
+      if (!log.item_name) return;
+      itemMap[log.item_name] = (itemMap[log.item_name] || 0) + log.quantity_sold;
+    });
     const topItems = Object.entries(itemMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
-    const dailyRevenue: { day: string; revenue: number }[] = [];
+    // Daily revenue — online + physical combined per day
+    const dailyRevenue: { day: string; online: number; physical: number }[] = [];
     for (let i = 6; i >= 0; i--) {
       const day = new Date();
       day.setDate(day.getDate() - i);
       const dayStr = day.toLocaleDateString('en-US', { weekday: 'short' });
-      const dayRevenue = thisWeek.filter((o: any) => new Date(o.created_at).toDateString() === day.toDateString()).reduce((t: number, o: any) => t + (o.total || 0), 0);
-      dailyRevenue.push({ day: dayStr, revenue: dayRevenue });
+      const dayDateStr = day.toISOString().split('T')[0];
+      const dayOnline = thisWeek.filter((o: any) => new Date(o.created_at).toDateString() === day.toDateString()).reduce((t: number, o: any) => t + (o.total || 0), 0);
+      const dayPhysical = (thisWeekPhysical || []).filter((o: any) => o.sale_date === dayDateStr).reduce((t: number, o: any) => t + (Number(o.total_amount) || 0), 0);
+      dailyRevenue.push({ day: dayStr, online: dayOnline, physical: dayPhysical });
     }
 
-    setAnalytics({ thisRevenue, revenueChange, thisCount, countChange, avgOrder, pickupCount, deliveryCount, topItems, dailyRevenue });
+    setAnalytics({ onlineRevenue, physicalRevenue, combinedRevenue, revenueChange, onlineCount, physicalCount, countChange, avgOrder, pickupCount, deliveryCount, topItems, dailyRevenue });
     setAnalyticsLoading(false);
   };
 
@@ -759,8 +784,11 @@ const AdminPanel: React.FC = () => {
               <>
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { label: 'This Week Revenue', value: `₦${analytics.thisRevenue.toLocaleString()}`, change: analytics.revenueChange },
-                    { label: 'This Week Orders', value: analytics.thisCount, change: analytics.countChange },
+                    { label: 'Online Revenue', value: `₦${analytics.onlineRevenue.toLocaleString()}`, change: null },
+                    { label: 'Physical Revenue', value: `₦${analytics.physicalRevenue.toLocaleString()}`, change: null },
+                    { label: 'Combined Total', value: `₦${analytics.combinedRevenue.toLocaleString()}`, change: analytics.revenueChange },
+                    { label: 'Online Orders', value: analytics.onlineCount, change: analytics.countChange },
+                    { label: 'Physical Sales', value: analytics.physicalCount, change: null },
                     { label: 'Avg Order Value', value: `₦${analytics.avgOrder.toLocaleString()}`, change: null },
                     { label: 'Pickup vs Delivery', value: `${analytics.pickupCount} / ${analytics.deliveryCount}`, change: null },
                   ].map(stat => (
@@ -777,16 +805,25 @@ const AdminPanel: React.FC = () => {
                 </div>
 
                 <div className="bg-[#18181b] border border-white/10 rounded-xl p-4">
-                  <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-4">Daily Revenue (Last 7 Days)</p>
+                  <div className="flex justify-between items-center mb-4">
+                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Daily Revenue (Last 7 Days)</p>
+                    <div className="flex items-center gap-3 text-[10px]">
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-purple-600 inline-block" /> Online</span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-green-600 inline-block" /> Physical</span>
+                    </div>
+                  </div>
                   <div className="flex items-end gap-2 h-32">
                     {analytics.dailyRevenue.map((d: any) => {
-                      const max = Math.max(...analytics.dailyRevenue.map((x: any) => x.revenue));
-                      const height = max === 0 ? 0 : Math.round((d.revenue / max) * 100);
+                      const max = Math.max(...analytics.dailyRevenue.map((x: any) => x.online + x.physical));
+                      const onlineHeight = max === 0 ? 0 : Math.round((d.online / max) * 100);
+                      const physicalHeight = max === 0 ? 0 : Math.round((d.physical / max) * 100);
+                      const total = d.online + d.physical;
                       return (
                         <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
-                          <p className="text-[9px] text-gray-500 font-mono">{d.revenue > 0 ? `₦${(d.revenue / 1000).toFixed(0)}k` : ''}</p>
+                          <p className="text-[9px] text-gray-500 font-mono">{total > 0 ? `₦${(total / 1000).toFixed(0)}k` : ''}</p>
                           <div className="w-full bg-white/5 rounded-t-md relative" style={{ height: '80px' }}>
-                            <div className="absolute bottom-0 w-full bg-purple-600 rounded-t-md transition-all duration-500" style={{ height: `${height}%` }} />
+                            <div className="absolute bottom-0 w-full bg-green-600 rounded-t-md transition-all duration-500" style={{ height: `${physicalHeight}%` }} />
+                            <div className="absolute bottom-0 w-full bg-purple-600 rounded-t-md transition-all duration-500" style={{ height: `${onlineHeight}%`, marginBottom: `${physicalHeight}%` }} />
                           </div>
                           <p className="text-[9px] text-gray-500">{d.day}</p>
                         </div>
